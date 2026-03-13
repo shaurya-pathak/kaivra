@@ -78,5 +78,37 @@ def schema():
     click.echo(json.dumps(json_schema, indent=2))
 
 
+@main.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("-o", "--outdir", default="frames", help="Output directory for PNG frames")
+@click.option("-n", "--count", default=6, help="Number of random frames to render")
+@click.option("--seed", default=None, type=int, help="Random seed for reproducible sampling")
+def sample(input_file: str, outdir: str, count: int, seed: int | None):
+    """Render a few random frames to PNG for quick iteration."""
+    import os
+    import random
+
+    from dsa_anim.dsl.parser import parse_file
+    from dsa_anim.scene_graph.builder import build_scene_graph
+    from dsa_anim.themes.registry import get_theme
+    from dsa_anim.render.cairo_renderer import CairoRenderer
+
+    doc = parse_file(input_file)
+    theme = get_theme(doc.meta.theme)
+    graph = build_scene_graph(doc, theme)
+
+    if seed is not None:
+        random.seed(seed)
+
+    os.makedirs(outdir, exist_ok=True)
+    renderer = CairoRenderer(theme)
+    for i in range(count):
+        t = random.uniform(0.0, graph.total_duration)
+        filename = f"frame_{i+1:02d}_{t:0.2f}s.png"
+        path = os.path.join(outdir, filename)
+        renderer.render_frame_to_file(graph, t, path)
+        click.echo(f"Wrote {path}")
+
+
 if __name__ == "__main__":
     main()

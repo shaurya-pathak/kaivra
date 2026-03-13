@@ -73,16 +73,16 @@ class CairoRenderer:
         apply_animations_at_time(scene.node_map, scene.timeline, scene_time)
         camera = compute_camera_at_time(
             scene.camera_initial, scene.camera_keyframes,
-            scene_time, graph.width, graph.height,
+            scene_time, graph.width, graph.height, scene.node_map,
         )
         self._fill_background(ctx, graph.width, graph.height)
         ctx.save()
         self._apply_camera(ctx, camera, graph.width, graph.height)
         for node in scene.nodes:
-            self._draw_node(ctx, node, scene.node_map)
+            self._draw_node(ctx, node, scene.node_map, scene_time)
         ctx.restore()
         ctx.save()
-        if scene.narration:
+        if graph.show_narration and scene.narration:
             self._draw_narration(ctx, scene.narration, scene_time, scene.duration, graph.width, graph.height)
         self._draw_progress_bar(ctx, scene_time, scene.duration, graph.width)
         ctx.restore()
@@ -115,27 +115,51 @@ class CairoRenderer:
         ctx.fill()
 
     def _apply_camera(self, ctx: cairo.Context, camera: CameraState, w: int, h: int) -> None:
-        if camera.zoom != 1.0:
-            cx, cy = w / 2, h / 2
-            ctx.translate(cx, cy)
+        if camera.zoom != 1.0 or camera.center_x or camera.center_y:
+            cx = camera.center_x or w / 2
+            cy = camera.center_y or h / 2
+            ctx.translate(w / 2, h / 2)
             ctx.scale(camera.zoom, camera.zoom)
             ctx.translate(-cx, -cy)
 
-    def _draw_node(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]) -> None:
+    def _draw_node(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
         if not node.visible:
             return
 
         ctx.save()
 
-        # Apply translate (move animation)
-        if node.translate_x != 0.0 or node.translate_y != 0.0:
-            ctx.translate(node.translate_x, node.translate_y)
+        # Idle motion (subtle float/jitter/breathe)
+        idle_dx = 0.0
+        idle_dy = 0.0
+        idle_scale = 1.0
+        if node.idle_preset:
+            preset = node.idle_preset
+            speed = node.idle_speed or 1.5
+            if preset in {"float", "jitter"}:
+                intensity = node.idle_intensity if node.idle_intensity is not None else 6.0
+                freq = speed * (3.0 if preset == "jitter" else 1.0)
+                axis = node.idle_axis or "both"
+                if axis in {"x", "both"}:
+                    idle_dx = math.sin(scene_time * freq) * intensity
+                if axis in {"y", "both"}:
+                    idle_dy = math.cos(scene_time * freq * 1.3) * intensity
+            elif preset == "breathe":
+                intensity = node.idle_intensity if node.idle_intensity is not None else 0.03
+                idle_scale = 1.0 + math.sin(scene_time * speed) * intensity
+
+        # Apply translate (move animation + idle)
+        tx = node.translate_x + idle_dx
+        ty = node.translate_y + idle_dy
+        if tx != 0.0 or ty != 0.0:
+            ctx.translate(tx, ty)
 
         # Apply scale transform around center
-        if node.scale_x != 1.0 or node.scale_y != 1.0:
+        sx = node.scale_x * idle_scale
+        sy = node.scale_y * idle_scale
+        if sx != 1.0 or sy != 1.0:
             cx, cy = node.rect.center.x, node.rect.center.y
             ctx.translate(cx, cy)
-            ctx.scale(node.scale_x, node.scale_y)
+            ctx.scale(sx, sy)
             ctx.translate(-cx, -cy)
 
         match node.obj_type:
@@ -148,13 +172,7 @@ class CairoRenderer:
             case ObjectType.CONNECTOR:
                 self._draw_connector(ctx, node, node_map)
             case ObjectType.GROUP:
-                self._draw_group(ctx, node, node_map)
-            case ObjectType.MATRIX:
-                self._draw_matrix(ctx, node)
-            case ObjectType.ATTENTION_MAP:
-                self._draw_attention_map(ctx, node)
-            case ObjectType.PROBABILITY_BAR:
-                self._draw_probability_bar(ctx, node)
+                self._draw_group(ctx, node, node_map, scene_time)
             case ObjectType.CIRCLE:
                 self._draw_circle(ctx, node)
             case ObjectType.CALLOUT:
@@ -353,7 +371,7 @@ class CairoRenderer:
             )
             ctx.stroke()
 
-    def _draw_group(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]) -> None:
+    def _draw_group(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
         # Draw label if present
         if node.label:
             ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
@@ -371,170 +389,7 @@ class CairoRenderer:
             child.visible = node.visible
             child.opacity = node.opacity
             child.draw_progress = node.draw_progress
-            self._draw_node(ctx, child, node_map)
-
-    def _draw_matrix(self, ctx: cairo.Context, node: SceneNode) -> None:
-        rows = node.matrix_rows or 4
-        cols = node.matrix_cols or 4
-        r = node.rect
-        cell_size = min(r.width / (cols + 2), r.height / (rows + 1))
-        cell_size = min(cell_size, 40)
-
-        label_offset = 80 if node.matrix_labels else 0
-        grid_x = r.x + label_offset + (r.width - label_offset - cols * cell_size) / 2
-        grid_y = r.y + (r.height - rows * cell_size) / 2
-
-        # Seed random for consistent heatmap
-        rng = random.Random(42)
-
-        cells_to_show = int(rows * cols * node.draw_progress)
-        cell_idx = 0
-
-        for row in range(rows):
-            # Row label
-            if node.matrix_labels and node.matrix_labels.get("rows") and row < len(node.matrix_labels["rows"]):
-                ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-                ctx.set_font_size(14)
-                tr, tg, tb, _ = hex_to_rgba(self.theme.text_color)
-                ctx.set_source_rgba(tr, tg, tb, node.opacity)
-                label = node.matrix_labels["rows"][row]
-                extents = ctx.text_extents(label)
-                ctx.move_to(grid_x - extents.width - 8, grid_y + row * cell_size + cell_size / 2 + extents.height / 2)
-                ctx.show_text(label)
-
-            for col in range(cols):
-                if cell_idx >= cells_to_show:
-                    break
-                x = grid_x + col * cell_size
-                y = grid_y + row * cell_size
-
-                # Heatmap color
-                val = rng.random()
-                hr = 0.04 + val * 0.3
-                hg = 0.52 + val * 0.4
-                hb = 0.89
-
-                ctx.rectangle(x + 1, y + 1, cell_size - 2, cell_size - 2)
-                ctx.set_source_rgba(hr, hg, hb, node.opacity * 0.8)
-                ctx.fill_preserve()
-                ctx.set_source_rgba(0.8, 0.85, 0.9, node.opacity * 0.5)
-                ctx.set_line_width(0.5)
-                ctx.stroke()
-
-                cell_idx += 1
-
-    def _draw_attention_map(self, ctx: cairo.Context, node: SceneNode) -> None:
-        if not node.tokens:
-            return
-
-        r = node.rect
-        n = len(node.tokens)
-
-        # Arrange tokens in a horizontal line
-        token_width = min(80, r.width / (n + 1))
-        total_w = n * token_width + (n - 1) * 8
-        start_x = r.x + (r.width - total_w) / 2
-        token_y = r.y + r.height * 0.7
-
-        # Draw tokens
-        token_positions = {}
-        ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-        ctx.set_font_size(16)
-
-        for i, token in enumerate(node.tokens):
-            tx = start_x + i * (token_width + 8)
-            token_positions[token] = (tx + token_width / 2, token_y)
-
-            # Token chip
-            fr, fg, fb, _ = hex_to_rgba(self.theme.token_fill)
-            self._rounded_rect(ctx, tx, token_y - 15, token_width, 30, 4)
-            ctx.set_source_rgba(fr, fg, fb, node.opacity)
-            ctx.fill_preserve()
-            br, bg, bb, _ = hex_to_rgba(self.theme.token_border)
-            ctx.set_source_rgba(br, bg, bb, node.opacity)
-            ctx.set_line_width(1)
-            ctx.stroke()
-
-            # Token text
-            tr, tg, tb, _ = hex_to_rgba(self.theme.text_color)
-            ctx.set_source_rgba(tr, tg, tb, node.opacity)
-            extents = ctx.text_extents(token)
-            ctx.move_to(tx + (token_width - extents.width) / 2, token_y + 5)
-            ctx.show_text(token)
-
-        # Draw attention arcs
-        if node.highlight_pairs and node.draw_progress > 0.3:
-            arc_progress = min(1.0, (node.draw_progress - 0.3) / 0.7)
-            pairs_to_show = int(len(node.highlight_pairs) * arc_progress)
-
-            for pair in node.highlight_pairs[:pairs_to_show]:
-                from_token = pair.get("from")
-                to_token = pair.get("to")
-                weight = pair.get("weight", 0.5)
-
-                if from_token in token_positions and to_token in token_positions:
-                    fx, fy = token_positions[from_token]
-                    tx_pos, ty = token_positions[to_token]
-
-                    # Draw arc above tokens
-                    mid_x = (fx + tx_pos) / 2
-                    arc_height = abs(tx_pos - fx) * 0.4 + 30
-
-                    ar, ag, ab, _ = hex_to_rgba(self.theme.accent)
-                    ctx.set_source_rgba(ar, ag, ab, node.opacity * weight)
-                    ctx.set_line_width(2 + weight * 3)
-
-                    ctx.move_to(fx, fy - 15)
-                    ctx.curve_to(fx, fy - arc_height, tx_pos, fy - arc_height, tx_pos, ty - 15)
-                    ctx.stroke()
-
-    def _draw_probability_bar(self, ctx: cairo.Context, node: SceneNode) -> None:
-        if not node.prob_items:
-            return
-
-        r = node.rect
-        n = len(node.prob_items)
-        bar_height = 28
-        bar_gap = 8
-        label_width = 80
-        max_bar_width = r.width - label_width - 80
-
-        total_h = n * (bar_height + bar_gap) - bar_gap
-        y_start = r.y + (r.height - total_h) / 2
-
-        max_val = max(item["value"] for item in node.prob_items)
-
-        for i, item in enumerate(node.prob_items):
-            y = y_start + i * (bar_height + bar_gap)
-            val = item["value"]
-            bar_w = (val / max_val) * max_bar_width * node.draw_progress
-
-            # Label
-            ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-            ctx.set_font_size(18)
-            tr, tg, tb, _ = hex_to_rgba(self.theme.text_color)
-            ctx.set_source_rgba(tr, tg, tb, node.opacity)
-            ctx.move_to(r.x, y + bar_height * 0.7)
-            ctx.show_text(item["label"])
-
-            # Bar
-            bar_x = r.x + label_width
-            if i == 0:
-                br, bg, bb, _ = hex_to_rgba(self.theme.accent)
-            else:
-                br, bg, bb, _ = hex_to_rgba(self.theme.muted)
-
-            self._rounded_rect(ctx, bar_x, y, bar_w, bar_height, 4)
-            ctx.set_source_rgba(br, bg, bb, node.opacity * 0.8)
-            ctx.fill()
-
-            # Value label
-            if node.draw_progress > 0.5:
-                ctx.set_font_size(14)
-                pct = f"{val * 100:.0f}%"
-                ctx.set_source_rgba(tr, tg, tb, node.opacity)
-                ctx.move_to(bar_x + bar_w + 8, y + bar_height * 0.7)
-                ctx.show_text(pct)
+            self._draw_node(ctx, child, node_map, scene_time)
 
     def _draw_circle(self, ctx: cairo.Context, node: SceneNode) -> None:
         cx, cy = node.rect.center.x, node.rect.center.y

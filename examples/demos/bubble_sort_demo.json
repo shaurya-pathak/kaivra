@@ -1,0 +1,605 @@
+{
+  "version": "1.1",
+  "meta": {
+    "title": "Bubble Sort \u2014 Agentic Demo",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern",
+    "show_narration": false,
+    "continuity": true,
+    "continuity_duration": "0.6s",
+    "glow_release_padding": "0.8s"
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "steps",
+      "position": "bottom",
+      "layout": {
+        "type": "carousel",
+        "gap": "large",
+        "curve": 10
+      },
+      "children": [
+        {
+          "type": "token",
+          "id": "step_compare",
+          "content": "1  Compare"
+        },
+        {
+          "type": "token",
+          "id": "step_swap",
+          "content": "2  Swap"
+        },
+        {
+          "type": "token",
+          "id": "step_advance",
+          "content": "3  Advance"
+        },
+        {
+          "type": "token",
+          "id": "step_pass",
+          "content": "4  Pass done"
+        },
+        {
+          "type": "token",
+          "id": "step_sorted",
+          "content": "5  Sorted"
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "setup",
+      "duration": "8s",
+      "template": "one-column",
+      "narration": "Bubble sort compares neighboring values and swaps them into order \u2014 one pass at a time.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Bubble Sort",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "array",
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "a0",
+              "content": "7",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a1",
+              "content": "3",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a2",
+              "content": "5",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a3",
+              "content": "2",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a4",
+              "content": "6",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_compare",
+          "at": "0s",
+          "duration": "7.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_compare",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_compare",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "move-to",
+          "target": "agent",
+          "to_id": "a0",
+          "at": "1.4s",
+          "duration": "0.8s",
+          "offset_x": -120
+        },
+        {
+          "action": "move-to",
+          "target": "agent",
+          "to_id": "a1",
+          "at": "2.4s",
+          "duration": "0.8s",
+          "offset_x": -120
+        },
+        {
+          "action": "pulse",
+          "target": "agent",
+          "at": "3.4s",
+          "duration": "1.2s"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "compare_swap",
+      "duration": "9s",
+      "template": "one-column",
+      "narration": "First compare: 7 and 3. Out of order \u2014 swap them.",
+      "focus": [
+        "a0",
+        "a1"
+      ],
+      "focus_style": {
+        "at": "0.8s",
+        "duration": "2.2s",
+        "scale": 1.12,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Compare & Swap",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "array",
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "a0",
+              "content": "7",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a1",
+              "content": "3",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a2",
+              "content": "5",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a3",
+              "content": "2",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a4",
+              "content": "6",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_swap",
+          "at": "0s",
+          "duration": "8.2s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_swap",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_swap",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "move-to",
+          "target": "agent",
+          "to_id": "a0",
+          "at": "1.0s",
+          "duration": "0.8s",
+          "offset_x": -120
+        },
+        {
+          "action": "move-to",
+          "target": "agent",
+          "to_id": "a1",
+          "at": "2.0s",
+          "duration": "0.8s",
+          "offset_x": -120
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "a0",
+            "a1"
+          ],
+          "at": "1.4s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "pulse",
+          "target": [
+            "a0",
+            "a1"
+          ],
+          "at": "4.8s",
+          "duration": "1.4s"
+        },
+        {
+          "action": "swap",
+          "target": [
+            "a0",
+            "a1"
+          ],
+          "at": "3.4s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "advance",
+      "duration": "9s",
+      "template": "one-column",
+      "narration": "Advance the window: 7 meets 5 \u2014 another swap keeps the bigger value moving right.",
+      "focus": [
+        "a1",
+        "a2"
+      ],
+      "focus_style": {
+        "at": "0.8s",
+        "duration": "2.2s",
+        "scale": 1.12,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Advance",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "array",
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "a0",
+              "content": "3",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a1",
+              "content": "7",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a2",
+              "content": "5",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a3",
+              "content": "2",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a4",
+              "content": "6",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_advance",
+          "at": "0s",
+          "duration": "8.2s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_advance",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_advance",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "move-to",
+          "target": "agent",
+          "to_id": "a1",
+          "at": "1.0s",
+          "duration": "0.8s",
+          "offset_x": -120
+        },
+        {
+          "action": "move-to",
+          "target": "agent",
+          "to_id": "a2",
+          "at": "2.0s",
+          "duration": "0.8s",
+          "offset_x": -120
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "a1",
+            "a2"
+          ],
+          "at": "1.4s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "pulse",
+          "target": [
+            "a1",
+            "a2"
+          ],
+          "at": "4.8s",
+          "duration": "1.4s"
+        },
+        {
+          "action": "swap",
+          "target": [
+            "a1",
+            "a2"
+          ],
+          "at": "3.4s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "sorted",
+      "duration": "8s",
+      "template": "one-column",
+      "narration": "After a few passes, the largest value settles at the end. The array is sorted.",
+      "focus": [
+        "a4"
+      ],
+      "focus_style": {
+        "at": "0.8s",
+        "duration": "2.2s",
+        "scale": 1.2,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Sorted",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "array",
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "a0",
+              "content": "2",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a1",
+              "content": "3",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a2",
+              "content": "5",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a3",
+              "content": "6",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "box",
+              "id": "a4",
+              "content": "7",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_sorted",
+          "at": "0s",
+          "duration": "7.2s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "scale",
+          "target": "step_sorted",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_sorted",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "a0",
+            "a1",
+            "a2",
+            "a3",
+            "a4"
+          ],
+          "at": "2.6s",
+          "duration": "3.0s",
+          "style": "glow",
+          "color": "success",
+          "stagger": "0.15s"
+        },
+        {
+          "action": "pulse",
+          "target": "agent",
+          "at": "3.0s",
+          "duration": "1.6s"
+        }
+      ],
+      "auto_visible": true
+    }
+  ]
+}

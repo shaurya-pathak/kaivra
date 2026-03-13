@@ -21,7 +21,12 @@ class StackStrategy:
 
         sizes = [estimate_object_size(obj, theme) for obj in objects]
         total_h = sum(s.height for s in sizes) + gap * (len(sizes) - 1)
-        y = bounds.y + (bounds.height - total_h) / 2
+        if align in {"top", "start"}:
+            y = bounds.y
+        elif align in {"bottom", "end"}:
+            y = bounds.y + bounds.height - total_h
+        else:
+            y = bounds.y + (bounds.height - total_h) / 2
 
         results: dict[str, Rect] = {}
         for obj, size in zip(objects, sizes):

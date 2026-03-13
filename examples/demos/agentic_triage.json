@@ -1,0 +1,1220 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "Agentic Test Triage",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern"
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "carousel",
+      "position": "bottom",
+      "layout": {
+        "type": "flow",
+        "direction": "horizontal",
+        "gap": "medium",
+        "align": "center"
+      },
+      "children": [
+        {
+          "type": "token",
+          "id": "step_run",
+          "content": "1  Run tests"
+        },
+        {
+          "type": "token",
+          "id": "step_fail",
+          "content": "2  Detect failure"
+        },
+        {
+          "type": "token",
+          "id": "step_logs",
+          "content": "3  Read logs"
+        },
+        {
+          "type": "token",
+          "id": "step_decide",
+          "content": "4  Decide cause"
+        },
+        {
+          "type": "token",
+          "id": "step_fix",
+          "content": "5  Write fix"
+        },
+        {
+          "type": "token",
+          "id": "step_mr",
+          "content": "6  Open MR"
+        },
+        {
+          "type": "token",
+          "id": "step_resume",
+          "content": "7  Resume pipeline"
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "tests_running",
+      "duration": "10s",
+      "template": "two-column",
+      "narration": "A CI/CD pipeline kicks off. Five tests spin up \u2014 the first four pass, the last one stumbles.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "Test Suite Running",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "small",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "t_api",
+              "content": "test_api_response"
+            },
+            {
+              "type": "token",
+              "id": "t_auth",
+              "content": "test_auth_flow"
+            },
+            {
+              "type": "token",
+              "id": "t_db",
+              "content": "test_db_write"
+            },
+            {
+              "type": "token",
+              "id": "t_ui",
+              "content": "test_ui_login"
+            },
+            {
+              "type": "token",
+              "id": "t_checkout",
+              "content": "test_e2e_checkout"
+            }
+          ]
+        },
+        {
+          "type": "circle",
+          "id": "runner",
+          "content": "AI"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.2s"
+        },
+        {
+          "action": "scale",
+          "target": "main",
+          "at": "0.4s",
+          "duration": "1.0s",
+          "scale_factor": 1.04
+        },
+        {
+          "action": "scale",
+          "target": "main",
+          "at": "1.8s",
+          "duration": "0.8s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": "step_run",
+          "at": "0s",
+          "duration": "9.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_run",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_run",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "t_api",
+            "t_auth",
+            "t_db",
+            "t_ui"
+          ],
+          "at": "1.2s",
+          "duration": "3.4s",
+          "style": "glow",
+          "color": "success",
+          "stagger": "0.6s"
+        },
+        {
+          "action": "highlight",
+          "target": "t_checkout",
+          "at": "5.2s",
+          "duration": "2.8s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "fade-in",
+          "target": "runner",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "move-to",
+          "target": "runner",
+          "to_id": "t_api",
+          "at": "1.2s",
+          "duration": "0.6s",
+          "offset_x": -140
+        },
+        {
+          "action": "move-to",
+          "target": "runner",
+          "to_id": "t_auth",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "offset_x": -140
+        },
+        {
+          "action": "move-to",
+          "target": "runner",
+          "to_id": "t_db",
+          "at": "2.8s",
+          "duration": "0.6s",
+          "offset_x": -140
+        },
+        {
+          "action": "move-to",
+          "target": "runner",
+          "to_id": "t_ui",
+          "at": "3.6s",
+          "duration": "0.6s",
+          "offset_x": -140
+        },
+        {
+          "action": "move-to",
+          "target": "runner",
+          "to_id": "t_checkout",
+          "at": "4.4s",
+          "duration": "0.8s",
+          "offset_x": -140
+        },
+        {
+          "action": "pulse",
+          "target": "runner",
+          "at": "5.6s",
+          "duration": "1.4s"
+        }
+      ]
+    },
+    {
+      "id": "test_fail",
+      "duration": "8s",
+      "template": "two-column",
+      "narration": "The pipeline pauses on a single failing test. The triage agent spins up and traces the fault.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "Pipeline Paused \u2014 Failure Detected",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "small",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "f_api",
+              "content": "PASS  test_api_response"
+            },
+            {
+              "type": "token",
+              "id": "f_auth",
+              "content": "PASS  test_auth_flow"
+            },
+            {
+              "type": "token",
+              "id": "f_db",
+              "content": "PASS  test_db_write"
+            },
+            {
+              "type": "token",
+              "id": "f_ui",
+              "content": "PASS  test_ui_login"
+            },
+            {
+              "type": "token",
+              "id": "f_checkout",
+              "content": "FAIL  test_e2e_checkout"
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "alert_link",
+          "from": "f_checkout",
+          "to": "f_checkout"
+        },
+        {
+          "type": "circle",
+          "id": "alert_bolt",
+          "content": "!"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "scale",
+          "target": "main",
+          "at": "0.6s",
+          "duration": "0.8s",
+          "scale_factor": 1.03
+        },
+        {
+          "action": "scale",
+          "target": "main",
+          "at": "1.8s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": "step_fail",
+          "at": "0s",
+          "duration": "7.2s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "scale",
+          "target": "step_fail",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_fail",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "f_api",
+            "f_auth",
+            "f_db",
+            "f_ui"
+          ],
+          "at": "1.0s",
+          "duration": "2.8s",
+          "style": "glow",
+          "color": "success",
+          "stagger": "0.4s"
+        },
+        {
+          "action": "highlight",
+          "target": "f_checkout",
+          "at": "3.2s",
+          "duration": "3.2s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "pulse",
+          "target": "f_checkout",
+          "at": "3.4s",
+          "duration": "1.6s"
+        },
+        {
+          "action": "move",
+          "target": "f_checkout",
+          "at": "4.8s",
+          "duration": "0.1s",
+          "offset_x": 8
+        },
+        {
+          "action": "move",
+          "target": "f_checkout",
+          "at": "4.9s",
+          "duration": "0.1s",
+          "offset_x": -8
+        },
+        {
+          "action": "move",
+          "target": "f_checkout",
+          "at": "5.0s",
+          "duration": "0.1s",
+          "offset_x": 6
+        },
+        {
+          "action": "move",
+          "target": "f_checkout",
+          "at": "5.1s",
+          "duration": "0.1s",
+          "offset_x": -6
+        },
+        {
+          "action": "move",
+          "target": "f_checkout",
+          "at": "5.2s",
+          "duration": "0.1s",
+          "offset_x": 4
+        },
+        {
+          "action": "move",
+          "target": "f_checkout",
+          "at": "5.3s",
+          "duration": "0.1s",
+          "offset_x": 0
+        },
+        {
+          "action": "fade-in",
+          "target": "alert_bolt",
+          "at": "4.0s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "move-to",
+          "target": "alert_bolt",
+          "to_id": "f_checkout",
+          "at": "4.0s",
+          "duration": "0.8s",
+          "offset_x": 120
+        },
+        {
+          "action": "pulse",
+          "target": "alert_bolt",
+          "at": "4.8s",
+          "duration": "1.2s"
+        }
+      ]
+    },
+    {
+      "id": "read_logs",
+      "duration": "10s",
+      "template": "two-column",
+      "narration": "The agent streams the logs, line by line, searching for the first real error signal.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "Agent Reading Logs",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "small",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "log0",
+              "content": "[INFO]  Starting test_e2e_checkout"
+            },
+            {
+              "type": "token",
+              "id": "log1",
+              "content": "[INFO]  Launching browser driver"
+            },
+            {
+              "type": "token",
+              "id": "log2",
+              "content": "[ERROR] WebDriver: port 4444 in use"
+            },
+            {
+              "type": "token",
+              "id": "log3",
+              "content": "[ERROR] selenium WebDriverException"
+            },
+            {
+              "type": "token",
+              "id": "log4",
+              "content": "[INFO]  App code was never reached"
+            }
+          ]
+        },
+        {
+          "type": "circle",
+          "id": "scanner",
+          "content": "scan"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "highlight",
+          "target": "step_logs",
+          "at": "0s",
+          "duration": "9.0s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_logs",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_logs",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "fade-in",
+          "target": "scanner",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "move-to",
+          "target": "scanner",
+          "to_id": "log0",
+          "at": "1.2s",
+          "duration": "0.7s",
+          "offset_x": -160
+        },
+        {
+          "action": "move-to",
+          "target": "scanner",
+          "to_id": "log1",
+          "at": "2.2s",
+          "duration": "0.7s",
+          "offset_x": -160
+        },
+        {
+          "action": "move-to",
+          "target": "scanner",
+          "to_id": "log2",
+          "at": "3.2s",
+          "duration": "0.7s",
+          "offset_x": -160
+        },
+        {
+          "action": "move-to",
+          "target": "scanner",
+          "to_id": "log3",
+          "at": "4.2s",
+          "duration": "0.7s",
+          "offset_x": -160
+        },
+        {
+          "action": "move-to",
+          "target": "scanner",
+          "to_id": "log4",
+          "at": "5.2s",
+          "duration": "0.7s",
+          "offset_x": -160
+        },
+        {
+          "action": "pulse",
+          "target": "scanner",
+          "at": "6.2s",
+          "duration": "1.6s"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "log2",
+            "log3"
+          ],
+          "at": "6.0s",
+          "duration": "2.8s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": "log4",
+          "at": "6.6s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "decision",
+      "duration": "8s",
+      "template": "two-column",
+      "narration": "Verdict: automation failure. The WebDriver port conflict is test infrastructure, not application code.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "Root Cause: Automation Failure",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "options",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "opt_code",
+                  "content": "Code Bug"
+                },
+                {
+                  "type": "box",
+                  "id": "opt_infra",
+                  "content": "Automation Failure"
+                }
+              ]
+            },
+            {
+              "type": "token",
+              "id": "reason",
+              "content": "WebDriver port conflict \u2014 test harness, not app code"
+            }
+          ]
+        },
+        {
+          "type": "circle",
+          "id": "stamp",
+          "content": "OK"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "highlight",
+          "target": "step_decide",
+          "at": "0s",
+          "duration": "7.0s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_decide",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_decide",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": "opt_code",
+          "at": "1.4s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "muted"
+        },
+        {
+          "action": "highlight",
+          "target": "opt_infra",
+          "at": "1.4s",
+          "duration": "3.2s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "pulse",
+          "target": "opt_infra",
+          "at": "2.8s",
+          "duration": "1.6s"
+        },
+        {
+          "action": "fade-in",
+          "target": "stamp",
+          "at": "3.0s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "move-to",
+          "target": "stamp",
+          "to_id": "opt_infra",
+          "at": "3.0s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "scale",
+          "target": "stamp",
+          "at": "3.6s",
+          "duration": "0.6s",
+          "scale_factor": 1.25
+        },
+        {
+          "action": "scale",
+          "target": "stamp",
+          "at": "4.2s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": "reason",
+          "at": "4.8s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "agent_fix",
+      "duration": "9s",
+      "template": "two-column",
+      "narration": "The agent writes the fix: a session-scoped fixture that clears port 4444 before and after each run.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "Agent Writing Fix",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "small",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "fix0",
+              "content": "# conftest.py"
+            },
+            {
+              "type": "token",
+              "id": "fix1",
+              "content": "@pytest.fixture(scope='session', autouse=True)"
+            },
+            {
+              "type": "token",
+              "id": "fix2",
+              "content": "def release_webdriver_port():"
+            },
+            {
+              "type": "token",
+              "id": "fix3",
+              "content": "    kill_process_on_port(4444)"
+            },
+            {
+              "type": "token",
+              "id": "fix4",
+              "content": "    yield"
+            },
+            {
+              "type": "token",
+              "id": "fix5",
+              "content": "    kill_process_on_port(4444)"
+            }
+          ]
+        },
+        {
+          "type": "circle",
+          "id": "pencil",
+          "content": "pen"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "highlight",
+          "target": "step_fix",
+          "at": "0s",
+          "duration": "8.0s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_fix",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_fix",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "fade-in",
+          "target": "pencil",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "move-to",
+          "target": "pencil",
+          "to_id": "fix0",
+          "at": "1.2s",
+          "duration": "0.6s",
+          "offset_x": -170
+        },
+        {
+          "action": "move-to",
+          "target": "pencil",
+          "to_id": "fix1",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "offset_x": -170
+        },
+        {
+          "action": "move-to",
+          "target": "pencil",
+          "to_id": "fix2",
+          "at": "2.8s",
+          "duration": "0.6s",
+          "offset_x": -170
+        },
+        {
+          "action": "move-to",
+          "target": "pencil",
+          "to_id": "fix3",
+          "at": "3.6s",
+          "duration": "0.6s",
+          "offset_x": -170
+        },
+        {
+          "action": "move-to",
+          "target": "pencil",
+          "to_id": "fix4",
+          "at": "4.4s",
+          "duration": "0.6s",
+          "offset_x": -170
+        },
+        {
+          "action": "move-to",
+          "target": "pencil",
+          "to_id": "fix5",
+          "at": "5.2s",
+          "duration": "0.6s",
+          "offset_x": -170
+        },
+        {
+          "action": "pulse",
+          "target": "pencil",
+          "at": "6.0s",
+          "duration": "1.6s"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "fix3",
+            "fix5"
+          ],
+          "at": "6.4s",
+          "duration": "2.2s",
+          "style": "glow",
+          "color": "success"
+        }
+      ]
+    },
+    {
+      "id": "merge_request",
+      "duration": "8s",
+      "template": "two-column",
+      "narration": "The agent commits the fix, opens a merge request, and tees it up for human review.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "Merge Request Opened",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "mr_box",
+              "content": "MR #47: Fix WebDriver port teardown"
+            },
+            {
+              "type": "group",
+              "id": "mr_meta",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "mr_branch",
+                  "content": "fix/webdriver-port-teardown"
+                },
+                {
+                  "type": "token",
+                  "id": "mr_diff",
+                  "content": "+6  -0"
+                },
+                {
+                  "type": "token",
+                  "id": "mr_status",
+                  "content": "ready for review"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "circle",
+          "id": "plane",
+          "content": "go"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "highlight",
+          "target": "step_mr",
+          "at": "0s",
+          "duration": "7.0s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_mr",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_mr",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "scale",
+          "target": "mr_box",
+          "at": "1.0s",
+          "duration": "0.8s",
+          "scale_factor": 1.04
+        },
+        {
+          "action": "scale",
+          "target": "mr_box",
+          "at": "2.0s",
+          "duration": "0.8s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": "mr_box",
+          "at": "1.6s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "mr_status",
+          "at": "3.6s",
+          "duration": "2.0s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "plane",
+          "at": "2.8s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "move-to",
+          "target": "plane",
+          "to_id": "mr_box",
+          "at": "2.8s",
+          "duration": "0.8s",
+          "offset_x": 200
+        },
+        {
+          "action": "move",
+          "target": "plane",
+          "at": "3.6s",
+          "duration": "0.6s",
+          "offset_x": 40,
+          "offset_y": -20
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "duration": "7s",
+      "template": "two-column",
+      "narration": "After merge, all five tests pass. The pipeline resumes \u2014 no human intervention required.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "heading",
+          "content": "All Tests Pass",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main",
+          "grid": {
+            "region": "main"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "small",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "d_api",
+              "content": "PASS  test_api_response"
+            },
+            {
+              "type": "token",
+              "id": "d_auth",
+              "content": "PASS  test_auth_flow"
+            },
+            {
+              "type": "token",
+              "id": "d_db",
+              "content": "PASS  test_db_write"
+            },
+            {
+              "type": "token",
+              "id": "d_ui",
+              "content": "PASS  test_ui_login"
+            },
+            {
+              "type": "token",
+              "id": "d_checkout",
+              "content": "PASS  test_e2e_checkout"
+            }
+          ]
+        },
+        {
+          "type": "circle",
+          "id": "celebrate",
+          "content": "yay"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "heading",
+          "at": "0s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "fade-in",
+          "target": "main",
+          "at": "0.2s",
+          "duration": "1.0s"
+        },
+        {
+          "action": "highlight",
+          "target": "step_resume",
+          "at": "0s",
+          "duration": "6.0s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "scale",
+          "target": "step_resume",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_resume",
+          "at": "2.0s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "d_api",
+            "d_auth",
+            "d_db",
+            "d_ui",
+            "d_checkout"
+          ],
+          "at": "1.8s",
+          "duration": "3.2s",
+          "style": "glow",
+          "color": "success",
+          "stagger": "0.2s"
+        },
+        {
+          "action": "fade-in",
+          "target": "celebrate",
+          "at": "2.6s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "move-to",
+          "target": "celebrate",
+          "to_id": "d_checkout",
+          "at": "2.6s",
+          "duration": "0.8s",
+          "offset_x": 160
+        },
+        {
+          "action": "pulse",
+          "target": "celebrate",
+          "at": "3.6s",
+          "duration": "1.6s"
+        }
+      ]
+    }
+  ]
+}

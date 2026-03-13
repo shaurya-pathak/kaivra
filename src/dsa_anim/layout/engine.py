@@ -11,6 +11,7 @@ from dsa_anim.layout.strategies.grid import GridStrategy
 from dsa_anim.layout.strategies.flow import FlowStrategy
 from dsa_anim.layout.strategies.stack import StackStrategy
 from dsa_anim.layout.strategies.split import SplitStrategy
+from dsa_anim.layout.strategies.carousel import CarouselStrategy
 
 
 class LayoutEngine:
@@ -24,6 +25,7 @@ class LayoutEngine:
             LayoutType.FLOW: FlowStrategy(),
             LayoutType.STACK: StackStrategy(),
             LayoutType.SPLIT: SplitStrategy(),
+            LayoutType.CAROUSEL: CarouselStrategy(),
         }
 
     def compute(

@@ -2,9 +2,11 @@
 
 from dsa_anim.themes.base import ThemeSpec
 from dsa_anim.themes.whiteboard import WHITEBOARD
+from dsa_anim.themes.modern import MODERN
 
 _THEMES: dict[str, ThemeSpec] = {
     "whiteboard": WHITEBOARD,
+    "modern": MODERN,
 }
 
 

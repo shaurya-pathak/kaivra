@@ -33,14 +33,17 @@ def export_web_preview(doc: DocumentSpec, *, serve: bool = False, port: int = 80
                 "start_time": kf.start_time,
                 "duration": kf.duration,
                 "easing": kf.easing,
-                "source_id": kf.source_id,
                 "to_value": kf.to_value,
+                "from_value": kf.from_value,
                 "style": kf.style,
                 "color": kf.color,
-                "content": kf.content,
-                "direction": kf.direction,
                 "stagger": kf.stagger,
                 "phases": kf.phases,
+                "to_id": kf.to_id,
+                "offset_x": kf.offset_x,
+                "offset_y": kf.offset_y,
+                "from_offset_x": kf.from_offset_x,
+                "from_offset_y": kf.from_offset_y,
             })
 
         camera_kfs = []
@@ -78,6 +81,7 @@ def export_web_preview(doc: DocumentSpec, *, serve: bool = False, port: int = 80
         "fps": graph.fps,
         "theme": graph.theme_name,
         "totalDuration": graph.total_duration,
+        "showNarration": graph.show_narration,
         "scenes": scenes_data,
     })
 
@@ -127,16 +131,16 @@ def _serialize_node(node) -> dict:
         "content": node.content,
         "style": node.style,
         "stylePops": node.style_props,
+        "persistent": node.persistent,
         "label": node.label,
         "tokenId": node.token_id,
         "fromId": node.from_id,
         "toId": node.to_id,
-        "tokens": node.tokens,
-        "highlightPairs": node.highlight_pairs,
-        "probItems": node.prob_items,
-        "matrixRows": node.matrix_rows,
-        "matrixCols": node.matrix_cols,
-        "matrixLabels": node.matrix_labels,
+        "idlePreset": node.idle_preset,
+        "idleIntensity": node.idle_intensity,
+        "idleSpeed": node.idle_speed,
+        "idleAxis": node.idle_axis,
+        "defaultVisible": node.default_visible,
         "children": [_serialize_node(c) for c in node.children],
     }
     return data
@@ -187,6 +191,7 @@ canvas.style.height = (GRAPH.height * scale) + 'px';
 
 let playing = false;
 let currentTime = 0;
+let sceneTime = 0;
 let lastTimestamp = null;
 
 const playBtn = document.getElementById('playBtn');
@@ -242,11 +247,23 @@ function getProgress(kf, t) {{
 
 function applyAnimations(nodeMap, keyframes, t) {{
   for (const id in nodeMap) {{
-    nodeMap[id]._visible = false;
-    nodeMap[id]._opacity = 0;
-    nodeMap[id]._drawProgress = 0;
+    if (nodeMap[id].persistent) {{
+      nodeMap[id]._visible = true;
+      nodeMap[id]._opacity = 1;
+      nodeMap[id]._drawProgress = 1;
+    }} else if (nodeMap[id].defaultVisible) {{
+      nodeMap[id]._visible = true;
+      nodeMap[id]._opacity = 1;
+      nodeMap[id]._drawProgress = 1;
+    }} else {{
+      nodeMap[id]._visible = false;
+      nodeMap[id]._opacity = 0;
+      nodeMap[id]._drawProgress = 0;
+    }}
     nodeMap[id]._scaleX = 1;
     nodeMap[id]._scaleY = 1;
+    nodeMap[id]._translateX = 0;
+    nodeMap[id]._translateY = 0;
     nodeMap[id]._highlightIntensity = 0;
   }}
   for (const kf of keyframes) {{
@@ -259,20 +276,44 @@ function applyAnimations(nodeMap, keyframes, t) {{
       case 'appear':
         if (t >= kf.start_time) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
         break;
+      case 'disappear':
+        if (t < kf.start_time) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
+        else {{ node._visible = false; node._opacity = 0; }}
+        break;
       case 'fade-in':
         if (p !== null) {{ node._visible = true; node._opacity = Math.max(node._opacity, p); node._drawProgress = 1; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
+        break;
+      case 'fade-out':
+        if (p !== null) {{ node._visible = true; node._opacity = 1 - p; node._drawProgress = 1; }}
+        else if (done) {{ node._visible = false; node._opacity = 0; }}
         break;
       case 'type': case 'draw':
         if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = p; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
         break;
       case 'scale':
-        const to = kf.to_value || 1;
-        if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; const s = 1 + (to - 1) * p; node._scaleX = s; node._scaleY = s; }}
+        const to = (kf.to_value !== undefined && kf.to_value !== null) ? kf.to_value : 1;
+        const from = (kf.from_value !== undefined && kf.from_value !== null) ? kf.from_value : 1;
+        if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; const s = from + (to - from) * p; node._scaleX = s; node._scaleY = s; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._scaleX = to; node._scaleY = to; }}
         break;
-      case 'highlight': case 'glow': case 'pulse':
+      case 'move': {{
+        const mdx = kf.offset_x || 0, mdy = kf.offset_y || 0;
+        const fdx = (kf.from_offset_x !== undefined && kf.from_offset_x !== null) ? kf.from_offset_x : 0;
+        const fdy = (kf.from_offset_y !== undefined && kf.from_offset_y !== null) ? kf.from_offset_y : 0;
+        if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = fdx + (mdx - fdx) * p; node._translateY = fdy + (mdy - fdy) * p; }}
+        else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = mdx; node._translateY = mdy; }}
+        break;
+      }}
+      case 'move-to':
+        const tnode = kf.to_id ? nodeMap[kf.to_id] : null;
+        const dx = tnode ? (tnode.rect.x + tnode.rect.w/2 - (node.rect.x + node.rect.w/2)) + (kf.offset_x || 0) : (kf.offset_x || 0);
+        const dy = tnode ? (tnode.rect.y + tnode.rect.h/2 - (node.rect.y + node.rect.h/2)) + (kf.offset_y || 0) : (kf.offset_y || 0);
+        if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = dx * p; node._translateY = dy * p; }}
+        else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = dx; node._translateY = dy; }}
+        break;
+      case 'highlight': case 'pulse':
         if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._highlightIntensity = p; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
         break;
@@ -317,10 +358,35 @@ function drawNode(ctx, node, nodeMap) {{
   ctx.globalAlpha = node._opacity;
 
   const r = node.rect;
-  if (node._scaleX !== 1 || node._scaleY !== 1) {{
+  let idleDx = 0, idleDy = 0, idleScale = 1;
+  if (node.idlePreset) {{
+    const preset = node.idlePreset;
+    const speed = node.idleSpeed || 1.5;
+    const intensity = (node.idleIntensity !== undefined && node.idleIntensity !== null)
+      ? node.idleIntensity
+      : (preset === 'breathe' ? 0.03 : 6);
+    if (preset === 'float' || preset === 'jitter') {{
+      const freq = preset === 'jitter' ? speed * 3.0 : speed;
+      const axis = node.idleAxis || 'both';
+      if (axis === 'x' || axis === 'both') idleDx = Math.sin(sceneTime * freq) * intensity;
+      if (axis === 'y' || axis === 'both') idleDy = Math.cos(sceneTime * freq * 1.3) * intensity;
+    }}
+    if (preset === 'breathe') {{
+      idleScale = 1 + Math.sin(sceneTime * speed) * intensity;
+    }}
+  }}
+
+  const tx = (node._translateX || 0) + idleDx;
+  const ty = (node._translateY || 0) + idleDy;
+  if (tx || ty) {{
+    ctx.translate(tx, ty);
+  }}
+  const sx = (node._scaleX || 1) * idleScale;
+  const sy = (node._scaleY || 1) * idleScale;
+  if (sx !== 1 || sy !== 1) {{
     const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     ctx.translate(cx, cy);
-    ctx.scale(node._scaleX, node._scaleY);
+    ctx.scale(sx, sy);
     ctx.translate(-cx, -cy);
   }}
 
@@ -330,9 +396,6 @@ function drawNode(ctx, node, nodeMap) {{
     case 'token': drawToken(ctx, node); break;
     case 'connector': drawConnector(ctx, node, nodeMap); break;
     case 'group': drawGroup(ctx, node, nodeMap); break;
-    case 'matrix': drawMatrix(ctx, node); break;
-    case 'attention-map': drawAttentionMap(ctx, node); break;
-    case 'probability-bar': drawProbBar(ctx, node); break;
     default: drawBox(ctx, node); break;
   }}
 
@@ -426,106 +489,9 @@ function drawGroup(ctx, node, nodeMap) {{
   }}
 }}
 
-function drawMatrix(ctx, node) {{
-  const rows = node.matrixRows || 4, cols = node.matrixCols || 4;
-  const r = node.rect;
-  const cellSize = Math.min(r.w / (cols + 2), r.h / (rows + 1), 40);
-  const labelOff = node.matrixLabels ? 80 : 0;
-  const gx = r.x + labelOff + (r.w - labelOff - cols * cellSize) / 2;
-  const gy = r.y + (r.h - rows * cellSize) / 2;
-  let rng = 42;
-  function nextRand() {{ rng = (rng * 16807 + 0) % 2147483647; return rng / 2147483647; }}
-  const cellsToShow = Math.floor(rows * cols * node._drawProgress);
-  let idx = 0;
-  for (let row = 0; row < rows; row++) {{
-    if (node.matrixLabels && node.matrixLabels.rows && row < node.matrixLabels.rows.length) {{
-      ctx.font = '14px sans-serif';
-      ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
-      const lbl = node.matrixLabels.rows[row];
-      const m = ctx.measureText(lbl);
-      ctx.fillText(lbl, gx - m.width - 8, gy + row * cellSize + cellSize / 2 + 5);
-    }}
-    for (let col = 0; col < cols; col++) {{
-      if (idx >= cellsToShow) break;
-      const val = nextRand();
-      const x = gx + col * cellSize, y = gy + row * cellSize;
-      ctx.fillStyle = `rgba(${{Math.floor(10 + val * 77)}},${{Math.floor(133 + val * 102)}},${{227}},${{node._opacity * 0.8}})`;
-      roundedRect(ctx, x + 1, y + 1, cellSize - 2, cellSize - 2, 2);
-      ctx.fill();
-      idx++;
-    }}
-  }}
-}}
-
-function drawAttentionMap(ctx, node) {{
-  if (!node.tokens) return;
-  const r = node.rect, n = node.tokens.length;
-  const tw = Math.min(80, r.w / (n + 1));
-  const totalW = n * tw + (n - 1) * 8;
-  const sx = r.x + (r.w - totalW) / 2;
-  const ty = r.y + r.h * 0.7;
-  const positions = {{}};
-  ctx.font = '16px sans-serif';
-  for (let i = 0; i < n; i++) {{
-    const tx = sx + i * (tw + 8);
-    positions[node.tokens[i]] = {{ x: tx + tw / 2, y: ty }};
-    roundedRect(ctx, tx, ty - 15, tw, 30, 4);
-    ctx.fillStyle = hexToRgba(THEME.tokenFill, node._opacity);
-    ctx.fill();
-    ctx.strokeStyle = hexToRgba(THEME.tokenBorder, node._opacity);
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
-    const m = ctx.measureText(node.tokens[i]);
-    ctx.fillText(node.tokens[i], tx + (tw - m.width) / 2, ty + 5);
-  }}
-  if (node.highlightPairs && node._drawProgress > 0.3) {{
-    const ap = Math.min(1, (node._drawProgress - 0.3) / 0.7);
-    const show = Math.floor(node.highlightPairs.length * ap);
-    for (let i = 0; i < show; i++) {{
-      const pair = node.highlightPairs[i];
-      const f = positions[pair.from], t = positions[pair.to];
-      if (!f || !t) continue;
-      const ah = Math.abs(t.x - f.x) * 0.4 + 30;
-      ctx.strokeStyle = hexToRgba(THEME.accent, node._opacity * pair.weight);
-      ctx.lineWidth = 2 + pair.weight * 3;
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y - 15);
-      ctx.bezierCurveTo(f.x, f.y - ah, t.x, t.y - ah, t.x, t.y - 15);
-      ctx.stroke();
-    }}
-  }}
-}}
-
-function drawProbBar(ctx, node) {{
-  if (!node.probItems) return;
-  const r = node.rect, n = node.probItems.length;
-  const bh = 28, bg = 8, lw = 80;
-  const maxBW = r.w - lw - 80;
-  const th = n * (bh + bg) - bg;
-  const ys = r.y + (r.h - th) / 2;
-  const maxV = Math.max(...node.probItems.map(i => i.value));
-  for (let i = 0; i < n; i++) {{
-    const y = ys + i * (bh + bg);
-    const item = node.probItems[i];
-    const bw = (item.value / maxV) * maxBW * node._drawProgress;
-    ctx.font = '18px sans-serif';
-    ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
-    ctx.fillText(item.label, r.x, y + bh * 0.7);
-    const bx = r.x + lw;
-    roundedRect(ctx, bx, y, bw, bh, 4);
-    ctx.fillStyle = hexToRgba(i === 0 ? THEME.accent : THEME.muted, node._opacity * 0.8);
-    ctx.fill();
-    if (node._drawProgress > 0.5) {{
-      ctx.font = '14px sans-serif';
-      ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
-      ctx.fillText(Math.round(item.value * 100) + '%', bx + bw + 8, y + bh * 0.7);
-    }}
-  }}
-}}
-
 function render(t) {{
   const {{ scene, localTime }} = getSceneAtTime(t);
+  sceneTime = localTime;
   ctx.clearRect(0, 0, GRAPH.width, GRAPH.height);
 
   // Background
@@ -548,28 +514,51 @@ function render(t) {{
 
   // Camera
   ctx.save();
-  let zoom = scene.camera_initial.zoom;
+  let zoom = scene.camera_initial.zoom || 1;
+  let centerX = scene.camera_initial.center_x || (GRAPH.width / 2);
+  let centerY = scene.camera_initial.center_y || (GRAPH.height / 2);
+
+  function focusPoint(focusId) {{
+    if (!focusId || focusId === 'center') return [GRAPH.width / 2, GRAPH.height / 2];
+    const n = nodeMap[focusId];
+    if (!n) return [GRAPH.width / 2, GRAPH.height / 2];
+    return [n.rect.x + n.rect.w / 2, n.rect.y + n.rect.h / 2];
+  }}
+
   for (const ckf of scene.camera_keyframes) {{
-    if (localTime >= ckf.start_time) {{
-      const raw = ckf.duration > 0 ? Math.min(1, (localTime - ckf.start_time) / ckf.duration) : 1;
-      const p = getEasing(ckf.easing)(raw);
-      if (ckf.action === 'zoom' && ckf.to_zoom != null) {{
-        zoom = scene.camera_initial.zoom + (ckf.to_zoom - scene.camera_initial.zoom) * p;
+    if (localTime < ckf.start_time) continue;
+    const raw = ckf.duration > 0 ? Math.min(1, (localTime - ckf.start_time) / ckf.duration) : 1;
+    const p = getEasing(ckf.easing)(raw);
+    const [tx, ty] = focusPoint(ckf.focus_id);
+
+    if (ckf.action === 'pan') {{
+      centerX = centerX + (tx - centerX) * p;
+      centerY = centerY + (ty - centerY) * p;
+    }}
+    if (ckf.action === 'zoom' && ckf.to_zoom != null) {{
+      zoom = zoom + (ckf.to_zoom - zoom) * p;
+      if (ckf.focus_id) {{
+        centerX = centerX + (tx - centerX) * p;
+        centerY = centerY + (ty - centerY) * p;
       }}
     }}
   }}
-  if (zoom !== 1) {{
-    const cx = GRAPH.width / 2, cy = GRAPH.height / 2;
-    ctx.translate(cx, cy);
+
+  if (zoom !== 1 || centerX !== GRAPH.width / 2 || centerY !== GRAPH.height / 2) {{
+    ctx.translate(centerX, centerY);
     ctx.scale(zoom, zoom);
-    ctx.translate(-cx, -cy);
+    ctx.translate(-centerX, -centerY);
   }}
 
   for (const node of scene.nodes) drawNode(ctx, node, nodeMap);
   ctx.restore();
 
   // Narration
-  narrationDiv.textContent = scene.narration || '';
+  if (GRAPH.showNarration) {{
+    narrationDiv.textContent = scene.narration || '';
+  }} else {{
+    narrationDiv.textContent = '';
+  }}
 }}
 
 function tick(timestamp) {{

@@ -6,10 +6,10 @@ This is the rendering-backend-agnostic IR that sits between the DSL and renderer
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
-from dsa_anim.dsl.schema import ObjectType, AnimAction, EasingType
-from dsa_anim.utils.geometry import Rect, Point
+from dsa_anim.dsl.schema import ObjectType, AnimAction
+from dsa_anim.utils.geometry import Rect
 
 
 @dataclass
@@ -26,25 +26,15 @@ class SceneNode:
     position: str | None = None  # "above-layout", "top", etc.
     label: str | None = None
 
-    # Connector-specific
+    # Connector + Callout
     from_id: str | None = None
     to_id: str | None = None
 
     # Token-specific
     token_id: int | None = None
 
-    # Matrix-specific
-    matrix_rows: int | None = None
-    matrix_cols: int | None = None
-    matrix_labels: dict | None = None
-    matrix_data: Any = None
-
-    # Attention map
-    tokens: list[str] | None = None
-    highlight_pairs: list[dict] | None = None
-
-    # Probability bar
-    prob_items: list[dict] | None = None
+    # Persistence — persistent objects stay visible across all scenes
+    persistent: bool = False
 
     # Animation state (mutated during rendering)
     opacity: float = 1.0
@@ -56,6 +46,11 @@ class SceneNode:
     draw_progress: float = 1.0  # for draw/type animations (0-1)
     highlight_intensity: float = 0.0
     highlight_color: str | None = None
+    idle_preset: str | None = None
+    idle_intensity: float | None = None
+    idle_speed: float | None = None
+    idle_axis: str | None = None
+    default_visible: bool = False
 
 
 @dataclass
@@ -69,17 +64,18 @@ class AnimationKeyframe:
     easing: str = "ease-in-out"
 
     # Action-specific params
-    source_id: str | None = None
     targets: list[str] | None = None  # for multi-target animations
     to_value: float | None = None  # for scale
+    from_value: float | None = None  # for scale (start)
     style: str | None = None
     color: str | None = None
-    content: str | None = None
-    direction: str | None = None
     stagger: float = 0.0
     phases: list[dict] | None = None
     offset_x: float | None = None  # for move (pixels)
     offset_y: float | None = None  # for move (pixels)
+    from_offset_x: float | None = None  # for move (start)
+    from_offset_y: float | None = None  # for move (start)
+    to_id: str | None = None  # for move-to
 
 
 @dataclass
@@ -109,8 +105,6 @@ class TransitionInfo:
 
     type: str
     duration: float
-    target_id: str | None = None
-    direction: str | None = None
 
 
 @dataclass
@@ -137,6 +131,7 @@ class SceneGraph:
     fps: int
     theme_name: str
     scenes: list[ResolvedScene]
+    show_narration: bool = True
 
     @property
     def total_duration(self) -> float:

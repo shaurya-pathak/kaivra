@@ -24,6 +24,7 @@ env/
 *.jpg
 output/
 tmp/
+artifacts/
 
 # OS
 .DS_Store

@@ -6,15 +6,22 @@ Declarative animation engine for LLMs — "Typst for animations." JSON DSL → a
 
 ```bash
 source .venv/bin/activate
-dsa-anim validate examples/llm_inference.json
-dsa-anim render examples/llm_inference.json -o output.mp4
-dsa-anim preview examples/llm_inference.json --serve
+dsa-anim validate examples/algorithms/bubble_sort.json
+dsa-anim render examples/algorithms/bubble_sort.json -o output.mp4
+dsa-anim preview examples/algorithms/bubble_sort.json --serve
 dsa-anim schema  # JSON Schema for LLM prompting
 ```
 
 ## Project Structure
 
 ```
+examples/
+  algorithms/                    # small source examples like bubble sort
+  demos/                         # polished demo JSON files
+  explainers/                    # long-form narrated explainers
+  archived/                      # older reference examples kept for context
+docs/
+  backlog/                       # project follow-up notes and TODOs
 src/dsa_anim/
   cli.py                          # Click CLI entry point
   dsl/
@@ -71,7 +78,7 @@ src/dsa_anim/
 
 ```bash
 source .venv/bin/activate
-dsa-anim validate examples/llm_inference.json   # parse + validate
-dsa-anim render examples/llm_inference.json -o test.png  # static frame
-dsa-anim render examples/llm_inference.json -o test.mp4  # full video
+dsa-anim validate examples/algorithms/bubble_sort.json   # parse + validate
+dsa-anim render examples/algorithms/bubble_sort.json -o test.png  # static frame
+dsa-anim render examples/algorithms/bubble_sort.json -o test.mp4  # full video
 ```

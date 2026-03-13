@@ -13,15 +13,24 @@ def apply_animations_at_time(
     t: float,
 ) -> None:
     """Mutate scene nodes to reflect animation state at time t."""
-    # Reset all nodes to default hidden state
+    # Reset all nodes to default state
     for node in nodes.values():
-        node.visible = False
-        node.opacity = 0.0
+        if node.persistent:
+            node.visible = True
+            node.opacity = 1.0
+            node.draw_progress = 1.0
+        elif node.default_visible:
+            node.visible = True
+            node.opacity = 1.0
+            node.draw_progress = 1.0
+        else:
+            node.visible = False
+            node.opacity = 0.0
+            node.draw_progress = 0.0
         node.scale_x = 1.0
         node.scale_y = 1.0
         node.translate_x = 0.0
         node.translate_y = 0.0
-        node.draw_progress = 0.0
         node.highlight_intensity = 0.0
         node.highlight_color = None
 
@@ -79,11 +88,12 @@ def apply_animations_at_time(
 
             case AnimAction.SCALE:
                 to_val = kf.to_value or 1.0
+                from_val = kf.from_value if kf.from_value is not None else 1.0
                 if progress is not None:
                     node.visible = True
                     node.opacity = 1.0
                     node.draw_progress = 1.0
-                    s = 1.0 + (to_val - 1.0) * progress
+                    s = from_val + (to_val - from_val) * progress
                     node.scale_x = s
                     node.scale_y = s
                 elif t >= kf.start_time + kf.duration:
@@ -96,6 +106,29 @@ def apply_animations_at_time(
             case AnimAction.MOVE:
                 dx = kf.offset_x or 0.0
                 dy = kf.offset_y or 0.0
+                from_dx = kf.from_offset_x if kf.from_offset_x is not None else 0.0
+                from_dy = kf.from_offset_y if kf.from_offset_y is not None else 0.0
+                if progress is not None:
+                    node.visible = True
+                    node.opacity = 1.0
+                    node.draw_progress = 1.0
+                    node.translate_x = from_dx + (dx - from_dx) * progress
+                    node.translate_y = from_dy + (dy - from_dy) * progress
+                elif t >= kf.start_time + kf.duration:
+                    node.visible = True
+                    node.opacity = 1.0
+                    node.draw_progress = 1.0
+                    node.translate_x = dx
+                    node.translate_y = dy
+
+            case AnimAction.MOVE_TO:
+                target = nodes.get(kf.to_id) if kf.to_id else None
+                if target:
+                    dx = target.rect.center.x - node.rect.center.x + (kf.offset_x or 0.0)
+                    dy = target.rect.center.y - node.rect.center.y + (kf.offset_y or 0.0)
+                else:
+                    dx = kf.offset_x or 0.0
+                    dy = kf.offset_y or 0.0
                 if progress is not None:
                     node.visible = True
                     node.opacity = 1.0
@@ -109,12 +142,12 @@ def apply_animations_at_time(
                     node.translate_x = dx
                     node.translate_y = dy
 
-            case AnimAction.HIGHLIGHT | AnimAction.GLOW | AnimAction.PULSE:
+            case AnimAction.HIGHLIGHT | AnimAction.PULSE:
                 if progress is not None:
                     node.visible = True
                     node.opacity = 1.0
                     node.draw_progress = 1.0
-                    # Envelope: fade-in (0–25%), hold (25–75%), fade-out (75–100%)
+                    # Envelope: fade-in (0-25%), hold (25-75%), fade-out (75-100%)
                     if progress < 0.25:
                         intensity = progress / 0.25
                     elif progress > 0.75:
@@ -128,38 +161,6 @@ def apply_animations_at_time(
                     node.opacity = 1.0
                     node.draw_progress = 1.0
                     # intensity stays at reset value (0) — glow has faded out
-
-            case AnimAction.ENCLOSE:
-                # Box/token border draws around existing content
-                if progress is not None:
-                    node.visible = True
-                    node.opacity = 1.0
-                    node.draw_progress = progress  # controls border draw progress
-                elif t >= kf.start_time + kf.duration:
-                    node.visible = True
-                    node.opacity = 1.0
-                    node.draw_progress = 1.0
-
-            case AnimAction.SPLIT_FROM | AnimAction.FLOW_INTO | AnimAction.REVEAL_CELLS | AnimAction.GROW_BARS:
-                # These are treated similarly to fade-in for basic rendering
-                if progress is not None:
-                    node.visible = True
-                    node.opacity = progress
-                    node.draw_progress = progress
-                elif t >= kf.start_time + kf.duration:
-                    node.visible = True
-                    node.opacity = 1.0
-                    node.draw_progress = 1.0
-
-            case AnimAction.ANNOTATE:
-                if progress is not None:
-                    node.visible = True
-                    node.opacity = 1.0
-                    node.draw_progress = 1.0
-                elif t >= kf.start_time + kf.duration:
-                    node.visible = True
-                    node.opacity = 1.0
-                    node.draw_progress = 1.0
 
             case AnimAction.BUILD:
                 # Multi-phase: treat overall as progressive reveal
@@ -187,12 +188,13 @@ def compute_camera_at_time(
     t: float,
     canvas_width: int,
     canvas_height: int,
+    node_map: dict[str, SceneNode] | None = None,
 ) -> CameraState:
     """Compute camera state at time t."""
     state = CameraState(
         zoom=initial.zoom,
-        center_x=canvas_width / 2,
-        center_y=canvas_height / 2,
+        center_x=initial.center_x or canvas_width / 2,
+        center_y=initial.center_y or canvas_height / 2,
     )
 
     for kf in keyframes:
@@ -204,15 +206,25 @@ def compute_camera_at_time(
         easing_fn = get_easing(kf.easing)
         progress = easing_fn(raw_progress)
 
+        def resolve_focus(focus_id: str | None) -> tuple[float, float]:
+            if not focus_id or focus_id == "center" or node_map is None:
+                return (canvas_width / 2, canvas_height / 2)
+            node = node_map.get(focus_id)
+            if node is None:
+                return (canvas_width / 2, canvas_height / 2)
+            return (node.rect.center.x, node.rect.center.y)
+
         if kf.action == "zoom" and kf.to_zoom is not None:
-            prev_zoom = initial.zoom
-            # Find the zoom value just before this keyframe
-            for prev_kf in keyframes:
-                if prev_kf is kf:
-                    break
-                if prev_kf.action == "zoom" and prev_kf.to_zoom is not None and t >= prev_kf.start_time + prev_kf.duration:
-                    prev_zoom = prev_kf.to_zoom
+            prev_zoom = state.zoom
             state.zoom = prev_zoom + (kf.to_zoom - prev_zoom) * progress
+            if kf.focus_id:
+                fx, fy = resolve_focus(kf.focus_id)
+                state.center_x = state.center_x + (fx - state.center_x) * progress
+                state.center_y = state.center_y + (fy - state.center_y) * progress
+        elif kf.action == "pan":
+            fx, fy = resolve_focus(kf.focus_id)
+            state.center_x = state.center_x + (fx - state.center_x) * progress
+            state.center_y = state.center_y + (fy - state.center_y) * progress
 
     return state
 

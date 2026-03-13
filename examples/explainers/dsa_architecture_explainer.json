@@ -1,0 +1,2114 @@
+{
+  "version": "1.1",
+  "meta": {
+    "title": "DSA Architecture Explainer",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern",
+    "show_narration": false,
+    "continuity": true,
+    "continuity_duration": "0.7s",
+    "glow_release_padding": "1.0s"
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "chapters",
+      "position": "bottom",
+      "layout": {
+        "type": "carousel",
+        "gap": "large",
+        "curve": 16
+      },
+      "children": [
+        {
+          "type": "token",
+          "id": "step_question",
+          "content": "1  The question"
+        },
+        {
+          "type": "token",
+          "id": "step_direct",
+          "content": "2  Direct video"
+        },
+        {
+          "type": "token",
+          "id": "step_dsl",
+          "content": "3  DSA plan"
+        },
+        {
+          "type": "token",
+          "id": "step_arch",
+          "content": "4  Architecture"
+        },
+        {
+          "type": "token",
+          "id": "step_consistency",
+          "content": "5  Consistency"
+        },
+        {
+          "type": "token",
+          "id": "step_agentic",
+          "content": "6  Agentic loop"
+        },
+        {
+          "type": "token",
+          "id": "step_human",
+          "content": "7  Human world"
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "dad_question",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "My dad asked a great question: can a model really make a video from a text command? Yes, but the important part is how. This project gives the model a structured way to describe visuals instead of guessing every pixel.",
+      "focus": "dsl_card",
+      "focus_style": {
+        "at": "5.1s",
+        "duration": "2.6s",
+        "scale": 1.12,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "A Better Answer",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_intro",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "conversation_stack",
+              "layout": {
+                "type": "stack",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "dad_msg",
+                  "label": "Dad",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "dad_box",
+                      "content": "Can AI make video from text?",
+                      "idle": {
+                        "preset": "breathe",
+                        "intensity": 0.02
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "answer_msg",
+                  "label": "Shaurya",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "answer_box",
+                      "content": "Yes. But give it a visual language.",
+                      "idle": {
+                        "preset": "breathe",
+                        "intensity": 0.02
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "hero_intro",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "prompt_card",
+                  "content": "Text prompt",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "dsl_card",
+                  "content": "DSA JSON",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "video_card",
+                  "content": "Animation output",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "intro_c1",
+          "from": "prompt_card",
+          "to": "dsl_card"
+        },
+        {
+          "type": "connector",
+          "id": "intro_c2",
+          "from": "dsl_card",
+          "to": "video_card"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_question",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_question",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "highlight",
+          "target": "dad_box",
+          "at": "0.8s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "answer_box",
+          "at": "2.4s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "intro_c1",
+          "at": "4.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "intro_c2",
+          "at": "4.9s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "video_card",
+          "at": "6.3s",
+          "duration": "1.3s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "direct_video",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "Today, state of the world demos often ask multimodal models to generate video directly. That can look impressive, but across frames the layout drifts, objects jump, and the story can lose consistency.",
+      "focus": "frame_2",
+      "focus_style": {
+        "at": "5.8s",
+        "duration": "2.0s",
+        "scale": 1.05,
+        "color": "error"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Why Direct Video Drifts",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_direct",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "prompt_card",
+              "content": "Text prompt",
+              "idle": {
+                "preset": "breathe",
+                "intensity": 0.02
+              }
+            },
+            {
+              "type": "group",
+              "id": "frame_strip",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "frame_1",
+                  "label": "Frame 1",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "f1_title",
+                      "content": "Title"
+                    },
+                    {
+                      "type": "box",
+                      "id": "f1_chart",
+                      "content": "Chart"
+                    },
+                    {
+                      "type": "token",
+                      "id": "f1_button",
+                      "content": "Button"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "frame_2",
+                  "label": "Frame 2",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "f2_title",
+                      "content": "Title"
+                    },
+                    {
+                      "type": "token",
+                      "id": "f2_button",
+                      "content": "Button"
+                    },
+                    {
+                      "type": "box",
+                      "id": "f2_chart",
+                      "content": "Chart"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "frame_3",
+                  "label": "Frame 3",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "f3_chart",
+                      "content": "Chart"
+                    },
+                    {
+                      "type": "box",
+                      "id": "f3_title",
+                      "content": "Title"
+                    },
+                    {
+                      "type": "token",
+                      "id": "f3_button",
+                      "content": "Button"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "token",
+              "id": "drift_note",
+              "content": "same prompt, drifting layout"
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_direct",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "scale",
+          "target": "step_direct",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "highlight",
+          "target": "prompt_card",
+          "at": "0.5s",
+          "duration": "1.2s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "f1_chart",
+            "f2_chart",
+            "f3_chart"
+          ],
+          "at": "2.0s",
+          "duration": "2.0s",
+          "stagger": "0.15s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "f1_button",
+            "f2_button",
+            "f3_button"
+          ],
+          "at": "4.5s",
+          "duration": "2.0s",
+          "stagger": "0.15s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "pulse",
+          "target": "frame_2",
+          "at": "5.8s",
+          "duration": "1.4s"
+        },
+        {
+          "action": "highlight",
+          "target": "drift_note",
+          "at": "6.9s",
+          "duration": "1.0s",
+          "style": "glow",
+          "color": "warning"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "language_gap",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "That happens because language models are good at symbols, plans, and instructions. Video asks for spatial relationships, timing, continuity, and visual judgment. Pixels are not really the model's native language.",
+      "focus": "bridge_box",
+      "focus_style": {
+        "at": "5.0s",
+        "duration": "2.4s",
+        "scale": 1.1,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Language vs Video",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_gap",
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "llm_group",
+              "label": "What LLMs handle well",
+              "layout": {
+                "type": "stack",
+                "gap": "small",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "llm_strengths",
+                  "content": "LLM strengths"
+                },
+                {
+                  "type": "token",
+                  "id": "llm_symbols",
+                  "content": "symbols"
+                },
+                {
+                  "type": "token",
+                  "id": "llm_plans",
+                  "content": "plans"
+                },
+                {
+                  "type": "token",
+                  "id": "llm_instructions",
+                  "content": "instructions"
+                },
+                {
+                  "type": "token",
+                  "id": "llm_structure",
+                  "content": "structure"
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "id": "bridge_box",
+              "content": "Need a shared language"
+            },
+            {
+              "type": "group",
+              "id": "video_group",
+              "label": "What video needs",
+              "layout": {
+                "type": "stack",
+                "gap": "small",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "video_demands",
+                  "content": "Video demands"
+                },
+                {
+                  "type": "token",
+                  "id": "video_space",
+                  "content": "space"
+                },
+                {
+                  "type": "token",
+                  "id": "video_timing",
+                  "content": "timing"
+                },
+                {
+                  "type": "token",
+                  "id": "video_continuity",
+                  "content": "continuity"
+                },
+                {
+                  "type": "token",
+                  "id": "video_judgment",
+                  "content": "judgment"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_direct",
+          "at": "0s",
+          "duration": "7.6s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "scale",
+          "target": "step_direct",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "highlight",
+          "target": "llm_strengths",
+          "at": "0.8s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "llm_symbols",
+            "llm_plans",
+            "llm_instructions",
+            "llm_structure"
+          ],
+          "at": "1.2s",
+          "duration": "2.0s",
+          "stagger": "0.12s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "video_demands",
+          "at": "2.8s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "video_space",
+            "video_timing",
+            "video_continuity",
+            "video_judgment"
+          ],
+          "at": "3.2s",
+          "duration": "2.2s",
+          "stagger": "0.12s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": "bridge_box",
+          "at": "5.3s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "dsa_translation",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "So instead of saying: paint the video, we say: write a plan in the DSA language. The plan defines what exists, where it goes, how it moves, and what the narrator says.",
+      "focus": "dsl_card",
+      "focus_style": {
+        "at": "4.0s",
+        "duration": "2.8s",
+        "scale": 1.12,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "The DSA Idea",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_dsl",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "hero_dsl",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "prompt_card",
+                  "content": "Text prompt",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "dsl_card",
+                  "content": "DSA JSON",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "video_card",
+                  "content": "Animation output",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "dsl_parts",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "part_objects",
+                  "content": "objects"
+                },
+                {
+                  "type": "token",
+                  "id": "part_layout",
+                  "content": "layout"
+                },
+                {
+                  "type": "token",
+                  "id": "part_motion",
+                  "content": "motion"
+                },
+                {
+                  "type": "token",
+                  "id": "part_voice",
+                  "content": "narration"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "dsl_c1",
+          "from": "prompt_card",
+          "to": "dsl_card"
+        },
+        {
+          "type": "connector",
+          "id": "dsl_c2",
+          "from": "dsl_card",
+          "to": "video_card"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_dsl",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_dsl",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "dsl_c1",
+          "at": "1.2s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "dsl_c2",
+          "at": "2.1s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "dsl_card",
+          "at": "3.0s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "part_objects",
+            "part_layout",
+            "part_motion",
+            "part_voice"
+          ],
+          "at": "5.2s",
+          "duration": "2.0s",
+          "stagger": "0.18s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "video_card",
+          "at": "6.4s",
+          "duration": "1.2s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "architecture_plan",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "From there, the architecture becomes straightforward. A prompt goes to the LLM. The LLM writes DSA JSON. Then a schema validator checks that the structure makes sense before we render anything.",
+      "focus": "schema_box",
+      "focus_style": {
+        "at": "5.0s",
+        "duration": "2.4s",
+        "scale": 1.1,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Architecture: Planning",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_arch_1",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "arch_row1",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "prompt_card",
+                  "content": "Text prompt",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "llm_box",
+                  "content": "LLM",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "dsl_card",
+                  "content": "DSA JSON",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "schema_box",
+                  "content": "Validate",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "arch_row2",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "scene_graph_box",
+                  "content": "Scene Graph"
+                },
+                {
+                  "type": "box",
+                  "id": "layout_box",
+                  "content": "Layout"
+                },
+                {
+                  "type": "box",
+                  "id": "timeline_box",
+                  "content": "Timeline"
+                },
+                {
+                  "type": "box",
+                  "id": "renderer_box",
+                  "content": "Renderer"
+                },
+                {
+                  "type": "group",
+                  "id": "outputs_group",
+                  "label": "Outputs",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "mp4_out",
+                      "content": "MP4 video"
+                    },
+                    {
+                      "type": "box",
+                      "id": "web_out",
+                      "content": "Web preview"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "arch_a1",
+          "from": "prompt_card",
+          "to": "llm_box"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a2",
+          "from": "llm_box",
+          "to": "dsl_card"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a3",
+          "from": "dsl_card",
+          "to": "schema_box"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a4",
+          "from": "schema_box",
+          "to": "scene_graph_box"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a5",
+          "from": "scene_graph_box",
+          "to": "layout_box"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a6",
+          "from": "layout_box",
+          "to": "timeline_box"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a7",
+          "from": "timeline_box",
+          "to": "renderer_box"
+        },
+        {
+          "type": "connector",
+          "id": "arch_a8",
+          "from": "renderer_box",
+          "to": "outputs_group"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_arch",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_arch",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "arch_a1",
+          "at": "0.9s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "draw",
+          "target": "arch_a2",
+          "at": "1.7s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "draw",
+          "target": "arch_a3",
+          "at": "2.5s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "prompt_card",
+            "llm_box",
+            "dsl_card",
+            "schema_box"
+          ],
+          "at": "1.1s",
+          "duration": "3.8s",
+          "stagger": "0.25s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "schema_box",
+          "at": "5.2s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "architecture_runtime",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "Once the plan is valid, the engine builds a scene graph, computes layout, schedules motion on a timeline, and renders to video or the web. One source can drive multiple outputs.",
+      "focus": [
+        "renderer_box",
+        "outputs_group"
+      ],
+      "focus_style": {
+        "at": "5.0s",
+        "duration": "2.4s",
+        "scale": 1.08,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Architecture: Rendering",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_arch_2",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "arch_row1_runtime",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "prompt_card",
+                  "content": "Text prompt",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "llm_box",
+                  "content": "LLM",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "dsl_card",
+                  "content": "DSA JSON",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "schema_box",
+                  "content": "Validate",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "arch_row2_runtime",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "scene_graph_box",
+                  "content": "Scene Graph"
+                },
+                {
+                  "type": "box",
+                  "id": "layout_box",
+                  "content": "Layout"
+                },
+                {
+                  "type": "box",
+                  "id": "timeline_box",
+                  "content": "Timeline"
+                },
+                {
+                  "type": "box",
+                  "id": "renderer_box",
+                  "content": "Renderer"
+                },
+                {
+                  "type": "group",
+                  "id": "outputs_group",
+                  "label": "Outputs",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "mp4_out",
+                      "content": "MP4 video"
+                    },
+                    {
+                      "type": "box",
+                      "id": "web_out",
+                      "content": "Web preview"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "runtime_a4",
+          "from": "schema_box",
+          "to": "scene_graph_box"
+        },
+        {
+          "type": "connector",
+          "id": "runtime_a5",
+          "from": "scene_graph_box",
+          "to": "layout_box"
+        },
+        {
+          "type": "connector",
+          "id": "runtime_a6",
+          "from": "layout_box",
+          "to": "timeline_box"
+        },
+        {
+          "type": "connector",
+          "id": "runtime_a7",
+          "from": "timeline_box",
+          "to": "renderer_box"
+        },
+        {
+          "type": "connector",
+          "id": "runtime_a8",
+          "from": "renderer_box",
+          "to": "outputs_group"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_arch",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_arch",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "runtime_a4",
+          "at": "0.8s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "draw",
+          "target": "runtime_a5",
+          "at": "1.7s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "draw",
+          "target": "runtime_a6",
+          "at": "2.6s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "draw",
+          "target": "runtime_a7",
+          "at": "3.5s",
+          "duration": "0.6s"
+        },
+        {
+          "action": "draw",
+          "target": "runtime_a8",
+          "at": "4.4s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "scene_graph_box",
+            "layout_box",
+            "timeline_box",
+            "renderer_box"
+          ],
+          "at": "1.0s",
+          "duration": "4.6s",
+          "stagger": "0.22s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "mp4_out",
+            "web_out"
+          ],
+          "at": "5.8s",
+          "duration": "1.8s",
+          "stagger": "0.2s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "consistency_time",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "This also gives us consistency. The same object ids can persist across scenes, layout stays semantic, and continuity rules make motion feel coherent. It starts to behave like animation software, not a sequence of unrelated slides.",
+      "focus": "shot_b_card",
+      "focus_style": {
+        "at": "4.8s",
+        "duration": "2.2s",
+        "scale": 1.08,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Consistency Over Time",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_consistency",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "shot_strip",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "shot_a",
+                  "label": "Scene A",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "shot_a_id",
+                      "content": "id: hero_card"
+                    },
+                    {
+                      "type": "box",
+                      "id": "shot_a_card",
+                      "content": "Hero card"
+                    },
+                    {
+                      "type": "token",
+                      "id": "shot_a_rule",
+                      "content": "semantic layout"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "shot_b",
+                  "label": "Scene B",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "shot_b_id",
+                      "content": "id: hero_card"
+                    },
+                    {
+                      "type": "box",
+                      "id": "shot_b_card",
+                      "content": "Hero card"
+                    },
+                    {
+                      "type": "token",
+                      "id": "shot_b_rule",
+                      "content": "semantic layout"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "shot_c",
+                  "label": "Scene C",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "shot_c_id",
+                      "content": "id: hero_card"
+                    },
+                    {
+                      "type": "box",
+                      "id": "shot_c_card",
+                      "content": "Hero card"
+                    },
+                    {
+                      "type": "token",
+                      "id": "shot_c_rule",
+                      "content": "semantic layout"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "benefit_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "benefit_ids",
+                  "content": "same ids"
+                },
+                {
+                  "type": "token",
+                  "id": "benefit_layout",
+                  "content": "semantic layout"
+                },
+                {
+                  "type": "token",
+                  "id": "benefit_motion",
+                  "content": "continuity motion"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "cons_1",
+          "from": "shot_a_card",
+          "to": "shot_b_card"
+        },
+        {
+          "type": "connector",
+          "id": "cons_2",
+          "from": "shot_b_card",
+          "to": "shot_c_card"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_consistency",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_consistency",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "cons_1",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "cons_2",
+          "at": "2.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "shot_a_id",
+            "shot_b_id",
+            "shot_c_id"
+          ],
+          "at": "3.0s",
+          "duration": "1.8s",
+          "stagger": "0.15s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "shot_b_card",
+          "at": "4.0s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "benefit_ids",
+            "benefit_layout",
+            "benefit_motion"
+          ],
+          "at": "5.0s",
+          "duration": "2.0s",
+          "stagger": "0.18s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "agentic_loop",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "Because it is software, an agent can work on it step by step. It can validate, render a sample, inspect frames, patch the JSON, add voiceover, and rerender. That is agentic development.",
+      "focus": "cmd_patch",
+      "focus_style": {
+        "at": "4.6s",
+        "duration": "1.8s",
+        "scale": 1.08,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Agentic Development",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_agentic",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "loop_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "cmd_validate",
+                  "content": "validate"
+                },
+                {
+                  "type": "box",
+                  "id": "cmd_render",
+                  "content": "render sample"
+                },
+                {
+                  "type": "box",
+                  "id": "cmd_inspect",
+                  "content": "inspect frame"
+                },
+                {
+                  "type": "box",
+                  "id": "cmd_patch",
+                  "content": "patch JSON"
+                },
+                {
+                  "type": "box",
+                  "id": "cmd_voice",
+                  "content": "add voice"
+                },
+                {
+                  "type": "box",
+                  "id": "cmd_export",
+                  "content": "rerender"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "artifacts_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "artifact_json",
+                  "content": "plan.json"
+                },
+                {
+                  "type": "token",
+                  "id": "artifact_frame",
+                  "content": "frame.png"
+                },
+                {
+                  "type": "token",
+                  "id": "artifact_audio",
+                  "content": "voice.wav"
+                },
+                {
+                  "type": "token",
+                  "id": "artifact_final",
+                  "content": "final.mp4"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "agentic_1",
+          "from": "cmd_validate",
+          "to": "cmd_render"
+        },
+        {
+          "type": "connector",
+          "id": "agentic_2",
+          "from": "cmd_render",
+          "to": "cmd_inspect"
+        },
+        {
+          "type": "connector",
+          "id": "agentic_3",
+          "from": "cmd_inspect",
+          "to": "cmd_patch"
+        },
+        {
+          "type": "connector",
+          "id": "agentic_4",
+          "from": "cmd_patch",
+          "to": "cmd_voice"
+        },
+        {
+          "type": "connector",
+          "id": "agentic_5",
+          "from": "cmd_voice",
+          "to": "cmd_export"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_agentic",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_agentic",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "agentic_1",
+          "at": "0.9s",
+          "duration": "0.5s"
+        },
+        {
+          "action": "draw",
+          "target": "agentic_2",
+          "at": "1.6s",
+          "duration": "0.5s"
+        },
+        {
+          "action": "draw",
+          "target": "agentic_3",
+          "at": "2.3s",
+          "duration": "0.5s"
+        },
+        {
+          "action": "draw",
+          "target": "agentic_4",
+          "at": "3.0s",
+          "duration": "0.5s"
+        },
+        {
+          "action": "draw",
+          "target": "agentic_5",
+          "at": "3.7s",
+          "duration": "0.5s"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "cmd_validate",
+            "cmd_render",
+            "cmd_inspect",
+            "cmd_patch",
+            "cmd_voice",
+            "cmd_export"
+          ],
+          "at": "1.1s",
+          "duration": "4.6s",
+          "stagger": "0.18s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "artifact_json",
+            "artifact_frame",
+            "artifact_audio",
+            "artifact_final"
+          ],
+          "at": "5.4s",
+          "duration": "1.8s",
+          "stagger": "0.15s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "human_world",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "This matters because people live in a visual world, not a text-only world. We use diagrams, timing, voice, screens, and feedback. The next step is software that lets agents plan, test, inspect, and refine visual work.",
+      "focus": "human_world_box",
+      "focus_style": {
+        "at": "5.0s",
+        "duration": "2.0s",
+        "scale": 1.08,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Software For the Human World",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_human",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "bridge_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "llm_intent",
+                  "content": "LLM intent"
+                },
+                {
+                  "type": "box",
+                  "id": "dsa_bridge",
+                  "content": "DSA software"
+                },
+                {
+                  "type": "box",
+                  "id": "human_world_box",
+                  "content": "Human world"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "inputs_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "input_screen",
+                  "content": "screens"
+                },
+                {
+                  "type": "token",
+                  "id": "input_diagram",
+                  "content": "diagrams"
+                },
+                {
+                  "type": "token",
+                  "id": "input_motion",
+                  "content": "motion"
+                },
+                {
+                  "type": "token",
+                  "id": "input_voice",
+                  "content": "voice"
+                },
+                {
+                  "type": "token",
+                  "id": "input_feedback",
+                  "content": "feedback"
+                }
+              ]
+            },
+            {
+              "type": "token",
+              "id": "next_step_note",
+              "content": "next step: software, not bigger prompts"
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "human_c1",
+          "from": "llm_intent",
+          "to": "dsa_bridge"
+        },
+        {
+          "type": "connector",
+          "id": "human_c2",
+          "from": "dsa_bridge",
+          "to": "human_world_box"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_human",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_human",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "human_c1",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "human_c2",
+          "at": "2.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "dsa_bridge",
+          "at": "3.4s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "input_screen",
+            "input_diagram",
+            "input_motion",
+            "input_voice",
+            "input_feedback"
+          ],
+          "at": "4.8s",
+          "duration": "2.0s",
+          "stagger": "0.16s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "next_step_note",
+          "at": "6.5s",
+          "duration": "1.0s",
+          "style": "glow",
+          "color": "warning"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "closing_point",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "So the value is not just that an LLM can make a video. The value is that it can collaborate inside a system built for clarity, consistency, iteration, and human communication. That is what DSA is for.",
+      "focus": "dsl_card",
+      "focus_style": {
+        "at": "4.2s",
+        "duration": "2.8s",
+        "scale": 1.12,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "The Point",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_final",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "summary_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "prompt_card",
+                  "content": "Text prompt",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "dsl_card",
+                  "content": "DSA JSON",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "video_card",
+                  "content": "Animation output",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "final_benefits",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "final_consistent",
+                  "content": "consistent"
+                },
+                {
+                  "type": "token",
+                  "id": "final_editable",
+                  "content": "editable"
+                },
+                {
+                  "type": "token",
+                  "id": "final_inspectable",
+                  "content": "inspectable"
+                },
+                {
+                  "type": "token",
+                  "id": "final_agentic",
+                  "content": "agentic"
+                },
+                {
+                  "type": "token",
+                  "id": "final_multi",
+                  "content": "multi-output"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "final_c1",
+          "from": "prompt_card",
+          "to": "dsl_card"
+        },
+        {
+          "type": "connector",
+          "id": "final_c2",
+          "from": "dsl_card",
+          "to": "video_card"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_human",
+          "at": "0s",
+          "duration": "5.4s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "scale",
+          "target": "step_human",
+          "at": "0.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "draw",
+          "target": "final_c1",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "final_c2",
+          "at": "1.9s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "dsl_card",
+          "at": "3.2s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "final_consistent",
+            "final_editable",
+            "final_inspectable",
+            "final_agentic",
+            "final_multi"
+          ],
+          "at": "5.2s",
+          "duration": "2.0s",
+          "stagger": "0.16s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "step_question",
+            "step_direct",
+            "step_dsl",
+            "step_arch",
+            "step_consistency",
+            "step_agentic",
+            "step_human"
+          ],
+          "at": "6.0s",
+          "duration": "1.6s",
+          "stagger": "0.12s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "video_card",
+          "at": "6.4s",
+          "duration": "1.2s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    }
+  ]
+}
