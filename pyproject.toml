@@ -18,6 +18,11 @@ dependencies = [
     "watchdog>=3.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
 [project.scripts]
 dsa-anim = "dsa_anim.cli:main"
 

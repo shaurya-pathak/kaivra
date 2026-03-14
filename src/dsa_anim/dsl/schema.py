@@ -197,6 +197,10 @@ class ObjectSpec(BaseModel):
     grid: GridPositionSpec | None = Field(None, description="Explicit grid placement (row, col, span, or named region)")
     label: str | None = Field(None, description="Small label displayed on the object (e.g. badge text)")
     visible: bool | None = Field(None, description="Default visibility for this object (overrides scene auto_visible)")
+    scale_text: bool | None = Field(
+        None,
+        description="Whether content text should scale with the object transform. Defaults to false for boxes/tokens and true otherwise.",
+    )
     # Motion presets
     enter: "MotionSpec | None" = Field(None, description="Enter animation preset for this object")
     exit: "MotionSpec | None" = Field(None, description="Exit animation preset for this object")

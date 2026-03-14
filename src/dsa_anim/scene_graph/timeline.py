@@ -27,8 +27,8 @@ def apply_animations_at_time(
             node.visible = False
             node.opacity = 0.0
             node.draw_progress = 0.0
-        node.scale_x = 1.0
-        node.scale_y = 1.0
+        node.scale_x = node.base_scale_x
+        node.scale_y = node.base_scale_y
         node.translate_x = 0.0
         node.translate_y = 0.0
         node.highlight_intensity = 0.0

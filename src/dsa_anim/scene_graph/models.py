@@ -51,6 +51,10 @@ class SceneNode:
     idle_speed: float | None = None
     idle_axis: str | None = None
     default_visible: bool = False
+    scale_text: bool = True
+    base_scale_x: float = 1.0
+    base_scale_y: float = 1.0
+    layout_role: str | None = None
 
 
 @dataclass

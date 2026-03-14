@@ -12,6 +12,7 @@ from dsa_anim.scene_graph.models import (
     CameraState, CameraKeyframe, TransitionInfo,
 )
 from dsa_anim.layout.engine import LayoutEngine
+from dsa_anim.layout.strategies.carousel import carousel_scale_profile
 from dsa_anim.themes.base import ThemeSpec
 from dsa_anim.utils.geometry import Rect
 
@@ -49,6 +50,9 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
         continuity = scene_spec.continuity if scene_spec.continuity is not None else doc.meta.continuity
         if continuity and prev_scene is not None:
             _apply_continuity(prev_scene, resolved, parse_duration(doc.meta.continuity_duration))
+            resolved.timeline = _merge_highlights(resolved.timeline)
+            resolved.timeline = _trim_glows(resolved.timeline, resolved.duration, glow_release_padding)
+            resolved.timeline.sort(key=lambda k: k.start_time)
         scenes.append(resolved)
         prev_scene = resolved
 
@@ -81,6 +85,9 @@ def _build_scene(
 ) -> ResolvedScene:
     # Apply scene template (if any)
     spec = _apply_scene_template(spec, persistent_ids)
+    spec = _apply_dynamic_layout_hints(spec)
+    node_hints = _collect_node_hints(spec.objects)
+    unclamped_ids = {node_id for node_id, hint in node_hints.items() if hint.get("skip_canvas_clamp")}
 
     # Resolve layout
     layout = spec.layout if isinstance(spec.layout, LayoutSpec) else LayoutSpec(type=LayoutType.CENTER)
@@ -136,13 +143,13 @@ def _build_scene(
     _position_callouts(spec.objects, positions, canvas, theme)
 
     # Bounds clamping — ensure all objects fit within the full canvas
-    _clamp_to_canvas(positions, canvas)
+    _clamp_to_canvas(positions, canvas, skip_ids=unclamped_ids)
 
     # Build scene nodes
     nodes = []
     node_map = {}
     for obj in spec.objects:
-        node = _build_node(obj, positions, theme, auto_visible=spec.auto_visible)
+        node = _build_node(obj, positions, theme, auto_visible=spec.auto_visible, node_hints=node_hints)
         nodes.append(node)
         node_map[node.id] = node
         # Also register children
@@ -256,31 +263,53 @@ def _trim_glows(
 
 
 def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float) -> None:
-    """Ensure scene-to-scene continuity by animating shared nodes from previous positions."""
+    """Stage scene continuity so shared nodes move first, then new content arrives."""
     if duration <= 0:
         return
+
+    shared_ids = _collect_continuity_ids(prev, curr)
+    if not shared_ids:
+        return
+
+    entering_ids = {node_id for node_id in curr.node_map if node_id not in shared_ids}
+    moved_ids = {
+        node_id
+        for node_id in shared_ids
+        if _has_continuity_motion(prev.node_map[node_id], curr.node_map[node_id])
+    }
+    if not entering_ids and not moved_ids:
+        return
+
+    parent_map = _build_parent_map(curr.nodes)
+    raw_deltas = {
+        node_id: _continuity_delta(prev.node_map[node_id], curr.node_map[node_id])
+        for node_id in shared_ids
+    }
+
     existing_moves: set[str] = set()
     for kf in curr.timeline:
-        if kf.action in {AnimAction.MOVE, AnimAction.MOVE_TO} and kf.start_time <= 0.2:
+        if kf.action in {AnimAction.MOVE, AnimAction.MOVE_TO} and kf.start_time <= max(0.2, duration):
             existing_moves.add(kf.target_id)
 
-    for node_id, node in curr.node_map.items():
+    fade_duration = min(0.9, max(0.32, duration * 0.4))
+    fade_start = duration
+    _stage_continuity_exit(prev, shared_ids, fade_duration)
+    _delay_scene_opening(curr, duration + fade_duration)
+    move_duration = duration
+    _stage_continuity_visibility(curr, shared_ids, entering_ids, parent_map, fade_start, fade_duration)
+
+    for node_id in shared_ids:
         if node_id in existing_moves:
             continue
+        node = curr.node_map[node_id]
         prev_node = prev.node_map.get(node_id)
         if prev_node is None:
             continue
-        # Skip connectors; they follow endpoints
-        if node.obj_type == ObjectType.CONNECTOR:
-            continue
-        # Skip if content changed (e.g., titles) or size changed significantly
-        if prev_node.content != node.content:
-            continue
-        if abs(prev_node.rect.width - node.rect.width) > 1.0 or abs(prev_node.rect.height - node.rect.height) > 1.0:
+        delta = _residual_continuity_delta(node_id, raw_deltas, parent_map)
+        if delta is None:
             continue
 
-        dx = prev_node.rect.x - node.rect.x
-        dy = prev_node.rect.y - node.rect.y
+        dx, dy = delta
         if abs(dx) < 0.5 and abs(dy) < 0.5:
             continue
         # Start at previous position via offset, animate to zero
@@ -288,15 +317,258 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
             target_id=node_id,
             action=AnimAction.MOVE,
             start_time=0.0,
-            duration=duration,
+            duration=move_duration * (1.1 if node.layout_role == "carousel-item" else 1.0),
             easing="ease-in-out",
             from_offset_x=dx,
             from_offset_y=dy,
             offset_x=0.0,
             offset_y=0.0,
         ))
+        if abs(prev_node.base_scale_x - node.base_scale_x) >= 0.01:
+            curr.timeline.append(AnimationKeyframe(
+                target_id=node_id,
+                action=AnimAction.SCALE,
+                start_time=0.0,
+                duration=move_duration,
+                easing="ease-in-out",
+                from_value=prev_node.base_scale_x,
+                to_value=node.base_scale_x,
+            ))
 
+    for node_id in shared_ids:
+        if node_id in existing_moves:
+            continue
+        node = curr.node_map[node_id]
+        prev_node = prev.node_map.get(node_id)
+        if prev_node is None:
+            continue
+        if _has_continuity_motion(prev_node, node):
+            continue
+        if abs(prev_node.base_scale_x - node.base_scale_x) < 0.01:
+            continue
+        curr.timeline.append(AnimationKeyframe(
+            target_id=node_id,
+            action=AnimAction.SCALE,
+            start_time=0.0,
+            duration=move_duration,
+            easing="ease-in-out",
+            from_value=prev_node.base_scale_x,
+            to_value=node.base_scale_x,
+        ))
+
+    prev.timeline.sort(key=lambda k: k.start_time)
     curr.timeline.sort(key=lambda k: k.start_time)
+
+
+def _collect_continuity_ids(prev: ResolvedScene, curr: ResolvedScene) -> set[str]:
+    """Return IDs whose visual identity can flow cleanly across scenes."""
+    shared_ids: set[str] = set()
+    for node_id, node in curr.node_map.items():
+        prev_node = prev.node_map.get(node_id)
+        if prev_node is None:
+            continue
+        if not _continuity_compatible(prev_node, node):
+            continue
+        shared_ids.add(node_id)
+    return shared_ids
+
+
+def _continuity_compatible(prev_node: SceneNode, node: SceneNode) -> bool:
+    """Decide whether two nodes should be treated as the same visual actor."""
+    if prev_node.obj_type != node.obj_type:
+        return False
+    if prev_node.label != node.label:
+        return False
+    if abs(prev_node.rect.width - node.rect.width) > 1.0 or abs(prev_node.rect.height - node.rect.height) > 1.0:
+        return False
+    if node.obj_type == ObjectType.CONNECTOR:
+        return prev_node.from_id == node.from_id and prev_node.to_id == node.to_id
+    if node.obj_type == ObjectType.CALLOUT:
+        return (
+            prev_node.content == node.content
+            and prev_node.from_id == node.from_id
+            and prev_node.to_id == node.to_id
+        )
+    return prev_node.content == node.content
+
+
+def _continuity_delta(prev_node: SceneNode, node: SceneNode) -> tuple[float, float] | None:
+    """Return the positional delta for a continuity move, if motion should happen."""
+    if node.obj_type == ObjectType.CONNECTOR:
+        return None
+    return (prev_node.rect.x - node.rect.x, prev_node.rect.y - node.rect.y)
+
+
+def _residual_continuity_delta(
+    node_id: str,
+    raw_deltas: dict[str, tuple[float, float] | None],
+    parent_map: dict[str, str],
+) -> tuple[float, float] | None:
+    """Subtract the nearest shared ancestor's motion so descendants do not double-move."""
+    delta = raw_deltas.get(node_id)
+    if delta is None:
+        return None
+
+    parent_id = parent_map.get(node_id)
+    while parent_id is not None:
+        parent_delta = raw_deltas.get(parent_id)
+        if parent_delta is not None:
+            return (delta[0] - parent_delta[0], delta[1] - parent_delta[1])
+        parent_id = parent_map.get(parent_id)
+
+    return delta
+
+
+def _has_continuity_motion(prev_node: SceneNode, node: SceneNode) -> bool:
+    """Whether a continuity-compatible node actually changes position between scenes."""
+    delta = _continuity_delta(prev_node, node)
+    if delta is None:
+        return False
+    dx, dy = delta
+    return abs(dx) >= 0.5 or abs(dy) >= 0.5
+
+
+def _delay_scene_opening(scene: ResolvedScene, delay: float) -> None:
+    """Reserve a quiet continuity prelude at scene start before normal animations begin."""
+    delayed_targets = {
+        kf.target_id
+        for kf in scene.timeline
+        if kf.start_time < delay
+    }
+    for kf in scene.timeline:
+        if kf.target_id in delayed_targets:
+            kf.start_time += delay
+
+    if any(kf.start_time < delay for kf in scene.camera_keyframes):
+        for kf in scene.camera_keyframes:
+            kf.start_time += delay
+
+
+def _stage_continuity_visibility(
+    scene: ResolvedScene,
+    shared_ids: set[str],
+    entering_ids: set[str],
+    parent_map: dict[str, str],
+    fade_start: float,
+    fade_duration: float,
+) -> None:
+    """Keep shared nodes on screen during continuity and fade in truly new content afterwards."""
+    support_ids = _collect_support_ancestors(shared_ids, parent_map)
+
+    for node_id in shared_ids | support_ids:
+        node = scene.node_map[node_id]
+        node.default_visible = True
+
+    fade_targets: set[str] = set()
+    for node_id in entering_ids:
+        node = scene.node_map[node_id]
+        was_visible = node.default_visible or node.persistent
+
+        if node_id in support_ids:
+            node.default_visible = True
+            continue
+
+        parent_id = parent_map.get(node_id)
+        entering_parent_id = _nearest_matching_ancestor(parent_id, entering_ids, parent_map)
+        if entering_parent_id is not None and entering_parent_id not in support_ids:
+            node.default_visible = was_visible
+            continue
+
+        node.default_visible = False
+        if not was_visible:
+            continue
+        fade_targets.add(node_id)
+
+    for node_id in fade_targets:
+        scene.timeline.append(AnimationKeyframe(
+            target_id=node_id,
+            action=AnimAction.FADE_IN,
+            start_time=fade_start,
+            duration=fade_duration,
+            easing="ease-out",
+        ))
+
+
+def _stage_continuity_exit(
+    scene: ResolvedScene,
+    shared_ids: set[str],
+    fade_duration: float,
+) -> None:
+    """Fade out outgoing nodes at the end of the previous scene instead of cutting them instantly."""
+    parent_map = _build_parent_map(scene.nodes)
+    support_ids = _collect_support_ancestors(shared_ids, parent_map)
+    exiting_ids = {
+        node_id
+        for node_id in scene.node_map
+        if node_id not in shared_ids and node_id not in support_ids
+    }
+    if not exiting_ids:
+        return
+
+    existing_exits: set[str] = set()
+    threshold = max(0.0, scene.duration - fade_duration - 0.1)
+    for kf in scene.timeline:
+        if kf.action in {AnimAction.FADE_OUT, AnimAction.DISAPPEAR} and kf.start_time >= threshold:
+            existing_exits.add(kf.target_id)
+
+    fade_targets: set[str] = set()
+    for node_id in exiting_ids:
+        parent_id = _nearest_matching_ancestor(parent_map.get(node_id), exiting_ids, parent_map)
+        if parent_id is not None:
+            continue
+        fade_targets.add(node_id)
+
+    start_time = max(0.0, scene.duration - fade_duration)
+    for node_id in fade_targets:
+        if node_id in existing_exits:
+            continue
+        scene.timeline.append(AnimationKeyframe(
+            target_id=node_id,
+            action=AnimAction.FADE_OUT,
+            start_time=start_time,
+            duration=fade_duration,
+            easing="ease-in-out",
+        ))
+
+
+def _build_parent_map(nodes: list[SceneNode]) -> dict[str, str]:
+    """Build child -> parent lookup for resolved nodes."""
+    parent_map: dict[str, str] = {}
+
+    def walk(node: SceneNode) -> None:
+        for child in node.children:
+            parent_map[child.id] = node.id
+            walk(child)
+
+    for node in nodes:
+        walk(node)
+    return parent_map
+
+
+def _collect_support_ancestors(node_ids: set[str], parent_map: dict[str, str]) -> set[str]:
+    """Find ancestor groups that must stay visible so shared descendants can render."""
+    support_ids: set[str] = set()
+    for node_id in node_ids:
+        parent_id = parent_map.get(node_id)
+        while parent_id is not None:
+            if parent_id in support_ids:
+                break
+            support_ids.add(parent_id)
+            parent_id = parent_map.get(parent_id)
+    return support_ids
+
+
+def _nearest_matching_ancestor(
+    parent_id: str | None,
+    candidate_ids: set[str],
+    parent_map: dict[str, str],
+) -> str | None:
+    """Find the nearest ancestor belonging to a candidate set."""
+    while parent_id is not None:
+        if parent_id in candidate_ids:
+            return parent_id
+        parent_id = parent_map.get(parent_id)
+    return None
 
 
 def _merge_highlights(keyframes: list[AnimationKeyframe]) -> list[AnimationKeyframe]:
@@ -509,14 +781,22 @@ def _compute_group_children(
         _compute_group_children(child, positions, layout_engine, theme)
 
 
-def _build_node(obj: ObjectSpec, positions: dict[str, Rect], theme: ThemeSpec, *, auto_visible: bool) -> SceneNode:
+def _build_node(
+    obj: ObjectSpec,
+    positions: dict[str, Rect],
+    theme: ThemeSpec,
+    *,
+    auto_visible: bool,
+    node_hints: dict[str, dict[str, float | str | bool]] | None = None,
+) -> SceneNode:
     obj_id = obj.id or f"obj_{id(obj)}"
     rect = positions.get(obj_id, Rect(0, 0, 100, 50))
+    hints = node_hints.get(obj_id, {}) if node_hints else {}
 
     children = []
     if obj.children:
         for child in obj.children:
-            child_node = _build_node(child, positions, theme, auto_visible=auto_visible)
+            child_node = _build_node(child, positions, theme, auto_visible=auto_visible, node_hints=node_hints)
             children.append(child_node)
 
     from_id = obj.from_id
@@ -541,6 +821,14 @@ def _build_node(obj: ObjectSpec, positions: dict[str, Rect], theme: ThemeSpec, *
         idle_speed=obj.idle.speed if obj.idle else None,
         idle_axis=obj.idle.axis if obj.idle else None,
         default_visible=obj.visible if obj.visible is not None else auto_visible,
+        scale_text=(
+            obj.scale_text
+            if obj.scale_text is not None
+            else obj.type not in {ObjectType.BOX, ObjectType.TOKEN}
+        ),
+        base_scale_x=float(hints.get("base_scale", 1.0)),
+        base_scale_y=float(hints.get("base_scale", 1.0)),
+        layout_role=str(hints["layout_role"]) if "layout_role" in hints else None,
     )
     return node
 
@@ -611,9 +899,12 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
     return keyframes
 
 
-def _clamp_to_canvas(positions: dict[str, Rect], canvas: Rect) -> None:
+def _clamp_to_canvas(positions: dict[str, Rect], canvas: Rect, skip_ids: set[str] | None = None) -> None:
     """Clamp all object positions so they stay within the canvas bounds."""
+    skip_ids = skip_ids or set()
     for obj_id, rect in positions.items():
+        if obj_id in skip_ids:
+            continue
         clamped_w = min(rect.width, canvas.width)
         clamped_h = min(rect.height, canvas.height)
         x = max(canvas.x, min(rect.x, canvas.right - clamped_w))
@@ -815,6 +1106,101 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
             new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region="main")}))
 
     return spec.model_copy(update={"layout": layout, "objects": new_objects})
+
+
+def _apply_dynamic_layout_hints(spec: SceneSpec) -> SceneSpec:
+    """Infer scene-local layout hints from the authored animations.
+
+    This keeps authored JSON simple while still allowing richer layouts like
+    carousels to react to the currently emphasized object.
+    """
+    updated_objects = [_apply_object_layout_hints(obj, spec) for obj in spec.objects]
+    return spec.model_copy(update={"objects": updated_objects})
+
+
+def _apply_object_layout_hints(obj: ObjectSpec, spec: SceneSpec) -> ObjectSpec:
+    children = obj.children or []
+    updated_children = [_apply_object_layout_hints(child, spec) for child in children]
+
+    updated_layout = obj.layout
+    if isinstance(obj.layout, LayoutSpec) and obj.layout.type == LayoutType.CAROUSEL and not obj.layout.active:
+        active_id = _infer_carousel_active(obj, spec)
+        if active_id:
+            updated_layout = obj.layout.model_copy(update={"active": active_id})
+
+    if updated_children != children or updated_layout is not obj.layout:
+        return obj.model_copy(update={"children": updated_children, "layout": updated_layout})
+    return obj
+
+
+def _infer_carousel_active(obj: ObjectSpec, spec: SceneSpec) -> str | None:
+    """Pick the chapter/item that the scene most strongly emphasizes."""
+    child_ids = [child.id for child in (obj.children or []) if child.id]
+    if not child_ids:
+        return None
+
+    focus_targets = spec.focus if isinstance(spec.focus, list) else [spec.focus] if spec.focus else []
+    for focus_id in focus_targets:
+        if focus_id in child_ids:
+            return focus_id
+
+    best_id: str | None = None
+    best_weight = -1
+    best_start = float("inf")
+    action_weight = {
+        AnimAction.SCALE: 4,
+        AnimAction.HIGHLIGHT: 3,
+        AnimAction.PULSE: 2,
+        AnimAction.APPEAR: 1,
+        AnimAction.FADE_IN: 1,
+    }
+
+    for anim in spec.animations:
+        targets = anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
+        weight = action_weight.get(anim.action, 0)
+        if weight <= 0:
+            continue
+        start = parse_duration(anim.at) if anim.at else 0.0
+        for target in targets:
+            if target not in child_ids:
+                continue
+            if weight > best_weight or (weight == best_weight and start < best_start):
+                best_id = target
+                best_weight = weight
+                best_start = start
+
+    return best_id
+
+
+def _collect_node_hints(objects: list[ObjectSpec]) -> dict[str, dict[str, float | str | bool]]:
+    """Collect rendering hints inferred from higher-level layouts."""
+    hints: dict[str, dict[str, float | str | bool]] = {}
+    for obj in objects:
+        _collect_node_hints_from_object(obj, hints)
+    return hints
+
+
+def _collect_node_hints_from_object(
+    obj: ObjectSpec,
+    hints: dict[str, dict[str, float | str | bool]],
+) -> None:
+    if isinstance(obj.layout, LayoutSpec) and obj.layout.type == LayoutType.CAROUSEL and obj.children:
+        active_id = obj.layout.active
+        active_index = next((i for i, child in enumerate(obj.children) if child.id == active_id), None)
+        active_scale = obj.layout.active_scale if obj.layout.active_scale is not None else 1.16
+        inactive_scale = obj.layout.inactive_scale if obj.layout.inactive_scale is not None else 0.86
+        scales = carousel_scale_profile(len(obj.children), active_index, active_scale, inactive_scale)
+        for idx, child in enumerate(obj.children):
+            if not child.id:
+                continue
+            hints.setdefault(child.id, {}).update({
+                "layout_role": "carousel-item",
+                "base_scale": scales[idx],
+                "skip_canvas_clamp": True,
+            })
+
+    for child in obj.children or []:
+        _collect_node_hints_from_object(child, hints)
 
 
 def _auto_duration(spec: SceneSpec) -> float:

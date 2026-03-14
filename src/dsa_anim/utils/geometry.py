@@ -40,6 +40,10 @@ class Rect:
         return self.y + self.height
 
     @property
+    def area(self) -> float:
+        return max(0.0, self.width) * max(0.0, self.height)
+
+    @property
     def top_center(self) -> Point:
         return Point(self.x + self.width / 2, self.y)
 
@@ -62,6 +66,33 @@ class Rect:
             self.width - 2 * padding,
             self.height - 2 * padding,
         )
+
+    def translated(self, dx: float = 0.0, dy: float = 0.0) -> Rect:
+        return Rect(self.x + dx, self.y + dy, self.width, self.height)
+
+    def scaled_about_center(self, sx: float = 1.0, sy: float | None = None) -> Rect:
+        sy = sx if sy is None else sy
+        center = self.center
+        width = self.width * sx
+        height = self.height * sy
+        return Rect(center.x - width / 2, center.y - height / 2, width, height)
+
+    def intersects(self, other: Rect) -> bool:
+        return not (
+            self.right <= other.x
+            or other.right <= self.x
+            or self.bottom <= other.y
+            or other.bottom <= self.y
+        )
+
+    def intersection(self, other: Rect) -> Rect | None:
+        if not self.intersects(other):
+            return None
+        x1 = max(self.x, other.x)
+        y1 = max(self.y, other.y)
+        x2 = min(self.right, other.right)
+        y2 = min(self.bottom, other.bottom)
+        return Rect(x1, y1, max(0.0, x2 - x1), max(0.0, y2 - y1))
 
     def subdivide_vertical(self, ratios: list[float], gap: float = 0) -> list[Rect]:
         """Split into vertical sections according to ratios."""

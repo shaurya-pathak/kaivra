@@ -153,15 +153,38 @@ class CairoRenderer:
         if tx != 0.0 or ty != 0.0:
             ctx.translate(tx, ty)
 
-        # Apply scale transform around center
         sx = node.scale_x * idle_scale
         sy = node.scale_y * idle_scale
+        shell_only_scale = not node.scale_text and node.obj_type in {ObjectType.BOX, ObjectType.TOKEN}
+        if shell_only_scale and (sx != 1.0 or sy != 1.0):
+            ctx.save()
+            cx, cy = node.rect.center.x, node.rect.center.y
+            ctx.translate(cx, cy)
+            ctx.scale(sx, sy)
+            ctx.translate(-cx, -cy)
+            self._draw_node_shell(ctx, node, node_map, scene_time)
+            if node.highlight_intensity > 0:
+                self._draw_highlight(ctx, node)
+            ctx.restore()
+            self._draw_node_text(ctx, node)
+            ctx.restore()
+            return
+
+        # Apply scale transform around center
         if sx != 1.0 or sy != 1.0:
             cx, cy = node.rect.center.x, node.rect.center.y
             ctx.translate(cx, cy)
             ctx.scale(sx, sy)
             ctx.translate(-cx, -cy)
 
+        self._draw_node_visual(ctx, node, node_map, scene_time)
+
+        if node.highlight_intensity > 0:
+            self._draw_highlight(ctx, node)
+
+        ctx.restore()
+
+    def _draw_node_visual(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
         match node.obj_type:
             case ObjectType.TEXT:
                 self._draw_text(ctx, node)
@@ -180,11 +203,21 @@ class CairoRenderer:
             case _:
                 self._draw_box(ctx, node)
 
-        # Draw highlight overlay if active
-        if node.highlight_intensity > 0:
-            self._draw_highlight(ctx, node)
+    def _draw_node_shell(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
+        match node.obj_type:
+            case ObjectType.BOX:
+                self._draw_box_shell(ctx, node)
+            case ObjectType.TOKEN:
+                self._draw_token_shell(ctx, node)
+            case _:
+                self._draw_node_visual(ctx, node, node_map, scene_time)
 
-        ctx.restore()
+    def _draw_node_text(self, ctx: cairo.Context, node: SceneNode) -> None:
+        match node.obj_type:
+            case ObjectType.BOX:
+                self._draw_box_text(ctx, node)
+            case ObjectType.TOKEN:
+                self._draw_token_text(ctx, node)
 
     def _draw_text(self, ctx: cairo.Context, node: SceneNode) -> None:
         if not node.content:
@@ -216,6 +249,10 @@ class CairoRenderer:
         ctx.show_text(text)
 
     def _draw_box(self, ctx: cairo.Context, node: SceneNode) -> None:
+        self._draw_box_shell(ctx, node)
+        self._draw_box_text(ctx, node)
+
+    def _draw_box_shell(self, ctx: cairo.Context, node: SceneNode) -> None:
         r = node.rect
         cr = self.theme.box_corner_radius
 
@@ -241,7 +278,8 @@ class CairoRenderer:
         else:
             ctx.stroke()
 
-        # Content text
+    def _draw_box_text(self, ctx: cairo.Context, node: SceneNode) -> None:
+        r = node.rect
         if node.content:
             ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
             ctx.set_font_size(self.theme.font_size_body)
@@ -259,6 +297,10 @@ class CairoRenderer:
             ctx.show_text(text)
 
     def _draw_token(self, ctx: cairo.Context, node: SceneNode) -> None:
+        self._draw_token_shell(ctx, node)
+        self._draw_token_text(ctx, node)
+
+    def _draw_token_shell(self, ctx: cairo.Context, node: SceneNode) -> None:
         r = node.rect
         cr = self.theme.token_corner_radius
 
@@ -285,7 +327,8 @@ class CairoRenderer:
             self._rounded_rect(ctx, r.x, r.y, r.width, r.height, cr)
             ctx.stroke()
 
-        # Token text
+    def _draw_token_text(self, ctx: cairo.Context, node: SceneNode) -> None:
+        r = node.rect
         if node.content:
             ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
             ctx.set_font_size(self.theme.font_size_body)
@@ -385,11 +428,17 @@ class CairoRenderer:
 
         # Draw children
         for child in node.children:
-            # Inherit parent visibility/opacity
-            child.visible = node.visible
-            child.opacity = node.opacity
-            child.draw_progress = node.draw_progress
+            # Children keep their own animation state, but inherit the parent's envelope.
+            child_visible = child.visible
+            child_opacity = child.opacity
+            child_draw_progress = child.draw_progress
+            child.visible = node.visible and child_visible
+            child.opacity = node.opacity * child_opacity
+            child.draw_progress = node.draw_progress * child_draw_progress
             self._draw_node(ctx, child, node_map, scene_time)
+            child.visible = child_visible
+            child.opacity = child_opacity
+            child.draw_progress = child_draw_progress
 
     def _draw_circle(self, ctx: cairo.Context, node: SceneNode) -> None:
         cx, cy = node.rect.center.x, node.rect.center.y

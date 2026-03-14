@@ -141,6 +141,10 @@ def _serialize_node(node) -> dict:
         "idleSpeed": node.idle_speed,
         "idleAxis": node.idle_axis,
         "defaultVisible": node.default_visible,
+        "scaleText": node.scale_text,
+        "baseScaleX": node.base_scale_x,
+        "baseScaleY": node.base_scale_y,
+        "layoutRole": node.layout_role,
         "children": [_serialize_node(c) for c in node.children],
     }
     return data
@@ -260,8 +264,8 @@ function applyAnimations(nodeMap, keyframes, t) {{
       nodeMap[id]._opacity = 0;
       nodeMap[id]._drawProgress = 0;
     }}
-    nodeMap[id]._scaleX = 1;
-    nodeMap[id]._scaleY = 1;
+    nodeMap[id]._scaleX = nodeMap[id].baseScaleX || 1;
+    nodeMap[id]._scaleY = nodeMap[id].baseScaleY || 1;
     nodeMap[id]._translateX = 0;
     nodeMap[id]._translateY = 0;
     nodeMap[id]._highlightIntensity = 0;
@@ -383,6 +387,19 @@ function drawNode(ctx, node, nodeMap) {{
   }}
   const sx = (node._scaleX || 1) * idleScale;
   const sy = (node._scaleY || 1) * idleScale;
+  const shellOnlyScale = (node.scaleText === false) && (node.type === 'box' || node.type === 'token');
+  if (shellOnlyScale && (sx !== 1 || sy !== 1)) {{
+    ctx.save();
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    ctx.translate(cx, cy);
+    ctx.scale(sx, sy);
+    ctx.translate(-cx, -cy);
+    drawNodeShell(ctx, node, nodeMap);
+    ctx.restore();
+    drawNodeTextLayer(ctx, node);
+    ctx.restore();
+    return;
+  }}
   if (sx !== 1 || sy !== 1) {{
     const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
     ctx.translate(cx, cy);
@@ -390,6 +407,12 @@ function drawNode(ctx, node, nodeMap) {{
     ctx.translate(-cx, -cy);
   }}
 
+  drawNodeVisual(ctx, node, nodeMap);
+
+  ctx.restore();
+}}
+
+function drawNodeVisual(ctx, node, nodeMap) {{
   switch(node.type) {{
     case 'text': drawText(ctx, node); break;
     case 'box': drawBox(ctx, node); break;
@@ -398,8 +421,21 @@ function drawNode(ctx, node, nodeMap) {{
     case 'group': drawGroup(ctx, node, nodeMap); break;
     default: drawBox(ctx, node); break;
   }}
+}}
 
-  ctx.restore();
+function drawNodeShell(ctx, node, nodeMap) {{
+  switch(node.type) {{
+    case 'box': drawBoxShell(ctx, node); break;
+    case 'token': drawTokenShell(ctx, node); break;
+    default: drawNodeVisual(ctx, node, nodeMap); break;
+  }}
+}}
+
+function drawNodeTextLayer(ctx, node) {{
+  switch(node.type) {{
+    case 'box': drawBoxText(ctx, node); break;
+    case 'token': drawTokenText(ctx, node); break;
+  }}
 }}
 
 function drawText(ctx, node) {{
@@ -417,6 +453,11 @@ function drawText(ctx, node) {{
 }}
 
 function drawBox(ctx, node) {{
+  drawBoxShell(ctx, node);
+  drawBoxText(ctx, node);
+}}
+
+function drawBoxShell(ctx, node) {{
   const r = node.rect;
   roundedRect(ctx, r.x, r.y, r.w, r.h, THEME.boxCornerRadius);
   ctx.fillStyle = hexToRgba(THEME.boxFill, node._opacity);
@@ -424,6 +465,10 @@ function drawBox(ctx, node) {{
   ctx.strokeStyle = hexToRgba(THEME.boxBorder, node._opacity);
   ctx.lineWidth = THEME.boxBorderWidth;
   ctx.stroke();
+}}
+
+function drawBoxText(ctx, node) {{
+  const r = node.rect;
   if (node.content) {{
     ctx.font = `${{THEME.fontSizeBody}}px sans-serif`;
     ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
@@ -435,6 +480,11 @@ function drawBox(ctx, node) {{
 }}
 
 function drawToken(ctx, node) {{
+  drawTokenShell(ctx, node);
+  drawTokenText(ctx, node);
+}}
+
+function drawTokenShell(ctx, node) {{
   const r = node.rect;
   roundedRect(ctx, r.x, r.y, r.w, r.h, 4);
   ctx.fillStyle = hexToRgba(THEME.tokenFill, node._opacity);
@@ -442,6 +492,10 @@ function drawToken(ctx, node) {{
   ctx.strokeStyle = hexToRgba(THEME.tokenBorder, node._opacity);
   ctx.lineWidth = 1.5;
   ctx.stroke();
+}}
+
+function drawTokenText(ctx, node) {{
+  const r = node.rect;
   if (node.content) {{
     ctx.font = `${{THEME.fontSizeBody}}px sans-serif`;
     ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
@@ -482,10 +536,16 @@ function drawGroup(ctx, node, nodeMap) {{
     ctx.fillText(node.label, node.rect.x + (node.rect.w - m.width) / 2, node.rect.y - 8);
   }}
   for (const child of (node.children || [])) {{
-    child._visible = node._visible;
-    child._opacity = node._opacity;
-    child._drawProgress = node._drawProgress;
+    const prevVisible = child._visible;
+    const prevOpacity = child._opacity;
+    const prevDrawProgress = child._drawProgress;
+    child._visible = node._visible && prevVisible;
+    child._opacity = node._opacity * prevOpacity;
+    child._drawProgress = node._drawProgress * prevDrawProgress;
     drawNode(ctx, child, nodeMap);
+    child._visible = prevVisible;
+    child._opacity = prevOpacity;
+    child._drawProgress = prevDrawProgress;
   }}
 }}
 
