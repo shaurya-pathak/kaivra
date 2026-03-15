@@ -1,0 +1,173 @@
+{
+  "version": "1.0",
+  "name": "nvidia",
+  "typography": {
+    "display_family": "NVIDIA Sans",
+    "display_fallbacks": ["Helvetica Neue", "Arial", "sans-serif"],
+    "body_family": "NVIDIA Sans",
+    "body_fallbacks": ["Helvetica Neue", "Arial", "sans-serif"],
+    "code_family": "Roboto Mono",
+    "code_fallbacks": ["SFMono-Regular", "Menlo", "Consolas", "monospace"],
+    "display_size": 96,
+    "heading_size": 58,
+    "section_heading_size": 42,
+    "body_size": 28,
+    "caption_size": 20,
+    "code_size": 22
+  },
+  "palette": {
+    "background": "#0B0B0B",
+    "primary": "#FFFFFF",
+    "accent": "#76B900",
+    "success": "#76B900",
+    "warning": "#F2C94C",
+    "error": "#FF5C5C",
+    "muted": "#303030",
+    "text": "#F5F5F5",
+    "text_light": "#B8B8B8"
+  },
+  "objects": {
+    "box": {
+      "fill": "#111111",
+      "border": "#2F2F2F",
+      "border_width": 2.0,
+      "corner_radius": 4.0,
+      "padding": 18.0,
+      "min_width": 150.0,
+      "min_height": 56.0
+    },
+    "token": {
+      "fill": "#151515",
+      "border": "#76B900",
+      "padding": 10.0,
+      "corner_radius": 4.0
+    },
+    "connector": {
+      "color": "#76B900",
+      "width": 2.0,
+      "arrow_size": 10.0
+    },
+    "token_badge": {
+      "font_size": 12.0,
+      "color": "#B8B8B8",
+      "opacity": 0.85,
+      "offset_y": 14.0
+    }
+  },
+  "layout": {
+    "gap_small": 14.0,
+    "gap_medium": 28.0,
+    "gap_large": 56.0,
+    "margin": 64.0
+  },
+  "effects": {
+    "sketch_effect": false,
+    "sketch_roughness": 0.0,
+    "shadow": {
+      "enabled": true,
+      "offset": 4.0,
+      "blur": 10.0,
+      "color": "#00000055"
+    }
+  },
+  "styles": {
+    "display": {
+      "font_size": 96,
+      "font_weight": "bold",
+      "font_role": "display",
+      "color": "#F5F5F5"
+    },
+    "heading": {
+      "font_size": 58,
+      "font_weight": "bold",
+      "font_role": "display",
+      "color": "#F5F5F5"
+    },
+    "section-heading": {
+      "font_size": 42,
+      "font_weight": "bold",
+      "font_role": "display",
+      "color": "#F5F5F5"
+    },
+    "body": {
+      "font_size": 28,
+      "font_role": "body",
+      "color": "#F5F5F5"
+    },
+    "caption": {
+      "font_size": 20,
+      "font_role": "body",
+      "color": "#B8B8B8"
+    },
+    "code": {
+      "font_size": 22,
+      "font_role": "code",
+      "color": "#F5F5F5"
+    },
+    "result": {
+      "font_size": 58,
+      "font_weight": "bold",
+      "font_role": "display",
+      "color": "#76B900"
+    },
+    "primary": {
+      "font_role": "body",
+      "fill": "#76B900",
+      "color": "#0B0B0B"
+    },
+    "accent": {
+      "font_role": "body",
+      "fill": "#76B900",
+      "border": "#76B900",
+      "color": "#0B0B0B"
+    },
+    "muted": {
+      "font_role": "body",
+      "fill": "#303030",
+      "color": "#B8B8B8"
+    }
+  },
+  "chrome": {
+    "narration": {
+      "background_color": "#000000D9",
+      "text_color": "#F5F5F5",
+      "font_size": 22.0,
+      "bar_height": 80.0,
+      "bottom_offset": 30.0,
+      "horizontal_padding": 80.0,
+      "line_height": 28.0
+    },
+    "callout": {
+      "background_color": "#111111F0",
+      "text_color": "#F5F5F5",
+      "border_color": "#76B900",
+      "border_width": 1.5,
+      "corner_radius": 4.0,
+      "padding": 12.0,
+      "font_size": 16.0,
+      "max_width": 280.0,
+      "line_height": 22.0,
+      "pointer_color": "#76B900",
+      "pointer_width": 1.5,
+      "pointer_dash": [4.0, 4.0]
+    },
+    "progress_bar": {
+      "color": "#76B900",
+      "height": 3.0,
+      "opacity": 0.8
+    },
+    "preview": {
+      "page_background": "#050505",
+      "controls_text_color": "#F5F5F5",
+      "canvas_corner_radius": 10.0,
+      "canvas_shadow": "0 8px 30px rgba(0,0,0,0.45)",
+      "button_fill": "#76B900",
+      "button_hover_fill": "#5E9400",
+      "button_text_color": "#0B0B0B",
+      "button_corner_radius": 4.0,
+      "button_font_size": 14.0,
+      "timeline_accent": "#76B900",
+      "narration_text_color": "#B8B8B8"
+    }
+  }
+}

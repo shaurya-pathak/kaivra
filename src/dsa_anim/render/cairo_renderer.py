@@ -15,7 +15,6 @@ from dsa_anim.dsl.schema import ObjectType
 from dsa_anim.scene_graph.models import SceneGraph, ResolvedScene, SceneNode, CameraState
 from dsa_anim.scene_graph.timeline import apply_animations_at_time, compute_camera_at_time
 from dsa_anim.themes.base import ThemeSpec
-from dsa_anim.themes.registry import get_theme
 from dsa_anim.utils.color import hex_to_rgba
 from dsa_anim.utils.geometry import Rect
 
@@ -84,7 +83,8 @@ class CairoRenderer:
         ctx.save()
         if graph.show_narration and scene.narration:
             self._draw_narration(ctx, scene.narration, scene_time, scene.duration, graph.width, graph.height)
-        self._draw_progress_bar(ctx, scene_time, scene.duration, graph.width)
+        if scene.show_progress:
+            self._draw_progress_bar(ctx, scene_time, scene.duration, graph.width)
         ctx.restore()
 
     def render_frame_to_file(self, graph: SceneGraph, time: float, path: str) -> None:
@@ -113,6 +113,15 @@ class CairoRenderer:
         ctx.set_source_rgba(r, g, b, a)
         ctx.rectangle(0, 0, w, h)
         ctx.fill()
+
+    def _select_font(
+        self,
+        ctx: cairo.Context,
+        family: str,
+        weight: cairo.FontWeight = cairo.FONT_WEIGHT_NORMAL,
+    ) -> None:
+        """Apply the requested font family and weight to the Cairo context."""
+        ctx.select_font_face(family, cairo.FONT_SLANT_NORMAL, weight)
 
     def _apply_camera(self, ctx: cairo.Context, camera: CameraState, w: int, h: int) -> None:
         if camera.zoom != 1.0 or camera.center_x or camera.center_y:
@@ -227,8 +236,9 @@ class CairoRenderer:
         font_size = style.get("font_size", self.theme.font_size_body)
         color = style.get("color", self.theme.text_color)
         weight = cairo.FONT_WEIGHT_BOLD if style.get("font_weight") == "bold" else cairo.FONT_WEIGHT_NORMAL
+        family = style.get("font_family", self.theme.font_family_for_role("body"))
 
-        ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, weight)
+        self._select_font(ctx, family, weight)
         ctx.set_font_size(font_size)
 
         r, g, b, _ = hex_to_rgba(color)
@@ -281,7 +291,7 @@ class CairoRenderer:
     def _draw_box_text(self, ctx: cairo.Context, node: SceneNode) -> None:
         r = node.rect
         if node.content:
-            ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+            self._select_font(ctx, self.theme.font_family_for_role("body"))
             ctx.set_font_size(self.theme.font_size_body)
             tr, tg, tb, _ = hex_to_rgba(self.theme.text_color)
             ctx.set_source_rgba(tr, tg, tb, node.opacity)
@@ -330,7 +340,7 @@ class CairoRenderer:
     def _draw_token_text(self, ctx: cairo.Context, node: SceneNode) -> None:
         r = node.rect
         if node.content:
-            ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+            self._select_font(ctx, self.theme.font_family_for_role("body"))
             ctx.set_font_size(self.theme.font_size_body)
             tr, tg, tb, _ = hex_to_rgba(self.theme.text_color)
             ctx.set_source_rgba(tr, tg, tb, node.opacity)
@@ -344,13 +354,14 @@ class CairoRenderer:
 
         # Token ID badge (small text below)
         if node.token_id is not None:
-            ctx.set_font_size(12)
+            self._select_font(ctx, self.theme.font_family_for_role("body"))
+            ctx.set_font_size(self.theme.token_badge_font_size)
             tid_text = str(node.token_id)
-            mr, mg, mb, _ = hex_to_rgba(self.theme.text_light)
-            ctx.set_source_rgba(mr, mg, mb, node.opacity * 0.8)
+            mr, mg, mb, ma = hex_to_rgba(self.theme.token_badge_color)
+            ctx.set_source_rgba(mr, mg, mb, ma * node.opacity * self.theme.token_badge_opacity)
             extents = ctx.text_extents(tid_text)
             x = r.x + (r.width - extents.width) / 2
-            y = r.bottom + 14
+            y = r.bottom + self.theme.token_badge_offset_y
             ctx.move_to(x, y)
             ctx.show_text(tid_text)
 
@@ -417,7 +428,7 @@ class CairoRenderer:
     def _draw_group(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
         # Draw label if present
         if node.label:
-            ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            self._select_font(ctx, self.theme.font_family_for_role("body"), cairo.FONT_WEIGHT_BOLD)
             ctx.set_font_size(self.theme.font_size_caption)
             lr, lg, lb, _ = hex_to_rgba(self.theme.text_light)
             ctx.set_source_rgba(lr, lg, lb, node.opacity)
@@ -455,7 +466,7 @@ class CairoRenderer:
         ctx.stroke()
 
         if node.content:
-            ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+            self._select_font(ctx, self.theme.font_family_for_role("body"))
             ctx.set_font_size(self.theme.font_size_body)
             tr, tg, tb, _ = hex_to_rgba(self.theme.text_color)
             ctx.set_source_rgba(tr, tg, tb, node.opacity)
@@ -491,19 +502,21 @@ class CairoRenderer:
             return
 
         # Semi-transparent backdrop
-        bar_h = 80
-        bar_y = h - bar_h - 30
+        bar_h = self.theme.narration_bar_height
+        bar_y = h - bar_h - self.theme.narration_bottom_offset
         ctx.rectangle(0, bar_y, w, bar_h)
-        ctx.set_source_rgba(0, 0, 0, 0.55 * opacity)
+        br, bg, bb, ba = hex_to_rgba(self.theme.narration_background_color)
+        ctx.set_source_rgba(br, bg, bb, ba * opacity)
         ctx.fill()
 
         # Narration text — wrap if needed
-        ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-        ctx.set_font_size(22)
-        ctx.set_source_rgba(1, 1, 1, 0.95 * opacity)
+        self._select_font(ctx, self.theme.font_family_for_role("body"))
+        ctx.set_font_size(self.theme.narration_font_size)
+        tr, tg, tb, ta = hex_to_rgba(self.theme.narration_text_color)
+        ctx.set_source_rgba(tr, tg, tb, ta * opacity)
 
         # Simple word wrapping
-        max_width = w - 160
+        max_width = w - self.theme.narration_horizontal_padding * 2
         words = text.split()
         lines = []
         current_line = ""
@@ -518,9 +531,9 @@ class CairoRenderer:
         if current_line:
             lines.append(current_line)
 
-        line_height = 28
+        line_height = self.theme.narration_line_height
         total_text_h = len(lines) * line_height
-        text_y = bar_y + (bar_h - total_text_h) / 2 + 20
+        text_y = bar_y + (bar_h - total_text_h) / 2 + self.theme.narration_font_size * 0.9
 
         for i, line in enumerate(lines):
             ext = ctx.text_extents(line)
@@ -533,10 +546,9 @@ class CairoRenderer:
         if scene_duration <= 0:
             return
         progress = scene_time / scene_duration
-        bar_h = 3
-        ar, ag, ab, _ = hex_to_rgba(self.theme.accent)
-        ctx.set_source_rgba(ar, ag, ab, 0.6)
-        ctx.rectangle(0, 0, w * progress, bar_h)
+        ar, ag, ab, aa = hex_to_rgba(self.theme.progress_bar_color)
+        ctx.set_source_rgba(ar, ag, ab, aa * self.theme.progress_bar_opacity)
+        ctx.rectangle(0, 0, w * progress, self.theme.progress_bar_height)
         ctx.fill()
 
     def _draw_callout(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]) -> None:
@@ -547,12 +559,12 @@ class CairoRenderer:
         r = node.rect
 
         # Callout bubble
-        padding = 12
-        ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-        ctx.set_font_size(16)
+        padding = self.theme.callout_padding
+        self._select_font(ctx, self.theme.font_family_for_role("body"))
+        ctx.set_font_size(self.theme.callout_font_size)
 
         # Word wrap the content
-        max_w = 280
+        max_w = self.theme.callout_max_width
         words = node.content.split()
         lines = []
         current = ""
@@ -566,7 +578,7 @@ class CairoRenderer:
         if current:
             lines.append(current)
 
-        line_h = 22
+        line_h = self.theme.callout_line_height
         bubble_w = min(max_w + padding * 2, r.width)
         bubble_h = len(lines) * line_h + padding * 2
 
@@ -574,19 +586,24 @@ class CairoRenderer:
         by = r.y + (r.height - bubble_h) / 2
 
         # Background
-        self._rounded_rect(ctx, bx, by, bubble_w, bubble_h, 8)
-        ctx.set_source_rgba(0.05, 0.05, 0.15, 0.85 * node.opacity)
+        self._rounded_rect(ctx, bx, by, bubble_w, bubble_h, self.theme.callout_corner_radius)
+        cbr, cbg, cbb, cba = hex_to_rgba(self.theme.callout_background_color)
+        ctx.set_source_rgba(cbr, cbg, cbb, cba * node.opacity)
         ctx.fill_preserve()
-        ar, ag, ab, _ = hex_to_rgba(self.theme.accent)
-        ctx.set_source_rgba(ar, ag, ab, 0.8 * node.opacity)
-        ctx.set_line_width(1.5)
+        br, bg, bb, ba = hex_to_rgba(self.theme.callout_border_color)
+        ctx.set_source_rgba(br, bg, bb, ba * node.opacity)
+        ctx.set_line_width(self.theme.callout_border_width)
         ctx.stroke()
 
         # Text
-        ctx.set_source_rgba(1, 1, 1, 0.95 * node.opacity)
+        tr, tg, tb, ta = hex_to_rgba(self.theme.callout_text_color)
+        ctx.set_source_rgba(tr, tg, tb, ta * node.opacity)
         for i, line in enumerate(lines):
             ext = ctx.text_extents(line)
-            ctx.move_to(bx + (bubble_w - ext.width) / 2, by + padding + 14 + i * line_h)
+            ctx.move_to(
+                bx + (bubble_w - ext.width) / 2,
+                by + padding + self.theme.callout_font_size * 0.9 + i * line_h,
+            )
             ctx.show_text(line)
 
         # Pointer line to target if from_id is set
@@ -599,9 +616,10 @@ class CairoRenderer:
                 end_x = target.rect.center.x
                 end_y = target.rect.y
 
-                ctx.set_source_rgba(ar, ag, ab, 0.6 * node.opacity)
-                ctx.set_line_width(1.5)
-                ctx.set_dash([4, 4])
+                pr, pg, pb, pa = hex_to_rgba(self.theme.callout_pointer_color)
+                ctx.set_source_rgba(pr, pg, pb, pa * node.opacity)
+                ctx.set_line_width(self.theme.callout_pointer_width)
+                ctx.set_dash(list(self.theme.callout_pointer_dash))
                 ctx.move_to(start_x, start_y)
                 ctx.line_to(end_x, end_y)
                 ctx.stroke()

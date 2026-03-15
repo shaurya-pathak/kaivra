@@ -22,6 +22,9 @@ dependencies = [
 dev = [
     "pytest>=7.0",
 ]
+local-voice = [
+    "sherpa-onnx",
+]
 
 [project.scripts]
 dsa-anim = "dsa_anim.cli:main"

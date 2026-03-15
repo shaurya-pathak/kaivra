@@ -33,7 +33,11 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     prev_scene: ResolvedScene | None = None
     for scene_spec in doc.scenes:
         # Prepend persistent objects so they appear in every scene
-        if doc.objects:
+        include_document_objects = scene_spec.include_document_objects
+        if include_document_objects is None:
+            include_document_objects = scene_spec.template != "title-opener"
+
+        if doc.objects and include_document_objects:
             merged_objects = list(doc.objects) + list(scene_spec.objects)
             merged_spec = scene_spec.model_copy(update={"objects": merged_objects})
         else:
@@ -221,6 +225,7 @@ def _build_scene(
         camera_keyframes=camera_keyframes,
         transition=transition,
         narration=spec.narration,
+        show_progress=spec.show_progress if spec.show_progress is not None else True,
     )
 
 
@@ -1079,13 +1084,27 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
                 "main": {"row": 2, "row_span": 11, "col": 1, "span": 12},
             },
         )
+    elif template == "title-opener":
+        layout = LayoutSpec(
+            type=LayoutType.GRID,
+            columns=12,
+            rows=12,
+            gap="large",
+            regions={
+                "title": {"row": 3, "row_span": 2, "col": 2, "span": 10},
+                "body": {"row": 6, "row_span": 3, "col": 3, "span": 8},
+            },
+        )
     else:
         return spec
 
     persistent_ids = persistent_ids or set()
 
     def is_title(obj: ObjectSpec) -> bool:
-        return obj.style in {"heading", "section-heading"}
+        return obj.style in {"display", "heading", "section-heading"}
+
+    if template == "title-opener":
+        return _apply_title_opener_template(spec, layout, persistent_ids)
 
     new_objects: list[ObjectSpec] = []
     for obj in spec.objects:
@@ -1106,6 +1125,74 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
             new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region="main")}))
 
     return spec.model_copy(update={"layout": layout, "objects": new_objects})
+
+
+def _apply_title_opener_template(
+    spec: SceneSpec,
+    layout: LayoutSpec,
+    persistent_ids: set[str],
+) -> SceneSpec:
+    preserved: list[ObjectSpec] = []
+    title_objects: list[ObjectSpec] = []
+    body_objects: list[ObjectSpec] = []
+
+    for obj in spec.objects:
+        if obj.id in persistent_ids or obj.position or obj.grid:
+            preserved.append(obj)
+            continue
+
+        if obj.style in {"display", "heading", "section-heading"}:
+            upgraded_style = "display" if obj.style in {None, "display", "heading"} else obj.style
+            title_objects.append(
+                obj.model_copy(
+                    update={
+                        "style": upgraded_style,
+                        "grid": GridPositionSpec(region="title"),
+                    }
+                )
+            )
+        else:
+            body_objects.append(obj)
+
+    new_objects = list(preserved)
+    new_objects.extend(_collapse_title_opener_bucket(title_objects, spec, region="title", group_suffix="title"))
+    new_objects.extend(_collapse_title_opener_bucket(body_objects, spec, region="body", group_suffix="body"))
+
+    show_progress = spec.show_progress if spec.show_progress is not None else False
+    include_document_objects = (
+        spec.include_document_objects if spec.include_document_objects is not None else False
+    )
+    return spec.model_copy(
+        update={
+            "layout": layout,
+            "objects": new_objects,
+            "show_progress": show_progress,
+            "include_document_objects": include_document_objects,
+        }
+    )
+
+
+def _collapse_title_opener_bucket(
+    objects: list[ObjectSpec],
+    spec: SceneSpec,
+    *,
+    region: str,
+    group_suffix: str,
+) -> list[ObjectSpec]:
+    if not objects:
+        return []
+    if len(objects) == 1:
+        return [objects[0].model_copy(update={"grid": GridPositionSpec(region=region)})]
+
+    group_id = f"{spec.id or 'scene'}_{group_suffix}"
+    group = ObjectSpec(
+        type=ObjectType.GROUP,
+        id=group_id,
+        layout=LayoutSpec(type=LayoutType.STACK, gap="medium", align="center"),
+        children=objects,
+        grid=GridPositionSpec(region=region),
+    )
+    return [group]
 
 
 def _apply_dynamic_layout_hints(spec: SceneSpec) -> SceneSpec:
