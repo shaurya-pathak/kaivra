@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dsa-anim"
+name = "kaivra"
 version = "0.1.0"
 description = "Declarative animation engine for LLMs — Typst for animations"
 readme = "README.md"
@@ -27,10 +27,10 @@ local-voice = [
 ]
 
 [project.scripts]
-dsa-anim = "dsa_anim.cli:main"
+kaivra = "kaivra.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/dsa_anim"]
+packages = ["src/kaivra"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

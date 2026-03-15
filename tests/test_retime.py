@@ -1,5 +1,5 @@
-from dsa_anim.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
-from dsa_anim.dsl.retime import (
+from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
+from kaivra.dsl.retime import (
     estimate_scene_duration,
     retime_document_to_audio_timings,
     retime_document_to_scene_durations,

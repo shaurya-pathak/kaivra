@@ -1,7 +1,7 @@
-from dsa_anim.dsl.schema import ObjectType
-from dsa_anim.qa.audit import _audit_overlaps, audit_scene_graph
-from dsa_anim.scene_graph.models import ResolvedScene, SceneGraph, SceneNode
-from dsa_anim.utils.geometry import Rect
+from kaivra.dsl.schema import ObjectType
+from kaivra.qa.audit import _audit_overlaps, audit_scene_graph
+from kaivra.scene_graph.models import ResolvedScene, SceneGraph, SceneNode
+from kaivra.utils.geometry import Rect
 
 
 def test_audit_reports_overlapping_visible_nodes():
