@@ -1,6 +1,6 @@
 import json
 
-from dsa_anim.audio.timings import load_audio_timing_data
+from kaivra.audio.timings import load_audio_timing_data
 
 
 def test_load_audio_timing_data_supports_scene_cues(tmp_path):

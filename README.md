@@ -1,6 +1,6 @@
-# dsa-anim
+# Kaivra
 
-`dsa-anim` is a declarative animation engine for turning JSON or YAML into:
+`kaivra` is a declarative animation engine for turning JSON or YAML into:
 
 - MP4/WebM videos
 - PNG stills
@@ -25,10 +25,10 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
 
-dsa-anim validate examples/demos/bubble_sort_demo.json
-dsa-anim render examples/demos/bubble_sort_demo.json -o out.mp4
-dsa-anim preview examples/demos/bubble_sort_demo.json --serve
-dsa-anim audit examples/demos/bubble_sort_demo.json
+kaivra validate examples/demos/bubble_sort_demo.json
+kaivra render examples/demos/bubble_sort_demo.json -o out.mp4
+kaivra preview examples/demos/bubble_sort_demo.json --serve
+kaivra audit examples/demos/bubble_sort_demo.json
 ```
 
 You will also need `ffmpeg` installed for video output.
@@ -36,14 +36,14 @@ You will also need `ffmpeg` installed for video output.
 ## Common Commands
 
 ```bash
-dsa-anim validate FILE.json
-dsa-anim render FILE.json -o out.mp4
-dsa-anim render FILE.json -o frame.png
-dsa-anim preview FILE.json --serve
-dsa-anim audit FILE.json
-dsa-anim schema
-dsa-anim theme-schema
-dsa-anim validate-theme examples/themes/nvidia.json
+kaivra validate FILE.json
+kaivra render FILE.json -o out.mp4
+kaivra render FILE.json -o frame.png
+kaivra preview FILE.json --serve
+kaivra audit FILE.json
+kaivra schema
+kaivra theme-schema
+kaivra validate-theme examples/themes/nvidia.json
 ```
 
 ## Themes
@@ -53,7 +53,7 @@ Built-in themes still work through `meta.theme`.
 You can override them with an external JSON theme file:
 
 ```bash
-dsa-anim render \
+kaivra render \
   examples/demos/bubble_sort_demo.json \
   -o out.mp4 \
   --theme-file examples/themes/nvidia.json
@@ -77,7 +77,7 @@ python -m pip install -e '.[local-voice]'
 Render with local narration:
 
 ```bash
-dsa-anim render \
+kaivra render \
   examples/explainers/agentic_debug_agent_explainer.json \
   -o out.mp4 \
   --voice-mode local \
@@ -90,14 +90,14 @@ The model directory should contain:
 - `tokens.txt`
 - `espeak-ng-data/`
 
-`dsa-anim` will use the Sherpa executable if it exists, and otherwise fall back to the installed Python API. Local voice currently retimes by generated scene duration; it does not produce word-level timing data on its own.
+`kaivra` will use the Sherpa executable if it exists, and otherwise fall back to the installed Python API. Local voice currently retimes by generated scene duration; it does not produce word-level timing data on its own.
 
 ## Audio Inputs
 
 If you already have narration audio, you can render with it directly:
 
 ```bash
-dsa-anim render \
+kaivra render \
   examples/demos/agentic_triage.json \
   -o out.mp4 \
   --audio narration.wav \
@@ -132,7 +132,7 @@ Supported timing sidecars:
 ## Repo Layout
 
 ```text
-src/dsa_anim/
+src/kaivra/
   cli.py
   dsl/
   scene_graph/

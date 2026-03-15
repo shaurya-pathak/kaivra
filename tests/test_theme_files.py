@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from dsa_anim.cli import main
-from dsa_anim.render.web.exporter import _serialize_theme
-from dsa_anim.themes.file_schema import load_theme_file, load_theme_file_raw
-from dsa_anim.themes.loader import resolve_theme
+from kaivra.cli import main
+from kaivra.render.web.exporter import _serialize_theme
+from kaivra.themes.file_schema import load_theme_file, load_theme_file_raw
+from kaivra.themes.loader import resolve_theme
 
 
 ROOT = Path(__file__).resolve().parents[1]

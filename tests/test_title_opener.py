@@ -1,6 +1,6 @@
-from dsa_anim.dsl.parser import parse_string
-from dsa_anim.scene_graph.builder import build_scene_graph
-from dsa_anim.themes.registry import get_theme
+from kaivra.dsl.parser import parse_string
+from kaivra.scene_graph.builder import build_scene_graph
+from kaivra.themes.registry import get_theme
 
 
 def test_title_opener_hides_document_objects_and_upgrades_heading_style():

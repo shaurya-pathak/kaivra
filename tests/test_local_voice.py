@@ -4,9 +4,9 @@ import wave
 
 from click.testing import CliRunner
 
-from dsa_anim.audio.local_voice import LocalVoiceConfig, synthesize_local_voice_assets
-from dsa_anim.cli import main
-from dsa_anim.dsl.parser import parse_string
+from kaivra.audio.local_voice import LocalVoiceConfig, synthesize_local_voice_assets
+from kaivra.cli import main
+from kaivra.dsl.parser import parse_string
 
 
 def _write_fake_sherpa_binary(tmp_path: Path) -> Path:
@@ -137,8 +137,8 @@ def test_cli_render_supports_local_voice_mode(tmp_path: Path, monkeypatch):
         assert Path(audio_path).exists()
         Path(output_path).write_bytes(b"voiced-video")
 
-    monkeypatch.setattr("dsa_anim.render.video.exporter.export_video", fake_export_video)
-    monkeypatch.setattr("dsa_anim.audio.mux.mux_audio", fake_mux_audio)
+    monkeypatch.setattr("kaivra.render.video.exporter.export_video", fake_export_video)
+    monkeypatch.setattr("kaivra.audio.mux.mux_audio", fake_mux_audio)
 
     output = tmp_path / "voice.mp4"
     artifacts_dir = tmp_path / "voice_artifacts"
