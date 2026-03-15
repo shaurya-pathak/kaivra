@@ -557,23 +557,45 @@
       "animations": [
         {
           "action": "highlight",
-          "target": "step_sorted",
+          "target": "step_pass",
           "at": "0s",
-          "duration": "7.2s",
+          "duration": "2.8s",
           "style": "glow",
           "color": "success"
         },
         {
           "action": "scale",
-          "target": "step_sorted",
+          "target": "step_pass",
           "at": "0.2s",
           "duration": "0.8s",
           "scale_factor": 1.18
         },
         {
           "action": "scale",
+          "target": "step_pass",
+          "at": "1.8s",
+          "duration": "0.6s",
+          "scale_factor": 1.0
+        },
+        {
+          "action": "highlight",
           "target": "step_sorted",
-          "at": "2.0s",
+          "at": "3.0s",
+          "duration": "4.2s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "scale",
+          "target": "step_sorted",
+          "at": "3.2s",
+          "duration": "0.8s",
+          "scale_factor": 1.18
+        },
+        {
+          "action": "scale",
+          "target": "step_sorted",
+          "at": "5.0s",
           "duration": "0.6s",
           "scale_factor": 1.0
         },

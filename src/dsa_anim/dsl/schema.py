@@ -192,7 +192,7 @@ class ObjectSpec(BaseModel):
     type: ObjectType = Field(description="Object type: text, box, circle, group, connector, token, callout")
     id: str | None = Field(None, description="Unique identifier for this object (auto-generated if omitted)")
     content: str | None = Field(None, description="Text content displayed inside the object")
-    style: str | None = Field(None, description="Visual style preset: 'heading', 'section-heading', 'body', 'caption', 'code'")
+    style: str | None = Field(None, description="Visual style preset: 'display', 'heading', 'section-heading', 'body', 'caption', 'code'")
     position: Literal["top", "bottom", "left", "right", "above-layout"] | None = Field(None, description="Pin object to a canvas edge instead of participating in layout")
     grid: GridPositionSpec | None = Field(None, description="Explicit grid placement (row, col, span, or named region)")
     label: str | None = Field(None, description="Small label displayed on the object (e.g. badge text)")
@@ -347,12 +347,23 @@ class SceneSpec(BaseModel):
     id: str | None = Field(None, description="Unique scene identifier (auto-generated if omitted)")
     duration: str = Field("auto", description="Scene duration, e.g. '5s'. Use 'auto' to infer from animations")
     layout: Layout = "center"
-    template: str | None = Field(None, description="Layout template: 'two-column' or 'one-column'")
+    template: str | None = Field(
+        None,
+        description="Layout template: 'two-column', 'one-column', or 'title-opener'",
+    )
     narration: str | None = Field(None, description="Narration text displayed at the bottom of the scene")
 
     objects: list[ObjectSpec] = Field(default_factory=list, description="Visual objects in this scene")
     animations: list[AnimSpec] = Field(default_factory=list, description="Animations to play during this scene")
     auto_visible: bool = Field(False, description="If true, objects are visible by default without appear animations")
+    include_document_objects: bool | None = Field(
+        None,
+        description="Whether persistent document-level objects should be included in this scene. Defaults to false for title-opener scenes.",
+    )
+    show_progress: bool | None = Field(
+        None,
+        description="Whether to show the thin scene progress bar in rendered video outputs.",
+    )
     focus: str | list[str] | None = Field(None, description="Auto-focus target(s) for this scene")
     focus_style: FocusStyleSpec | None = Field(None, description="Focus styling options")
     continuity: bool | None = Field(None, description="If true, inherit positions from previous scene for shared IDs")

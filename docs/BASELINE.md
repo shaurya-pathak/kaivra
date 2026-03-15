@@ -14,10 +14,11 @@ This document describes the quality bar and supported feature set we are intenti
 - overlap and clipping audits
 - generic audio muxing
 - generic audio-timing-aware retiming
+- local Sherpa-powered narration rendering for `render`
 
 `dsa-anim` does not own:
 
-- a specific TTS provider
+- remote/network TTS providers
 - prompt-engineering instructions such as `SKILL.md`
 - demo-specific orchestration outside the DSL
 
@@ -28,12 +29,17 @@ This document describes the quality bar and supported feature set we are intenti
 - `dsa-anim preview`
 - `dsa-anim audit`
 - `dsa-anim schema`
+- `dsa-anim theme-schema`
+- `dsa-anim validate-theme`
 
 ## Stable Render Flags
 
 - `--fps`
 - `--audio`
 - `--audio-timings`
+- `--voice-mode`
+- `--voice-model`
+- `--theme-file`
 
 ## Stable Timing Behavior
 
@@ -48,6 +54,21 @@ Intentional exceptions:
 
 - long-lived persistent glows such as chapter or carousel emphasis are left broad instead of being snapped to narrow voice cues
 
+When `--voice-mode local` is present:
+
+- scene durations retime from the generated Sherpa narration clips
+- the CLI stays offline and self-contained once the local model is installed
+- local voice currently does not generate word-level cue timings on its own
+- scene-local emphasis therefore still falls back to narration-clause inference unless richer timing data is supplied externally
+
+## Stable Scene Templates
+
+- `one-column`
+- `two-column`
+- `title-opener`
+
+`title-opener` is the preferred way to create a hero/title card scene without carrying persistent chrome into the opener.
+
 ## Quality Bar
 
 Every stabilization pass should preserve these expectations:
@@ -56,6 +77,7 @@ Every stabilization pass should preserve these expectations:
 - no hard scene cuts for shared content when continuity is enabled
 - no text-scaling artifacts on shell-only scale by default
 - no provider-specific assumptions in the core CLI audio path
+- local voice mode stays offline and self-contained
 - no undocumented JSON sidecar formats
 
 ## Required Local Checks
@@ -88,5 +110,5 @@ When cleaning up code, prefer:
 Avoid:
 
 - adding new primitives unless they are necessary for correctness
-- provider-specific abstractions inside `dsa-anim`
+- extra voice providers beyond the local Sherpa path unless they are necessary
 - demo-only hacks in core rendering code
