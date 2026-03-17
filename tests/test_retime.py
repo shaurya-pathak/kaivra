@@ -1,5 +1,5 @@
-from dsa_anim.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
-from dsa_anim.dsl.retime import (
+from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
+from kaivra.dsl.retime import (
     estimate_scene_duration,
     retime_document_to_audio_timings,
     retime_document_to_scene_durations,
@@ -108,7 +108,7 @@ def test_audio_cues_align_scene_local_emphasis_but_leave_global_step_glow_broad(
     assert scene["focus_style"]["at"] == "8s"
 
 
-def test_duration_only_retime_infers_clause_beats_for_scene_local_emphasis():
+def test_duration_only_retime_scales_scene_local_emphasis_without_inferred_beats():
     document = {
         "version": "1.1",
         "meta": {"title": "Test", "theme": "modern"},
@@ -139,7 +139,7 @@ def test_duration_only_retime_infers_clause_beats_for_scene_local_emphasis():
     # Persistent/global emphasis still scales with the scene.
     assert scene["animations"][0]["duration"] == "9.6s"
 
-    # Local emphasis aligns to narration clause windows instead of only proportional scaling.
-    assert scene["animations"][1]["at"] == "0.8s"
-    assert scene["animations"][2]["at"] == "4.2s"
-    assert scene["focus_style"]["at"] == "7.6s"
+    # Without explicit cue windows, local emphasis only scales with the scene.
+    assert scene["animations"][1]["at"] == "1.2s"
+    assert scene["animations"][2]["at"] == "4.8s"
+    assert scene["focus_style"]["at"] == "6s"

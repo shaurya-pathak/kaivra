@@ -1,4 +1,4 @@
-# dsa-anim
+# kaivra
 
 Declarative animation engine for LLMs — "Typst for animations." JSON DSL → animated video/web preview.
 
@@ -6,10 +6,10 @@ Declarative animation engine for LLMs — "Typst for animations." JSON DSL → a
 
 ```bash
 source .venv/bin/activate
-dsa-anim validate examples/algorithms/bubble_sort.json
-dsa-anim render examples/algorithms/bubble_sort.json -o output.mp4
-dsa-anim preview examples/algorithms/bubble_sort.json --serve
-dsa-anim schema  # JSON Schema for LLM prompting
+kaivra validate examples/algorithms/bubble_sort.json
+kaivra render examples/algorithms/bubble_sort.json -o output.mp4
+kaivra preview examples/algorithms/bubble_sort.json --serve
+kaivra schema  # JSON Schema for LLM prompting
 ```
 
 ## Project Structure
@@ -22,7 +22,7 @@ examples/
   archived/                      # older reference examples kept for context
 docs/
   backlog/                       # project follow-up notes and TODOs
-src/dsa_anim/
+src/kaivra/
   cli.py                          # Click CLI entry point
   dsl/
     schema.py                     # Pydantic v2 models — THE core DSL definition
@@ -63,7 +63,7 @@ src/dsa_anim/
 - DSL format is **JSON primary**, YAML accepted (YAML is a JSON superset)
 - Layout is **semantic** — no pixel coordinates in the DSL. Use layout types: center, grid, flow, stack, split
 - Objects start **hidden** — animations make them visible (appear, fade-in, type, etc.)
-- The `dsa-anim schema` command exports the full JSON Schema — feed this to LLMs so they know what to generate
+- The `kaivra schema` command exports the full JSON Schema — feed this to LLMs so they know what to generate
 - Video rendering pipes raw BGRA frames to ffmpeg via stdin (no temp files)
 - Web preview is a single self-contained HTML file with an embedded Canvas 2D player
 
@@ -78,7 +78,7 @@ src/dsa_anim/
 
 ```bash
 source .venv/bin/activate
-dsa-anim validate examples/algorithms/bubble_sort.json   # parse + validate
-dsa-anim render examples/algorithms/bubble_sort.json -o test.png  # static frame
-dsa-anim render examples/algorithms/bubble_sort.json -o test.mp4  # full video
+kaivra validate examples/algorithms/bubble_sort.json   # parse + validate
+kaivra render examples/algorithms/bubble_sort.json -o test.png  # static frame
+kaivra render examples/algorithms/bubble_sort.json -o test.mp4  # full video
 ```

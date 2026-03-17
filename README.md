@@ -1,154 +1,114 @@
-# dsa-anim
+# Kaivra
 
-Declarative animation engine for LLMs: JSON or YAML in, animation out.
-
-We are intentionally treating the current surface area as the stable base. The goal is not to keep inventing features; the goal is to make the existing ones reliable, documented, and easy for both humans and LLMs to use well.
-
-## What It Does
-
-- Validates a semantic animation DSL.
-- Resolves scenes into a renderer-friendly scene graph.
-- Renders stills, videos, and browser previews.
-- Audits animations for overlap and clipping problems.
-- Attaches external audio to rendered videos.
-- Retimes scene pacing from audio timing sidecars.
-- Aligns local emphasis beats such as `highlight`, `pulse`, and `focus_style` to audio cues when timing data is available.
-
-## Locked CLI Surface
-
-- `dsa-anim validate`
-- `dsa-anim render`
-- `dsa-anim preview`
-- `dsa-anim audit`
-- `dsa-anim schema`
-
-The stable audio-related render flags are:
-
-- `--audio`
-- `--audio-timings`
+Kaivra is a declarative animation engine for turning structured JSON or YAML into polished stills, videos, and web previews.
 
 ## Quick Start
 
 ```bash
 source .venv/bin/activate
+python -m pip install -e '.[dev]'
 
-dsa-anim validate examples/archived/llm_inference.json
-dsa-anim render examples/algorithms/bubble_sort.json -o output.mp4
-dsa-anim preview examples/demos/bubble_sort_demo.json --serve
-dsa-anim audit examples/explainers/agentic_debug_agent_explainer.json
-dsa-anim schema
+kaivra validate examples/algorithms/bubble_sort.json
+kaivra render examples/algorithms/bubble_sort.json -o output.mp4
+kaivra preview examples/demos/bubble_sort_demo.json --serve
+kaivra audit examples/explainers/agentic_debug_agent_explainer.json
+kaivra schema
+kaivra-mcp doctor
 ```
 
-## Audio Workflow
+## CLI
 
-`dsa-anim` is audio-provider agnostic.
+- `kaivra validate` checks an animation file against the DSL.
+- `kaivra render` exports PNG, MP4, or web-backed output.
+- `kaivra preview` builds the browser preview player.
+- `kaivra audit` samples scenes for overlap and clipping issues.
+- `kaivra schema` prints the JSON Schema for authoring.
 
-- `--audio` muxes an existing audio file onto a rendered video.
-- `--audio-timings` retimes scenes from a JSON sidecar.
+## Local MCP
 
-Example:
+Kaivra now ships with a local stdio MCP server for guided authoring in tools like Claude Code.
+
+Quick path from this repo:
 
 ```bash
+# macOS
+brew install cairo pkg-config ffmpeg
+
+# Ubuntu / Debian
+sudo apt install libcairo2-dev pkg-config ffmpeg
+
 source .venv/bin/activate
+python -m pip install -e '.[dev]'
+kaivra-mcp doctor
+claude mcp add kaivra -- kaivra-mcp
+```
 
-dsa-anim render \
+The MCP exposes a compact workflow:
+
+- `doctor_kaivra`
+- `add_theme`
+- `start_animation`
+- `check_animation`
+- `preview_animation`
+- `render_animation`
+
+It writes starter files to `animations/`, custom themes to `themes/`, previews to `artifacts/previews/`, and final renders to `artifacts/renders/`.
+
+More setup detail lives in `docs/LOCAL_MCP.md`.
+
+## Themes
+
+Kaivra supports built-in themes and local JSON theme files.
+
+```bash
+mkdir -p themes
+# add a custom theme file like themes/mint-breeze.json
+# then set "meta.theme": "mint-breeze" in your animation JSON
+kaivra render examples/algorithms/bubble_sort.json -o output.mp4
+```
+
+If you are using the MCP flow, `add_theme` will create the theme JSON for you inside `themes/`.
+
+## Audio
+
+Kaivra keeps the core CLI audio-provider agnostic.
+It does not synthesize speech; audio must be produced outside the renderer.
+
+```bash
+kaivra render \
   examples/explainers/agentic_debug_agent_explainer.json \
-  -o artifacts/videos/explainers/agentic_debug_agent_explainer_voice_local.mp4 \
-  --audio artifacts/audio/explainers/agentic_debug_agent_explainer_local_tts.m4a \
-  --audio-timings artifacts/audio/explainers/agentic_debug_agent_explainer_local_tts_timings.json
+  -o artifacts/videos/explainers/agentic_debug_agent_explainer_with_audio.mp4 \
+  --audio artifacts/audio/explainers/agentic_debug_agent_explainer_audio_track.mp3 \
+  --audio-timings artifacts/audio/explainers/agentic_debug_agent_explainer_audio_timings.json
 ```
 
-Supported timing sidecars:
-
-```json
-{
-  "scene_durations": {
-    "setup": 8.4,
-    "compare_swap": 9.1
-  }
-}
-```
-
-```json
-{
-  "scenes": [
-    {
-      "id": "setup",
-      "duration_seconds": 8.4,
-      "cues": [
-        { "start_seconds": 1.1, "duration_seconds": 0.9, "text": "first beat" },
-        { "at": "3.5s", "end": "4.4s", "kind": "phrase" }
-      ]
-    }
-  ]
-}
-```
-
-Cue-aware retiming rules:
-
-- Broad persistent chapter glows stay broad.
-- Scene-local glows and pulses snap to cue windows.
-- `focus_style` timing also snaps to cue windows.
-- If a sidecar only has scene durations, DSA falls back to narration-clause inference for local emphasis timing.
+`--audio` muxes an existing track onto the render. `--audio-timings` retimes scene pacing from a JSON sidecar, and when cue windows are present Kaivra can align scene-local emphasis beats to those cues. If the sidecar only includes scene durations, Kaivra rescales authored timings proportionally and does not infer beat windows from narration text.
 
 ## Repository Layout
 
 ```text
-src/dsa_anim/
-  cli.py
-  audio/
-  dsl/
-  layout/
-  qa/
-  render/
-  scene_graph/
-  themes/
-  utils/
-
+src/kaivra/
 examples/
-  algorithms/
-  demos/
-  explainers/
-  archived/
-
 docs/
-  BASELINE.md
-  backlog/
+tests/
 ```
 
-## Quality Checks
-
-Core validation loop:
+## Checks
 
 ```bash
 source .venv/bin/activate
-
 python -m compileall src tests
-dsa-anim validate examples/explainers/agentic_debug_agent_explainer.json
-dsa-anim audit examples/explainers/agentic_debug_agent_explainer.json
-```
-
-Pytest lives in the dev dependency set:
-
-```bash
-source .venv/bin/activate
-python -m pip install -e '.[dev]'
 python -m pytest
+kaivra validate examples/explainers/agentic_debug_agent_explainer.json
+kaivra audit examples/explainers/agentic_debug_agent_explainer.json
 ```
 
 ## Examples
 
-- `/Users/shauryapathak/Desktop/Development/dsa-animation/examples/algorithms/bubble_sort.json`
-- `/Users/shauryapathak/Desktop/Development/dsa-animation/examples/demos/bubble_sort_demo.json`
-- `/Users/shauryapathak/Desktop/Development/dsa-animation/examples/demos/agentic_triage.json`
-- `/Users/shauryapathak/Desktop/Development/dsa-animation/examples/explainers/dsa_architecture_explainer.json`
-- `/Users/shauryapathak/Desktop/Development/dsa-animation/examples/explainers/agentic_debug_agent_explainer.json`
+- `examples/algorithms/bubble_sort.json`
+- `examples/demos/bubble_sort_demo.json`
+- `examples/demos/agentic_triage.json`
+- `examples/explainers/kaivra_architecture_explainer.json`
+- `examples/explainers/agentic_debug_agent_explainer.json`
 
-## Design Intent
-
-- Semantic layout first, not hand-authored pixel coordinates.
-- Beautiful defaults over scene-by-scene micromanagement.
-- Stable primitives that LLMs can use consistently.
-- External audio support without hard-coding a specific TTS provider into DSA itself.
-
-More detail on the frozen baseline is in `/Users/shauryapathak/Desktop/Development/dsa-animation/docs/BASELINE.md`.
+More detail on the stable baseline lives in `docs/BASELINE.md`.

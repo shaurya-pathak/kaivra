@@ -4,7 +4,7 @@ This document describes the quality bar and supported feature set we are intenti
 
 ## Product Boundary
 
-`dsa-anim` owns:
+`kaivra` owns:
 
 - the DSL
 - validation
@@ -15,19 +15,19 @@ This document describes the quality bar and supported feature set we are intenti
 - generic audio muxing
 - generic audio-timing-aware retiming
 
-`dsa-anim` does not own:
+`kaivra` does not own:
 
-- a specific TTS provider
+- speech synthesis or a TTS provider
 - prompt-engineering instructions such as `SKILL.md`
 - demo-specific orchestration outside the DSL
 
 ## Stable Commands
 
-- `dsa-anim validate`
-- `dsa-anim render`
-- `dsa-anim preview`
-- `dsa-anim audit`
-- `dsa-anim schema`
+- `kaivra validate`
+- `kaivra render`
+- `kaivra preview`
+- `kaivra audit`
+- `kaivra schema`
 
 ## Stable Render Flags
 
@@ -42,11 +42,11 @@ When `--audio-timings` is present:
 - scene durations retime to the supplied scene duration metadata
 - continuity and glow-release padding scale with the retime
 - scene-local `highlight`, `pulse`, and `focus_style` beats align to cue windows when cues are present
-- if only durations are present, DSA infers approximate beat windows from scene narration
+- if only durations are present, Kaivra only rescales authored timings and does not infer beat windows from narration text
 
 Intentional exceptions:
 
-- long-lived persistent glows such as chapter or carousel emphasis are left broad instead of being snapped to narrow voice cues
+- long-lived persistent glows such as chapter or carousel emphasis are left broad instead of being snapped to narrow audio cues
 
 ## Quality Bar
 
@@ -56,6 +56,7 @@ Every stabilization pass should preserve these expectations:
 - no hard scene cuts for shared content when continuity is enabled
 - no text-scaling artifacts on shell-only scale by default
 - no provider-specific assumptions in the core CLI audio path
+- no narration-derived timing inference in the core audio path
 - no undocumented JSON sidecar formats
 
 ## Required Local Checks
@@ -65,8 +66,8 @@ Minimum checks before calling the base stable:
 ```bash
 source .venv/bin/activate
 python -m compileall src tests
-dsa-anim validate examples/explainers/agentic_debug_agent_explainer.json
-dsa-anim audit examples/explainers/agentic_debug_agent_explainer.json
+kaivra validate examples/explainers/agentic_debug_agent_explainer.json
+kaivra audit examples/explainers/agentic_debug_agent_explainer.json
 ```
 
 If dev dependencies are installed:
@@ -88,5 +89,5 @@ When cleaning up code, prefer:
 Avoid:
 
 - adding new primitives unless they are necessary for correctness
-- provider-specific abstractions inside `dsa-anim`
+- provider-specific abstractions inside `kaivra`
 - demo-only hacks in core rendering code
