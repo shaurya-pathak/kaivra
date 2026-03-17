@@ -4,50 +4,69 @@ Kaivra includes a local stdio MCP server for guided animation authoring.
 
 ## Install
 
+Run these commands from the repo root.
+
+### 1. Install `uv`
+
+macOS / Linux:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### 2. Install system dependencies
+
 macOS:
 
 ```bash
 brew install cairo pkg-config ffmpeg
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e '.[dev]'
 ```
 
 Ubuntu / Debian:
 
 ```bash
 sudo apt install libcairo2-dev pkg-config ffmpeg
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e '.[dev]'
 ```
 
-Then verify the local setup:
+### 3. Create the environment and install Kaivra
+
+```bash
+uv sync --extra dev
+source .venv/bin/activate
+```
+
+### 4. Verify the local setup
 
 ```bash
 kaivra-mcp doctor
 ```
 
-## Claude Code
+If `doctor` is green, point your MCP client at `.venv/bin/kaivra-mcp`.
+
+## MCP Client Setup
+
+### Claude Code
 
 Fastest setup:
 
 ```bash
-claude mcp add kaivra -- kaivra-mcp
+claude mcp add kaivra -- "$(pwd)/.venv/bin/kaivra-mcp"
 ```
 
-Manual config shape:
+### Generic stdio config
 
 ```json
 {
   "mcpServers": {
     "kaivra": {
-      "command": "kaivra-mcp",
+      "command": "/absolute/path/to/this/repo/.venv/bin/kaivra-mcp",
       "args": []
     }
   }
 }
 ```
+
+Use that same command path pattern for Cursor or any other local stdio MCP client.
 
 ## Workflow
 

@@ -2,46 +2,89 @@
 
 Kaivra is a declarative animation engine for turning structured JSON or YAML into polished stills, videos, and web previews.
 
-## Quick Start
+## First-Time Setup
+
+Run these commands from the repo root.
+
+### 1. Install `uv`
+
+macOS / Linux:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+If you already have `uv`, skip that step.
+
+### 2. Install system dependencies
+
+macOS:
+
+```bash
+brew install cairo pkg-config ffmpeg
+```
+
+Ubuntu / Debian:
+
+```bash
+sudo apt update
+sudo apt install libcairo2-dev pkg-config ffmpeg
+```
+
+### 3. Create the environment and install the repo
+
+```bash
+uv sync --extra dev
+source .venv/bin/activate
+```
+
+### 4. Verify the install
+
+```bash
+kaivra-mcp doctor
+```
+
+If `doctor` is green, you are ready to use Kaivra locally and connect it to an MCP client.
+
+## MCP Setup
+
+Kaivra ships with a local stdio MCP server for guided authoring in tools like Claude Code, Cursor, and other MCP clients.
+
+### Fastest Claude Code setup
+
+From the repo root:
+
+```bash
+claude mcp add kaivra -- "$(pwd)/.venv/bin/kaivra-mcp"
+```
+
+### Generic stdio MCP config
+
+If your client asks for a command, point it at the virtualenv binary directly:
+
+```json
+{
+  "mcpServers": {
+    "kaivra": {
+      "command": "/absolute/path/to/this/repo/.venv/bin/kaivra-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+That same shape works well as the starting point for Cursor and most other local stdio MCP clients. The key detail is: use the full path to `.venv/bin/kaivra-mcp` so the client does not need a manually activated shell.
+
+## Quick Smoke Test
 
 ```bash
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
-
 kaivra validate examples/algorithms/bubble_sort.json
 kaivra render examples/algorithms/bubble_sort.json -o output.mp4
-kaivra preview examples/demos/bubble_sort_demo.json --serve
-kaivra audit examples/explainers/agentic_debug_agent_explainer.json
-kaivra schema
 kaivra-mcp doctor
 ```
-
-## CLI
-
-- `kaivra validate` checks an animation file against the DSL.
-- `kaivra render` exports PNG, MP4, or web-backed output.
-- `kaivra preview` builds the browser preview player.
-- `kaivra audit` samples scenes for overlap and clipping issues.
-- `kaivra schema` prints the JSON Schema for authoring.
 
 ## Local MCP
-
-Kaivra now ships with a local stdio MCP server for guided authoring in tools like Claude Code.
-
-Quick path from this repo:
-
-```bash
-# macOS
-brew install cairo pkg-config ffmpeg
-
-# Ubuntu / Debian
-sudo apt install libcairo2-dev pkg-config ffmpeg
-
-source .venv/bin/activate
-python -m pip install -e '.[dev]'
-kaivra-mcp doctor
-claude mcp add kaivra -- kaivra-mcp
-```
 
 The MCP exposes a compact workflow:
 
@@ -55,6 +98,14 @@ The MCP exposes a compact workflow:
 It writes starter files to `animations/`, custom themes to `themes/`, previews to `artifacts/previews/`, and final renders to `artifacts/renders/`.
 
 More setup detail lives in `docs/LOCAL_MCP.md`.
+
+## CLI
+
+- `kaivra validate` checks an animation file against the DSL.
+- `kaivra render` exports PNG, MP4, or web-backed output.
+- `kaivra preview` builds the browser preview player.
+- `kaivra audit` samples scenes for overlap and clipping issues.
+- `kaivra schema` prints the JSON Schema for authoring.
 
 ## Themes
 
