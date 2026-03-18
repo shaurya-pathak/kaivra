@@ -265,6 +265,39 @@ def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_do
     assert Path(rendered["artifact_path"]).exists()
 
 
+def test_download_model_smoke_installs_and_reuses_local_archive(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    archive_root = tmp_path / "archive-root" / "bundle"
+    archive_root.mkdir(parents=True)
+    (archive_root / "voice.onnx").write_bytes(b"onnx")
+    (archive_root / "tokens.txt").write_text("a\n", encoding="utf-8")
+    (archive_root / "espeak-ng-data").mkdir()
+    (archive_root / "espeak-ng-data" / "placeholder").write_text("ok", encoding="utf-8")
+
+    archive_path = tmp_path / "bundle.tar.bz2"
+    with tarfile.open(archive_path, "w:bz2") as archive:
+        archive.add(archive_root, arcname=archive_root.name)
+
+    target_dir = tmp_path / "models" / "amy"
+    installed = workspace.download_model(
+        model_name="vits-piper-en_US-amy-low",
+        target_dir=target_dir,
+        archive_url=archive_path.as_uri(),
+    )
+    reused = workspace.download_model(
+        model_name="vits-piper-en_US-amy-low",
+        target_dir=target_dir,
+        archive_url=archive_path.as_uri(),
+    )
+
+    assert installed["status"] == "ok"
+    assert installed["downloaded"] is True
+    assert Path(installed["model_path"]).exists()
+    assert Path(installed["tokens_path"]).exists()
+    assert Path(installed["data_dir"]).is_dir()
+    assert reused["downloaded"] is False
+
+
 def test_start_animation_resolves_theme_from_nearest_ancestor_workspace(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     nested_root = project_root / "apps" / "demo"

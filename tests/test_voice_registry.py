@@ -44,7 +44,7 @@ def test_registry_raises_with_install_hint_when_empty():
     with patch("kaivra.audio.base.importlib.metadata.entry_points", return_value=[]):
         registry = ProviderRegistry()
         registry.discover()
-    with pytest.raises(ValueError, match="pip install kaivra-voice"):
+    with pytest.raises(ValueError, match="make install-voice-local"):
         registry.get("elevenlabs")
 
 

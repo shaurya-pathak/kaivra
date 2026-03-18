@@ -4,7 +4,7 @@ Kaivra is a declarative animation engine for turning structured JSON or YAML int
 
 ## First-Time Setup
 
-Run these commands from the repo root. This is the supported bootstrap path for a clean machine.
+Run these commands from the repo root. This is the fastest supported path on a clean machine.
 
 ### 1. Install `uv`
 
@@ -38,15 +38,15 @@ make install
 source .venv/bin/activate
 ```
 
-### 4. Optional: install local voice support
+### 4. Optional: install voice support
 
-Voice synthesis is opt-in. If you want local or provider-backed narration, install the editable voice package from this repo too:
+Voice is intentionally packaged separately so the core renderer stays lightweight. If you want narrated renders, install the editable voice package from this repo too:
 
 ```bash
 make install-voice-local
 ```
 
-That installs `packages/kaivra-voice` in editable mode, plus the local Sherpa dependency set. The package exposes the built-in `local` and `elevenlabs` voice providers through Kaivra's provider discovery hooks.
+That installs `packages/kaivra-voice` in editable mode plus the Sherpa local dependency set. It exposes the built-in `local` and `elevenlabs` providers through Kaivra's discovery hooks.
 
 ### 5. Verify the install
 
@@ -56,13 +56,23 @@ kaivra doctor
 
 If `doctor` is green, you are ready to use Kaivra locally and connect it to an MCP client.
 
-### 6. Render a first sample
+### 6. Render a first silent sample
 
 ```bash
 kaivra quick-render examples/algorithms/bubble_sort.json
 ```
 
 That validates, audits, and renders a quick PNG into `artifacts/quick-renders/`.
+
+### 7. Optional: render a first narrated sample
+
+```bash
+kaivra download-model
+KAIVRA_VOICE_PROVIDER=local \
+kaivra quick-render examples/explainers/agentic_debug_agent_explainer.json --voice
+```
+
+If voice providers are not installed yet, Kaivra will tell you to run `make install-voice-local` or the equivalent editable `pip install` command from the repo root.
 
 ## MCP Setup
 
@@ -99,6 +109,14 @@ That same shape works for Claude Code, Cursor, and most other local stdio MCP cl
 ```bash
 make doctor
 make smoke
+```
+
+For a narrated smoke pass after voice install:
+
+```bash
+KAIVRA_VOICE_PROVIDER=local kaivra quick-render \
+  examples/explainers/agentic_debug_agent_explainer.json \
+  --voice
 ```
 
 ## Local MCP
@@ -148,6 +166,14 @@ If you are using the Python API, use `register_theme("mint-breeze", {...})` for 
 Kaivra keeps the core package lightweight, and voice support lives in the local editable package at `packages/kaivra-voice`.
 
 Providers are discovered from installed `kaivra.voice_providers` entry points. After `make install-voice-local`, Kaivra can resolve `local` and `elevenlabs` automatically. Use `--voice-provider` or `KAIVRA_VOICE_PROVIDER` to pick the default provider.
+
+If you see a "Voice providers are not installed" error, fix it with one of these repo-root commands:
+
+```bash
+make install-voice-local
+# or
+.venv/bin/python -m pip install -e "./packages/kaivra-voice[local]"
+```
 
 For local Sherpa narration after `make install-voice-local`, download the default model bundle with:
 

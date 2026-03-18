@@ -59,7 +59,10 @@ class ProviderRegistry:
         """
         if not self._providers:
             raise ValueError(
-                "Voice features require kaivra-voice: pip install kaivra-voice"
+                "Voice providers are not installed. "
+                "From the repo root, run `make install-voice-local` for local and ElevenLabs support, "
+                "or install the package directly with "
+                "`.venv/bin/python -m pip install -e \"./packages/kaivra-voice[local]\"`."
             )
         if name not in self._providers:
             available = ", ".join(sorted(self._providers))

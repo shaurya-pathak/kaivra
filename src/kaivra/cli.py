@@ -58,8 +58,16 @@ def download_model(model_name: str, target_dir: Path | None, force: bool):
     """Download the default local TTS model bundle into ~/.kaivra/models."""
     from kaivra.mcp.workspace import KaivraWorkspace
 
+    workspace = KaivraWorkspace()
+    _run_preflight(
+        workspace,
+        "download-model",
+        needs_cairo=False,
+        needs_ffmpeg=False,
+        needs_ffprobe=False,
+    )
     try:
-        result = KaivraWorkspace().download_model(
+        result = workspace.download_model(
             model_name=model_name,
             target_dir=target_dir,
             force=force,
@@ -348,6 +356,9 @@ def _run_preflight(
             needs_ffmpeg=needs_ffmpeg,
             needs_ffprobe=needs_ffprobe,
         )
+        hint = workspace.consume_doctor_hint()
+        if hint:
+            click.echo(hint)
     except RuntimeError as exc:
         raise click.ClickException(str(exc)) from exc
 

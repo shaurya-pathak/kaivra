@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import platform
 import re
 import shutil
@@ -65,6 +66,8 @@ _MODEL_ARCHIVES = {
 
 _DEFAULT_CLAUDE_CONFIG_PATH = Path.home() / ".claude.json"
 _DEFAULT_CURSOR_CONFIG_PATH = Path.home() / ".cursor" / "mcp.json"
+_DOCTOR_HINT_FILE_ENV = "KAIVRA_DOCTOR_HINT_FILE"
+_DEFAULT_DOCTOR_HINT_PATH = Path.home() / ".kaivra" / ".doctor_hint_seen"
 
 
 @dataclass(frozen=True)
@@ -467,6 +470,19 @@ class KaivraWorkspace:
         if report["ok"]:
             return report
         raise RuntimeError(format_preflight_report(command_name, report))
+
+    def consume_doctor_hint(self) -> str | None:
+        """Return a one-time doctor reminder after a successful command preflight."""
+        hint_path = _doctor_hint_path()
+        try:
+            if hint_path.exists():
+                return None
+            hint_path.parent.mkdir(parents=True, exist_ok=True)
+            hint_path.write_text("seen\n", encoding="utf-8")
+        except OSError:
+            return None
+
+        return "Tip: run `kaivra doctor` for the full environment report and setup guidance."
 
     def download_model(
         self,
@@ -1398,6 +1414,13 @@ def _default_quick_render_format(
     if include_narration or voice or audio_path:
         return "mp4"
     return "png"
+
+
+def _doctor_hint_path() -> Path:
+    override = os.environ.get(_DOCTOR_HINT_FILE_ENV, "").strip()
+    if override:
+        return Path(override).expanduser()
+    return _DEFAULT_DOCTOR_HINT_PATH
 
 
 def _download_file(url: str, destination: Path) -> None:
