@@ -149,6 +149,11 @@ General advice:
 def _theme_catalog() -> str:
     return """# Theme Catalog
 
+## `material`
+
+- Material UI inspired sample for future custom-theme prompts
+- Clean light surfaces, blue accent, generous radius, subtle elevation
+
 ## `modern`
 
 - Best default for polished demos and explainers
@@ -162,6 +167,7 @@ def _theme_catalog() -> str:
 Recommendation:
 
 - Default to `modern`
+- Reach for `material` when the user wants a product-UI feel or asks for a theme example to customize
 - Switch to `whiteboard` only when the user explicitly wants a sketch or classroom feel
 - Use `add_theme` when the user wants a reusable custom palette or card treatment
 """

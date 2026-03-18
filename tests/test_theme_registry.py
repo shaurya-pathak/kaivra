@@ -3,8 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from kaivra.themes.material import MATERIAL
 from kaivra.themes.modern import MODERN
 from kaivra.themes.registry import get_theme, load_theme_file, register_theme
+
+
+def test_material_theme_is_registered() -> None:
+    theme = get_theme("material")
+
+    assert theme is MATERIAL
+    assert theme.accent == "#1976D2"
+    assert theme.box_corner_radius == 16.0
 
 
 def test_register_theme_accepts_name_and_dict_data() -> None:

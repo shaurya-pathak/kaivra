@@ -174,6 +174,8 @@ More setup detail lives in `docs/LOCAL_MCP.md`.
 
 Kaivra supports built-in themes and local JSON theme files.
 
+Built-in options include `modern`, `material`, and `whiteboard`. `material` is a sample theme based on Material UI design principles, and the repo also ships a JSON reference at `examples/themes/material.json` for MCP-driven customization flows.
+
 ```bash
 mkdir -p themes
 # add a custom theme file like themes/mint-breeze.json
