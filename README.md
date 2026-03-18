@@ -127,6 +127,14 @@ make precommit-test
 
 The hook prefers Docker. If Docker is not available, it will try `colima start` and use the Colima-backed container runtime instead. If you use Colima without Docker Desktop, install `nerdctl` alongside Colima so the hook has a container CLI to call.
 
+For manual quality passes outside git hooks:
+
+```bash
+make format
+make lint
+make test
+```
+
 For a narrated smoke pass after voice install:
 
 ```bash
@@ -226,6 +234,9 @@ tests/
 
 ```bash
 source .venv/bin/activate
+python scripts/repo_hygiene.py --check .
+ruff format --check .
+ruff check .
 python -m compileall src tests
 python -m pytest
 kaivra doctor

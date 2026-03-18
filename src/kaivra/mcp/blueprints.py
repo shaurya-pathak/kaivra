@@ -337,11 +337,15 @@ def _build_process_scene(
             "children": panel_children,
         },
     ]
-    caption = _caption_group(scene_id=scene_id, audience=audience, include_narration=include_narration)
+    caption = _caption_group(
+        scene_id=scene_id, audience=audience, include_narration=include_narration
+    )
     if caption is not None:
         objects.append(caption)
 
-    extra_animations = _connector_draw_animations(connector_ids, pacing_profile=pacing_profile, start=0.15)
+    extra_animations = _connector_draw_animations(
+        connector_ids, pacing_profile=pacing_profile, start=0.15
+    )
     extra_animations.append(
         {
             "action": "pulse",
@@ -415,7 +419,9 @@ def _build_visual_scene(
                     {
                         "type": "token",
                         "id": source_id,
-                        "content": _neighbor_title(beats, beat.index, -1, fallback=_truncate(animation_title, 18)),
+                        "content": _neighbor_title(
+                            beats, beat.index, -1, fallback=_truncate(animation_title, 18)
+                        ),
                     },
                 ),
                 _labelled_group(
@@ -471,11 +477,15 @@ def _build_visual_scene(
             "children": panel_children,
         },
     ]
-    caption = _caption_group(scene_id=scene_id, audience=audience, include_narration=include_narration)
+    caption = _caption_group(
+        scene_id=scene_id, audience=audience, include_narration=include_narration
+    )
     if caption is not None:
         objects.append(caption)
 
-    extra_animations = _connector_draw_animations(connector_ids, pacing_profile=pacing_profile, start=0.2)
+    extra_animations = _connector_draw_animations(
+        connector_ids, pacing_profile=pacing_profile, start=0.2
+    )
     extra_animations.extend(
         [
             {
@@ -598,11 +608,15 @@ def _build_algorithm_scene(
             "children": panel_children,
         },
     ]
-    caption = _caption_group(scene_id=scene_id, audience=audience, include_narration=include_narration)
+    caption = _caption_group(
+        scene_id=scene_id, audience=audience, include_narration=include_narration
+    )
     if caption is not None:
         objects.append(caption)
 
-    extra_animations = _connector_draw_animations(connector_ids, pacing_profile=pacing_profile, start=0.15)
+    extra_animations = _connector_draw_animations(
+        connector_ids, pacing_profile=pacing_profile, start=0.15
+    )
     extra_animations.append(
         {
             "action": "pulse",
@@ -750,11 +764,15 @@ def _build_architecture_scene(
             ],
         },
     ]
-    caption = _caption_group(scene_id=scene_id, audience=audience, include_narration=include_narration)
+    caption = _caption_group(
+        scene_id=scene_id, audience=audience, include_narration=include_narration
+    )
     if caption is not None:
         objects.append(caption)
 
-    extra_animations = _connector_draw_animations(connector_ids, pacing_profile=pacing_profile, start=0.2)
+    extra_animations = _connector_draw_animations(
+        connector_ids, pacing_profile=pacing_profile, start=0.2
+    )
     extra_animations.append(
         {
             "action": "pulse",
@@ -928,7 +946,9 @@ def _build_comparison_scene(
             "children": after_children,
         },
     ]
-    caption = _caption_group(scene_id=scene_id, audience=audience, include_narration=include_narration)
+    caption = _caption_group(
+        scene_id=scene_id, audience=audience, include_narration=include_narration
+    )
     if caption is not None:
         objects.append(caption)
 

@@ -15,7 +15,9 @@ def hex_to_rgba(hex_color: str) -> tuple[float, float, float, float]:
     raise ValueError(f"Invalid hex color: {hex_color!r}")
 
 
-def rgba_to_cairo(r: float, g: float, b: float, a: float = 1.0) -> tuple[float, float, float, float]:
+def rgba_to_cairo(
+    r: float, g: float, b: float, a: float = 1.0
+) -> tuple[float, float, float, float]:
     """Ensure RGBA values are in 0-1 range for Cairo."""
     return (
         max(0.0, min(1.0, r)),

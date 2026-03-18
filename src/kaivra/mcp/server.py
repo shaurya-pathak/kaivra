@@ -606,7 +606,11 @@ def _tool_error(name: str, message: str) -> dict[str, Any]:
 
 def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
     if name == "doctor_kaivra":
-        return "Kaivra doctor passed." if result.get("ok") else "Kaivra doctor found local setup issues."
+        return (
+            "Kaivra doctor passed."
+            if result.get("ok")
+            else "Kaivra doctor found local setup issues."
+        )
     if name == "start_animation":
         return f"Starter animation created at {result['file_path']}."
     if name == "add_theme":

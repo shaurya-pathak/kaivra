@@ -5,9 +5,9 @@ from __future__ import annotations
 import math
 
 from kaivra.dsl.schema import LayoutSpec, ObjectSpec
+from kaivra.layout.strategies._sizing import estimate_object_size
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.geometry import Rect
-from kaivra.layout.strategies._sizing import estimate_object_size
 
 
 class GridStrategy:

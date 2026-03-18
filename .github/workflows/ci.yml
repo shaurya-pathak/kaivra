@@ -36,6 +36,15 @@ jobs:
       - name: Install local voice providers
         run: uv pip install --python .venv/bin/python -e "./packages/kaivra-voice"
 
+      - name: Run repo hygiene checks
+        run: .venv/bin/python scripts/repo_hygiene.py --check .
+
+      - name: Check formatting
+        run: .venv/bin/ruff format --check .
+
+      - name: Run lint checks
+        run: .venv/bin/ruff check .
+
       - name: Compile Python sources
         run: .venv/bin/python -m compileall src tests packages/kaivra-voice/src
 

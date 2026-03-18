@@ -19,8 +19,8 @@ from difflib import SequenceMatcher, get_close_matches
 from pathlib import Path
 from typing import Any
 
-from kaivra.dsl.schema import ObjectType
 from kaivra.dsl.parser import parse_file, parse_string
+from kaivra.dsl.schema import ObjectType
 from kaivra.mcp.blueprints import (
     build_starter_document,
     dump_document_json,
@@ -330,9 +330,7 @@ class KaivraWorkspace:
         doc, resolved_path = self._load_document(file_path=file_path)
         audio_abs = self._resolve_existing_path(audio_path) if audio_path else None
         audio_timings_abs = (
-            self._resolve_existing_path(audio_timings_path)
-            if audio_timings_path
-            else None
+            self._resolve_existing_path(audio_timings_path) if audio_timings_path else None
         )
         if voice and (audio_abs or audio_timings_abs):
             raise ValueError("voice cannot be combined with audio_path or audio_timings_path.")
@@ -497,7 +495,11 @@ class KaivraWorkspace:
         if download_spec is None and archive_url is None:
             raise ValueError(f"Unknown model: {model_name}")
 
-        destination = Path(target_dir or (Path.home() / ".kaivra" / "models" / model_name)).expanduser().resolve()
+        destination = (
+            Path(target_dir or (Path.home() / ".kaivra" / "models" / model_name))
+            .expanduser()
+            .resolve()
+        )
         if force and destination.exists():
             shutil.rmtree(destination)
         destination.mkdir(parents=True, exist_ok=True)
@@ -569,14 +571,17 @@ class KaivraWorkspace:
         """Check that the local machine can run the Kaivra MCP workflow."""
         issues: list[dict[str, Any]] = []
         checks: list[dict[str, Any]] = []
-        requested_checks = set(required_checks or {
-            "python_package",
-            "pycairo",
-            "ffmpeg",
-            "ffprobe",
-            "workspace_write",
-            "smoke_render",
-        })
+        requested_checks = set(
+            required_checks
+            or {
+                "python_package",
+                "pycairo",
+                "ffmpeg",
+                "ffprobe",
+                "workspace_write",
+                "smoke_render",
+            }
+        )
         if include_smoke:
             requested_checks.add("smoke_render")
 
@@ -591,7 +596,9 @@ class KaivraWorkspace:
             except Exception as exc:
                 python_ok = False
                 add_check("python_package", False, f"Kaivra import failed: {exc}")
-                issues.append(_issue("python_package", str(exc), _platform_fix_commands()["python_package"]))
+                issues.append(
+                    _issue("python_package", str(exc), _platform_fix_commands()["python_package"])
+                )
 
         cairo_ok = True
         if "pycairo" in requested_checks:
@@ -615,7 +622,9 @@ class KaivraWorkspace:
             ffprobe_ok, ffprobe_detail = _command_available("ffprobe")
             add_check("ffprobe", ffprobe_ok, ffprobe_detail)
             if not ffprobe_ok:
-                issues.append(_issue("ffprobe", ffprobe_detail, _platform_fix_commands()["ffprobe"]))
+                issues.append(
+                    _issue("ffprobe", ffprobe_detail, _platform_fix_commands()["ffprobe"])
+                )
 
         workspace_ok = True
         if "workspace_write" in requested_checks:
@@ -626,9 +635,19 @@ class KaivraWorkspace:
             except Exception as exc:
                 workspace_ok = False
                 add_check("workspace_write", False, f"Workspace is not writable: {exc}")
-                issues.append(_issue("workspace_write", str(exc), ["Use a writable local workspace."]))
+                issues.append(
+                    _issue("workspace_write", str(exc), ["Use a writable local workspace."])
+                )
 
-        if include_smoke and "smoke_render" in requested_checks and python_ok and cairo_ok and ffmpeg_ok and ffprobe_ok and workspace_ok:
+        if (
+            include_smoke
+            and "smoke_render" in requested_checks
+            and python_ok
+            and cairo_ok
+            and ffmpeg_ok
+            and ffprobe_ok
+            and workspace_ok
+        ):
             from kaivra.render.cairo_renderer import CairoRenderer
             from kaivra.render.orchestration import build_render_graph
 
@@ -649,14 +668,28 @@ class KaivraWorkspace:
                     smoke_path = Path(tmp.name)
                 try:
                     CairoRenderer(theme).render_frame_to_file(graph, 0.0, str(smoke_path))
-                    add_check("smoke_render", True, "Validated a starter document and rendered a smoke-test PNG.")
+                    add_check(
+                        "smoke_render",
+                        True,
+                        "Validated a starter document and rendered a smoke-test PNG.",
+                    )
                 finally:
                     smoke_path.unlink(missing_ok=True)
             except Exception as exc:
                 add_check("smoke_render", False, f"Smoke render failed: {exc}")
-                issues.append(_issue("smoke_render", str(exc), ["Run `kaivra validate` on a sample file and check the local install."]))
+                issues.append(
+                    _issue(
+                        "smoke_render",
+                        str(exc),
+                        ["Run `kaivra validate` on a sample file and check the local install."],
+                    )
+                )
         elif include_smoke and "smoke_render" in requested_checks:
-            add_check("smoke_render", False, "Skipped until Python, Cairo, ffmpeg, and workspace checks pass.")
+            add_check(
+                "smoke_render",
+                False,
+                "Skipped until Python, Cairo, ffmpeg, and workspace checks pass.",
+            )
 
         mcp_command = _safe_resolve_mcp_server_command()
 
@@ -855,54 +888,60 @@ def _layout_audit_findings(graph: Any) -> list[CheckFinding]:
         scene = scene_map.get(finding.scene_id)
         if scene is not None:
             suggested_edit = _layout_recommendation(scene, finding)
-        findings.append(CheckFinding(
-            severity=finding.severity,
-            scene_id=finding.scene_id,
-            kind=f"{finding.kind}@{finding.time_seconds:.2f}s",
-            message=finding.message,
-            recommended_edit=suggested_edit,
-        ))
+        findings.append(
+            CheckFinding(
+                severity=finding.severity,
+                scene_id=finding.scene_id,
+                kind=f"{finding.kind}@{finding.time_seconds:.2f}s",
+                message=finding.message,
+                recommended_edit=suggested_edit,
+            )
+        )
     return findings
 
 
 def _scene_duration_findings(scene: Any) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
     if scene.duration < _MIN_SCENE_DURATION_SECONDS:
-        findings.append(CheckFinding(
-            severity="warning",
-            scene_id=scene.id,
-            kind="pacing",
-            message=(
-                f"Scene lasts {scene.duration:.1f}s, which is shorter than the recommended "
-                f"{_MIN_SCENE_DURATION_SECONDS:.0f}s minimum."
-            ),
-            recommended_edit=RecommendedEdit(
+        findings.append(
+            CheckFinding(
+                severity="warning",
                 scene_id=scene.id,
-                action="retime_scene",
-                object_id=None,
-                field="duration",
-                suggested_value=_format_duration_value(_MIN_SCENE_DURATION_SECONDS),
-                reason="Very short scenes tend to rush the motion and narration.",
-            ),
-        ))
+                kind="pacing",
+                message=(
+                    f"Scene lasts {scene.duration:.1f}s, which is shorter than the recommended "
+                    f"{_MIN_SCENE_DURATION_SECONDS:.0f}s minimum."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene.id,
+                    action="retime_scene",
+                    object_id=None,
+                    field="duration",
+                    suggested_value=_format_duration_value(_MIN_SCENE_DURATION_SECONDS),
+                    reason="Very short scenes tend to rush the motion and narration.",
+                ),
+            )
+        )
     if scene.duration > _MAX_SCENE_DURATION_SECONDS:
-        findings.append(CheckFinding(
-            severity="warning",
-            scene_id=scene.id,
-            kind="pacing",
-            message=(
-                f"Scene lasts {scene.duration:.1f}s, which is longer than the recommended "
-                f"{_MAX_SCENE_DURATION_SECONDS:.0f}s maximum."
-            ),
-            recommended_edit=RecommendedEdit(
+        findings.append(
+            CheckFinding(
+                severity="warning",
                 scene_id=scene.id,
-                action="retime_scene",
-                object_id=None,
-                field="duration",
-                suggested_value=_format_duration_value(_MAX_SCENE_DURATION_SECONDS),
-                reason="Long scenes are often easier to follow when split into tighter beats.",
-            ),
-        ))
+                kind="pacing",
+                message=(
+                    f"Scene lasts {scene.duration:.1f}s, which is longer than the recommended "
+                    f"{_MAX_SCENE_DURATION_SECONDS:.0f}s maximum."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene.id,
+                    action="retime_scene",
+                    object_id=None,
+                    field="duration",
+                    suggested_value=_format_duration_value(_MAX_SCENE_DURATION_SECONDS),
+                    reason="Long scenes are often easier to follow when split into tighter beats.",
+                ),
+            )
+        )
     return findings
 
 
@@ -924,44 +963,48 @@ def _narration_findings(
         and read_time - resolved_scene.duration >= _NARRATION_OVERAGE_SECONDS
     ):
         max_words = max(1, int(resolved_scene.duration * (_READ_TIME_WORDS_PER_MINUTE / 60.0)))
-        findings.append(CheckFinding(
-            severity="warning",
-            scene_id=resolved_scene.id,
-            kind="narration",
-            message=(
-                f"Narration needs about {read_time:.1f}s at {_READ_TIME_WORDS_PER_MINUTE} WPM, "
-                f"but the scene lasts {resolved_scene.duration:.1f}s."
-            ),
-            recommended_edit=RecommendedEdit(
-                scene_id=resolved_scene.id,
-                action="shorten_text",
-                object_id=None,
-                field="narration",
-                suggested_value=max_words,
-                reason="Shorten the narration or lengthen the scene so the delivery does not feel rushed.",
-            ),
-        ))
-
-    if show_subtitles:
-        redundant_ref = _find_redundant_text_ref(scene_refs, narration)
-        if redundant_ref is not None:
-            findings.append(CheckFinding(
+        findings.append(
+            CheckFinding(
                 severity="warning",
                 scene_id=resolved_scene.id,
-                kind="redundant_copy",
+                kind="narration",
                 message=(
-                    f"On-screen text `{redundant_ref.object_id}` substantially duplicates the narration "
-                    "while captions are enabled."
+                    f"Narration needs about {read_time:.1f}s at {_READ_TIME_WORDS_PER_MINUTE} WPM, "
+                    f"but the scene lasts {resolved_scene.duration:.1f}s."
                 ),
                 recommended_edit=RecommendedEdit(
                     scene_id=resolved_scene.id,
                     action="shorten_text",
-                    object_id=redundant_ref.object_id,
-                    field="content",
-                    suggested_value=None,
-                    reason="Keep the body copy focused on labels or keywords instead of repeating the caption verbatim.",
+                    object_id=None,
+                    field="narration",
+                    suggested_value=max_words,
+                    reason="Shorten the narration or lengthen the scene so the delivery does not feel rushed.",
                 ),
-            ))
+            )
+        )
+
+    if show_subtitles:
+        redundant_ref = _find_redundant_text_ref(scene_refs, narration)
+        if redundant_ref is not None:
+            findings.append(
+                CheckFinding(
+                    severity="warning",
+                    scene_id=resolved_scene.id,
+                    kind="redundant_copy",
+                    message=(
+                        f"On-screen text `{redundant_ref.object_id}` substantially duplicates the narration "
+                        "while captions are enabled."
+                    ),
+                    recommended_edit=RecommendedEdit(
+                        scene_id=resolved_scene.id,
+                        action="shorten_text",
+                        object_id=redundant_ref.object_id,
+                        field="content",
+                        suggested_value=None,
+                        reason="Keep the body copy focused on labels or keywords instead of repeating the caption verbatim.",
+                    ),
+                )
+            )
 
     return findings
 
@@ -983,76 +1026,88 @@ def _scene_reference_findings(
         target_path = f"scenes[{scene_index}].animations[{animation_index}].target"
         targets = _normalized_animation_targets(anim.target)
         if anim.target is None or not targets:
-            findings.append(CheckFinding(
-                severity="error",
-                scene_id=scene_id,
-                kind="reference",
-                message=(
-                    f"Animation {animation_index} has no target, so `{anim.action.value}` will not affect any object."
-                ),
-                recommended_edit=RecommendedEdit(
+            findings.append(
+                CheckFinding(
+                    severity="error",
                     scene_id=scene_id,
-                    action="replace_target",
-                    object_id=None,
-                    field=target_path,
-                    suggested_value=None,
-                    reason="Object animations need at least one valid target ID.",
-                ),
-            ))
+                    kind="reference",
+                    message=(
+                        f"Animation {animation_index} has no target, so `{anim.action.value}` will not affect any object."
+                    ),
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="replace_target",
+                        object_id=None,
+                        field=target_path,
+                        suggested_value=None,
+                        reason="Object animations need at least one valid target ID.",
+                    ),
+                )
+            )
             continue
 
         if anim.action.value == "swap" and len(targets) != 2:
-            findings.append(CheckFinding(
-                severity="error",
-                scene_id=scene_id,
-                kind="reference",
-                message=(
-                    f"Animation {animation_index} uses `swap` but targets {len(targets)} objects instead of exactly 2."
-                ),
-                recommended_edit=RecommendedEdit(
+            findings.append(
+                CheckFinding(
+                    severity="error",
                     scene_id=scene_id,
-                    action="replace_target",
-                    object_id=None,
-                    field=target_path,
-                    suggested_value=None,
-                    reason="Swap animations need exactly two valid target IDs.",
-                ),
-            ))
+                    kind="reference",
+                    message=(
+                        f"Animation {animation_index} uses `swap` but targets {len(targets)} objects instead of exactly 2."
+                    ),
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="replace_target",
+                        object_id=None,
+                        field=target_path,
+                        suggested_value=None,
+                        reason="Swap animations need exactly two valid target IDs.",
+                    ),
+                )
+            )
 
         for target_index, target_id in enumerate(targets):
             if target_id in available_ids:
                 continue
-            target_field = target_path if not isinstance(anim.target, list) else f"{target_path}[{target_index}]"
-            findings.append(CheckFinding(
-                severity="error",
-                scene_id=scene_id,
-                kind="reference",
-                message=f"Animation {animation_index} targets missing object `{target_id}`.",
-                recommended_edit=RecommendedEdit(
+            target_field = (
+                target_path
+                if not isinstance(anim.target, list)
+                else f"{target_path}[{target_index}]"
+            )
+            findings.append(
+                CheckFinding(
+                    severity="error",
                     scene_id=scene_id,
-                    action="replace_target",
-                    object_id=None,
-                    field=target_field,
-                    suggested_value=_closest_id_suggestion(target_id, available_ids),
-                    reason="Animation targets must resolve to scene-local or document-level object IDs.",
-                ),
-            ))
+                    kind="reference",
+                    message=f"Animation {animation_index} targets missing object `{target_id}`.",
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="replace_target",
+                        object_id=None,
+                        field=target_field,
+                        suggested_value=_closest_id_suggestion(target_id, available_ids),
+                        reason="Animation targets must resolve to scene-local or document-level object IDs.",
+                    ),
+                )
+            )
 
         if anim.to_id and anim.to_id not in available_ids:
-            findings.append(CheckFinding(
-                severity="error",
-                scene_id=scene_id,
-                kind="reference",
-                message=f"Animation {animation_index} moves toward missing object `{anim.to_id}`.",
-                recommended_edit=RecommendedEdit(
+            findings.append(
+                CheckFinding(
+                    severity="error",
                     scene_id=scene_id,
-                    action="replace_target",
-                    object_id=None,
-                    field=f"scenes[{scene_index}].animations[{animation_index}].to_id",
-                    suggested_value=_closest_id_suggestion(anim.to_id, available_ids),
-                    reason="`move-to` style animations need a valid destination object ID.",
-                ),
-            ))
+                    kind="reference",
+                    message=f"Animation {animation_index} moves toward missing object `{anim.to_id}`.",
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="replace_target",
+                        object_id=None,
+                        field=f"scenes[{scene_index}].animations[{animation_index}].to_id",
+                        suggested_value=_closest_id_suggestion(anim.to_id, available_ids),
+                        reason="`move-to` style animations need a valid destination object ID.",
+                    ),
+                )
+            )
 
     return findings
 
@@ -1063,27 +1118,32 @@ def _connector_reference_findings(
     available_ids: set[str],
 ) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
-    for endpoint_field, endpoint_value in (("from", object_ref.spec.from_id), ("to", object_ref.spec.to_id)):
+    for endpoint_field, endpoint_value in (
+        ("from", object_ref.spec.from_id),
+        ("to", object_ref.spec.to_id),
+    ):
         if endpoint_value and endpoint_value in available_ids:
             continue
         missing_target = endpoint_value or "<missing>"
-        findings.append(CheckFinding(
-            severity="error",
-            scene_id=scene_id,
-            kind="reference",
-            message=(
-                f"Connector `{object_ref.object_id}` has an invalid `{endpoint_field}` endpoint "
-                f"({missing_target!r})."
-            ),
-            recommended_edit=RecommendedEdit(
+        findings.append(
+            CheckFinding(
+                severity="error",
                 scene_id=scene_id,
-                action="fix_connector_endpoint",
-                object_id=object_ref.object_id,
-                field=f"{object_ref.path}.{endpoint_field}",
-                suggested_value=_closest_id_suggestion(endpoint_value, available_ids),
-                reason="Connectors need valid source and destination IDs to render correctly.",
-            ),
-        ))
+                kind="reference",
+                message=(
+                    f"Connector `{object_ref.object_id}` has an invalid `{endpoint_field}` endpoint "
+                    f"({missing_target!r})."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="fix_connector_endpoint",
+                    object_id=object_ref.object_id,
+                    field=f"{object_ref.path}.{endpoint_field}",
+                    suggested_value=_closest_id_suggestion(endpoint_value, available_ids),
+                    reason="Connectors need valid source and destination IDs to render correctly.",
+                ),
+            )
+        )
     return findings
 
 
@@ -1107,9 +1167,7 @@ def _recommended_edits_from_findings(
     findings: list[CheckFinding],
 ) -> list[dict[str, str | int | float | bool | None]]:
     edits = [
-        finding.recommended_edit
-        for finding in findings
-        if finding.recommended_edit is not None
+        finding.recommended_edit for finding in findings if finding.recommended_edit is not None
     ]
     return [edit.to_dict() for edit in _dedupe_recommended_edits(edits)]
 
@@ -1129,60 +1187,74 @@ def _recommend_edits_from_messages(
         for message in messages
     ).lower()
     if "overlap" in joined:
-        recommendations.append(RecommendedEdit(
-            scene_id=None,
-            action="reduce_scene_density",
-            object_id=None,
-            field=None,
-            suggested_value=None,
-            reason="Reduce the number of visible elements or switch to a simpler layout.",
-        ))
+        recommendations.append(
+            RecommendedEdit(
+                scene_id=None,
+                action="reduce_scene_density",
+                object_id=None,
+                field=None,
+                suggested_value=None,
+                reason="Reduce the number of visible elements or switch to a simpler layout.",
+            )
+        )
     if "clipping" in joined or "outside the canvas" in joined:
-        recommendations.append(RecommendedEdit(
-            scene_id=None,
-            action="shorten_text",
-            object_id=None,
-            field="content",
-            suggested_value=None,
-            reason="Shorten the visible copy or split it across multiple beats so it fits the canvas.",
-        ))
+        recommendations.append(
+            RecommendedEdit(
+                scene_id=None,
+                action="shorten_text",
+                object_id=None,
+                field="content",
+                suggested_value=None,
+                reason="Shorten the visible copy or split it across multiple beats so it fits the canvas.",
+            )
+        )
     if "unknown theme" in joined:
-        recommendations.append(RecommendedEdit(
-            scene_id=None,
-            action="replace_theme",
-            object_id=None,
-            field="meta.theme",
-            suggested_value="modern",
-            reason="Use a built-in theme or create one with add_theme before rendering.",
-        ))
+        recommendations.append(
+            RecommendedEdit(
+                scene_id=None,
+                action="replace_theme",
+                object_id=None,
+                field="meta.theme",
+                suggested_value="modern",
+                reason="Use a built-in theme or create one with add_theme before rendering.",
+            )
+        )
     if "invalid duration" in joined:
-        recommendations.append(RecommendedEdit(
-            scene_id=None,
-            action="retime_scene",
-            object_id=None,
-            field="duration",
-            suggested_value="0.8s",
-            reason="Use duration strings like `0.8s` or `300ms`.",
-        ))
+        recommendations.append(
+            RecommendedEdit(
+                scene_id=None,
+                action="retime_scene",
+                object_id=None,
+                field="duration",
+                suggested_value="0.8s",
+                reason="Use duration strings like `0.8s` or `300ms`.",
+            )
+        )
     if "file not found" in joined:
-        recommendations.append(RecommendedEdit(
-            scene_id=None,
-            action="fix_file_path",
-            object_id=None,
-            field="file_path",
-            suggested_value=None,
-            reason="Point the tool at an existing workspace-relative or absolute path.",
-        ))
+        recommendations.append(
+            RecommendedEdit(
+                scene_id=None,
+                action="fix_file_path",
+                object_id=None,
+                field="file_path",
+                suggested_value=None,
+                reason="Point the tool at an existing workspace-relative or absolute path.",
+            )
+        )
     if not recommendations:
-        recommendations.append(RecommendedEdit(
-            scene_id=None,
-            action="review_document",
-            object_id=None,
-            field=None,
-            suggested_value=None,
-            reason="Start from the nearest starter pattern and re-run check_animation after edits.",
-        ))
-    return [recommendation.to_dict() for recommendation in _dedupe_recommended_edits(recommendations)]
+        recommendations.append(
+            RecommendedEdit(
+                scene_id=None,
+                action="review_document",
+                object_id=None,
+                field=None,
+                suggested_value=None,
+                reason="Start from the nearest starter pattern and re-run check_animation after edits.",
+            )
+        )
+    return [
+        recommendation.to_dict() for recommendation in _dedupe_recommended_edits(recommendations)
+    ]
 
 
 def _normalize_recommended_edits(
@@ -1194,31 +1266,44 @@ def _normalize_recommended_edits(
             normalized.append(edit)
             continue
         if isinstance(edit, dict):
-            required_keys = {"scene_id", "action", "object_id", "field", "suggested_value", "reason"}
+            required_keys = {
+                "scene_id",
+                "action",
+                "object_id",
+                "field",
+                "suggested_value",
+                "reason",
+            }
             if required_keys <= edit.keys():
-                normalized.append(RecommendedEdit(
-                    scene_id=edit.get("scene_id"),
-                    action=str(edit.get("action")),
-                    object_id=edit.get("object_id"),
-                    field=edit.get("field"),
-                    suggested_value=edit.get("suggested_value"),
-                    reason=str(edit.get("reason")),
-                ))
+                normalized.append(
+                    RecommendedEdit(
+                        scene_id=edit.get("scene_id"),
+                        action=str(edit.get("action")),
+                        object_id=edit.get("object_id"),
+                        field=edit.get("field"),
+                        suggested_value=edit.get("suggested_value"),
+                        reason=str(edit.get("reason")),
+                    )
+                )
             continue
         if isinstance(edit, str) and edit.strip():
-            normalized.append(RecommendedEdit(
-                scene_id=None,
-                action="review_document",
-                object_id=None,
-                field=None,
-                suggested_value=None,
-                reason=edit.strip(),
-            ))
+            normalized.append(
+                RecommendedEdit(
+                    scene_id=None,
+                    action="review_document",
+                    object_id=None,
+                    field=None,
+                    suggested_value=None,
+                    reason=edit.strip(),
+                )
+            )
     return [edit.to_dict() for edit in _dedupe_recommended_edits(normalized)]
 
 
 def _dedupe_recommended_edits(edits: list[RecommendedEdit]) -> list[RecommendedEdit]:
-    seen: set[tuple[str | None, str, str | None, str | None, str | int | float | bool | None, str]] = set()
+    seen: set[
+        tuple[str | None, str, str | None, str | None, str | int | float | bool | None, str]
+    ] = set()
     deduped: list[RecommendedEdit] = []
     for edit in edits:
         key = (
@@ -1241,7 +1326,9 @@ def _collect_object_refs(objects: list[Any], *, prefix: str) -> list[ObjectRef]:
     for index, obj in enumerate(objects):
         path = f"{prefix}[{index}]"
         refs.append(ObjectRef(object_id=getattr(obj, "id", None), path=path, spec=obj))
-        refs.extend(_collect_object_refs(getattr(obj, "children", None) or [], prefix=f"{path}.children"))
+        refs.extend(
+            _collect_object_refs(getattr(obj, "children", None) or [], prefix=f"{path}.children")
+        )
     return refs
 
 
@@ -1303,7 +1390,9 @@ def _find_redundant_text_ref(scene_refs: list[ObjectRef], narration: str) -> Obj
         if len(content_tokens) < _REDUNDANCY_WORD_THRESHOLD:
             continue
         overlap = _token_overlap_ratio(content_tokens, narration_tokens)
-        similarity = SequenceMatcher(None, " ".join(content_tokens), " ".join(narration_tokens)).ratio()
+        similarity = SequenceMatcher(
+            None, " ".join(content_tokens), " ".join(narration_tokens)
+        ).ratio()
         score = max(overlap, similarity)
         if overlap < _REDUNDANCY_TOKEN_OVERLAP and similarity < _REDUNDANCY_SEQUENCE_SIMILARITY:
             continue

@@ -1,4 +1,4 @@
-.PHONY: install install-voice-local install-pre-commit precommit-test test doctor smoke
+.PHONY: install install-voice-local install-pre-commit format lint precommit-test test doctor smoke
 
 install:
 	uv sync --extra dev
@@ -8,6 +8,16 @@ install-voice-local: install
 
 install-pre-commit: install
 	.venv/bin/pre-commit install
+
+format:
+	.venv/bin/python scripts/repo_hygiene.py .
+	.venv/bin/ruff format .
+	.venv/bin/ruff check --fix .
+
+lint:
+	.venv/bin/python scripts/repo_hygiene.py --check .
+	.venv/bin/ruff format --check .
+	.venv/bin/ruff check .
 
 precommit-test:
 	./scripts/run_containerized_tests.sh

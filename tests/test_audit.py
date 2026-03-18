@@ -35,8 +35,7 @@ def test_audit_reports_overlapping_visible_nodes():
     findings = audit_scene_graph(graph, samples_per_scene=3)
 
     assert any(
-        finding.kind == "overlap" and finding.node_ids == ("left", "right")
-        for finding in findings
+        finding.kind == "overlap" and finding.node_ids == ("left", "right") for finding in findings
     )
 
 

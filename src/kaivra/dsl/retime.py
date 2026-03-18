@@ -347,8 +347,18 @@ def _match_cues_to_events(cues: list[AudioCue], event_count: int) -> list[AudioC
 
         half = split_cue.duration_seconds / 2.0
         working[split_index : split_index + 1] = [
-            AudioCue(start_seconds=split_cue.start_seconds, duration_seconds=half, text=split_cue.text, kind=split_cue.kind),
-            AudioCue(start_seconds=split_cue.start_seconds + half, duration_seconds=half, text=split_cue.text, kind=split_cue.kind),
+            AudioCue(
+                start_seconds=split_cue.start_seconds,
+                duration_seconds=half,
+                text=split_cue.text,
+                kind=split_cue.kind,
+            ),
+            AudioCue(
+                start_seconds=split_cue.start_seconds + half,
+                duration_seconds=half,
+                text=split_cue.text,
+                kind=split_cue.kind,
+            ),
         ]
 
     if len(working) < event_count:
@@ -380,7 +390,9 @@ def _align_animation_to_cue(anim: dict[str, Any], cue: AudioCue) -> None:
     scale = target_total / original_total if original_total > 0 else 1.0
 
     anim["at"] = format_duration(start)
-    anim["duration"] = format_duration(max(MIN_EMPHASIS_DURATION_SECONDS, original_duration * scale))
+    anim["duration"] = format_duration(
+        max(MIN_EMPHASIS_DURATION_SECONDS, original_duration * scale)
+    )
     if "stagger" in anim or original_stagger > 0:
         anim["stagger"] = format_duration(max(0.0, original_stagger * scale))
 
@@ -412,7 +424,9 @@ def _collect_object_ids(objects: list[dict[str, Any]] | None) -> set[str]:
     return result
 
 
-def _build_duration_only_timing_map(scene_durations: Mapping[str, float]) -> dict[str, SceneAudioTiming]:
+def _build_duration_only_timing_map(
+    scene_durations: Mapping[str, float],
+) -> dict[str, SceneAudioTiming]:
     return {
         scene_id: SceneAudioTiming(id=scene_id, duration_seconds=float(duration))
         for scene_id, duration in scene_durations.items()

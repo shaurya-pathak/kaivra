@@ -3,6 +3,20 @@ minimum_pre_commit_version: "4.0.0"
 repos:
   - repo: local
     hooks:
+      - id: kaivra-repo-hygiene
+        name: kaivra repo hygiene
+        entry: .venv/bin/python scripts/repo_hygiene.py
+        language: system
+      - id: kaivra-ruff-format
+        name: kaivra ruff format
+        entry: .venv/bin/ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: kaivra-ruff-check
+        name: kaivra ruff check
+        entry: .venv/bin/ruff check --fix --exit-non-zero-on-fix
+        language: system
+        types_or: [python, pyi]
       - id: kaivra-containerized-pytest
         name: kaivra containerized pytest
         entry: scripts/run_containerized_tests.sh

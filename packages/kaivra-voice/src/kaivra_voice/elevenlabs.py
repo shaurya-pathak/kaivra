@@ -30,9 +30,7 @@ class ElevenLabsProvider(VoiceProvider):
         try:
             from elevenlabs.client import ElevenLabs
         except ImportError as exc:
-            raise RuntimeError(
-                "elevenlabs package is required: pip install elevenlabs"
-            ) from exc
+            raise RuntimeError("elevenlabs package is required: pip install elevenlabs") from exc
 
         voice_id = kwargs.get("voice_id", self.voice_id)
 
@@ -43,9 +41,7 @@ class ElevenLabsProvider(VoiceProvider):
             output_format="mp3_44100_128",
         )
 
-        output_path = os.path.join(
-            tempfile.gettempdir(), f"kaivra_{scene_id}.mp3"
-        )
+        output_path = os.path.join(tempfile.gettempdir(), f"kaivra_{scene_id}.mp3")
         with open(output_path, "wb") as f:
             for chunk in audio_iter:
                 f.write(chunk)
@@ -62,14 +58,15 @@ def _measure_duration(path: str) -> float:
     """Measure audio duration in seconds using ffprobe."""
     cmd = [
         "ffprobe",
-        "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "csv=p=0",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "csv=p=0",
         path,
     ]
-    proc = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", check=False
-    )
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=False)
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {proc.stderr}")
     return float(proc.stdout.strip())

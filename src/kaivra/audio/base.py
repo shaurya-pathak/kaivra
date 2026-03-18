@@ -62,13 +62,11 @@ class ProviderRegistry:
                 "Voice providers are not installed. "
                 "From the repo root, run `make install-voice-local` for local and ElevenLabs support, "
                 "or install the package directly with "
-                "`.venv/bin/python -m pip install -e \"./packages/kaivra-voice[local]\"`."
+                '`.venv/bin/python -m pip install -e "./packages/kaivra-voice[local]"`.'
             )
         if name not in self._providers:
             available = ", ".join(sorted(self._providers))
-            raise ValueError(
-                f"Unknown voice provider: {name!r}. Available: {available}"
-            )
+            raise ValueError(f"Unknown voice provider: {name!r}. Available: {available}")
         return self._providers[name]
 
     @property

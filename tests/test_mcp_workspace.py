@@ -70,41 +70,48 @@ def test_workspace_guided_flow_writes_files(tmp_path: Path) -> None:
 
 def test_check_animation_warns_on_scene_pacing_and_narration_mismatch(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
-    checked = _check_animation(workspace, {
-        "meta": {"theme": "modern", "show_narration": True},
-        "scenes": [
-            {
-                "id": "too_short",
-                "duration": "3s",
-                "layout": "center",
-                "narration": (
-                    "Queues remove the oldest item first while preserving the order that "
-                    "items originally arrived in the line."
-                ),
-                "objects": [
-                    {"id": "short_card", "type": "text", "content": "Queue rule"},
-                ],
-                "animations": [
-                    {"action": "appear", "target": "short_card", "at": "0s"},
-                ],
-            },
-            {
-                "id": "too_long",
-                "duration": "21s",
-                "layout": "center",
-                "objects": [
-                    {"id": "long_card", "type": "text", "content": "Long beat"},
-                ],
-                "animations": [
-                    {"action": "appear", "target": "long_card", "at": "0s"},
-                ],
-            },
-        ],
-    })
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": True},
+            "scenes": [
+                {
+                    "id": "too_short",
+                    "duration": "3s",
+                    "layout": "center",
+                    "narration": (
+                        "Queues remove the oldest item first while preserving the order that "
+                        "items originally arrived in the line."
+                    ),
+                    "objects": [
+                        {"id": "short_card", "type": "text", "content": "Queue rule"},
+                    ],
+                    "animations": [
+                        {"action": "appear", "target": "short_card", "at": "0s"},
+                    ],
+                },
+                {
+                    "id": "too_long",
+                    "duration": "21s",
+                    "layout": "center",
+                    "objects": [
+                        {"id": "long_card", "type": "text", "content": "Long beat"},
+                    ],
+                    "animations": [
+                        {"action": "appear", "target": "long_card", "at": "0s"},
+                    ],
+                },
+            ],
+        },
+    )
 
     assert checked["valid"] is True
-    assert any("too_short pacing" in warning and "shorter" in warning for warning in checked["warnings"])
-    assert any("too_long pacing" in warning and "longer" in warning for warning in checked["warnings"])
+    assert any(
+        "too_short pacing" in warning and "shorter" in warning for warning in checked["warnings"]
+    )
+    assert any(
+        "too_long pacing" in warning and "longer" in warning for warning in checked["warnings"]
+    )
     assert any("too_short narration" in warning for warning in checked["warnings"])
     _assert_structured_edits(checked["recommended_edits"])
     assert any(
@@ -117,28 +124,31 @@ def test_check_animation_warns_on_scene_pacing_and_narration_mismatch(tmp_path: 
 
 def test_check_animation_warns_when_body_text_duplicates_narration(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
-    checked = _check_animation(workspace, {
-        "meta": {"theme": "modern", "show_narration": True},
-        "scenes": [
-            {
-                "id": "redundant_copy",
-                "duration": "8s",
-                "layout": "center",
-                "narration": "A queue removes the oldest item first and keeps first in first out order.",
-                "objects": [
-                    {
-                        "id": "body_copy",
-                        "type": "text",
-                        "style": "body",
-                        "content": "A queue removes the oldest item first and keeps first in first out order.",
-                    },
-                ],
-                "animations": [
-                    {"action": "appear", "target": "body_copy", "at": "0s"},
-                ],
-            },
-        ],
-    })
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": True},
+            "scenes": [
+                {
+                    "id": "redundant_copy",
+                    "duration": "8s",
+                    "layout": "center",
+                    "narration": "A queue removes the oldest item first and keeps first in first out order.",
+                    "objects": [
+                        {
+                            "id": "body_copy",
+                            "type": "text",
+                            "style": "body",
+                            "content": "A queue removes the oldest item first and keeps first in first out order.",
+                        },
+                    ],
+                    "animations": [
+                        {"action": "appear", "target": "body_copy", "at": "0s"},
+                    ],
+                },
+            ],
+        },
+    )
 
     assert checked["valid"] is True
     assert any("redundant_copy redundant_copy" in warning for warning in checked["warnings"])
@@ -153,32 +163,49 @@ def test_check_animation_warns_when_body_text_duplicates_narration(tmp_path: Pat
 
 def test_check_animation_blocks_invalid_connectors_and_animation_targets(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
-    checked = _check_animation(workspace, {
-        "meta": {"theme": "modern", "show_narration": False},
-        "objects": [
-            {"id": "shared_node", "type": "text", "content": "Shared"},
-        ],
-        "scenes": [
-            {
-                "id": "broken_refs",
-                "duration": "6s",
-                "layout": "center",
-                "objects": [
-                    {"id": "node_a", "type": "box", "content": "A"},
-                    {"id": "edge_1", "type": "connector", "from": "node_a", "to": "node_missing"},
-                ],
-                "animations": [
-                    {"action": "appear", "target": "node_missing", "at": "0s"},
-                    {"action": "move-to", "target": "node_a", "to_id": "shared_nod", "at": "1s"},
-                ],
-            },
-        ],
-    })
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "objects": [
+                {"id": "shared_node", "type": "text", "content": "Shared"},
+            ],
+            "scenes": [
+                {
+                    "id": "broken_refs",
+                    "duration": "6s",
+                    "layout": "center",
+                    "objects": [
+                        {"id": "node_a", "type": "box", "content": "A"},
+                        {
+                            "id": "edge_1",
+                            "type": "connector",
+                            "from": "node_a",
+                            "to": "node_missing",
+                        },
+                    ],
+                    "animations": [
+                        {"action": "appear", "target": "node_missing", "at": "0s"},
+                        {
+                            "action": "move-to",
+                            "target": "node_a",
+                            "to_id": "shared_nod",
+                            "at": "1s",
+                        },
+                    ],
+                },
+            ],
+        },
+    )
 
     assert checked["valid"] is False
     assert any("Connector `edge_1`" in issue for issue in checked["blocking_issues"])
-    assert any("targets missing object `node_missing`" in issue for issue in checked["blocking_issues"])
-    assert any("moves toward missing object `shared_nod`" in issue for issue in checked["blocking_issues"])
+    assert any(
+        "targets missing object `node_missing`" in issue for issue in checked["blocking_issues"]
+    )
+    assert any(
+        "moves toward missing object `shared_nod`" in issue for issue in checked["blocking_issues"]
+    )
     _assert_structured_edits(checked["recommended_edits"])
     assert any(
         edit["action"] == "fix_connector_endpoint"
@@ -230,7 +257,9 @@ def test_workspace_quick_render_passes_pacing_to_start_animation(tmp_path: Path)
     assert parsed["meta"]["pacing"] == "educational"
 
 
-def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_docs(tmp_path: Path) -> None:
+def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_docs(
+    tmp_path: Path,
+) -> None:
     workspace = KaivraWorkspace(tmp_path)
     theme = workspace.add_theme(
         name="Nested Mint",
@@ -322,7 +351,9 @@ def test_start_animation_resolves_theme_from_nearest_ancestor_workspace(tmp_path
     assert Path(started["file_path"]).exists()
 
 
-def test_preflight_reports_missing_cairo_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_preflight_reports_missing_cairo_fix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     workspace = KaivraWorkspace(tmp_path)
     real_import_module = workspace_module.importlib.import_module
     expected_fix = workspace_module._platform_fix_commands()["pycairo"][0]
@@ -341,7 +372,9 @@ def test_preflight_reports_missing_cairo_fix(tmp_path: Path, monkeypatch: pytest
     assert expected_fix in str(excinfo.value)
 
 
-def test_preflight_reports_missing_ffmpeg_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_preflight_reports_missing_ffmpeg_fix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     workspace = KaivraWorkspace(tmp_path)
     expected_fix = workspace_module._platform_fix_commands()["ffmpeg"][0]
 
@@ -359,7 +392,9 @@ def test_preflight_reports_missing_ffmpeg_fix(tmp_path: Path, monkeypatch: pytes
     assert expected_fix in str(excinfo.value)
 
 
-def test_preflight_reports_missing_ffprobe_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_preflight_reports_missing_ffprobe_fix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     workspace = KaivraWorkspace(tmp_path)
     expected_fix = workspace_module._platform_fix_commands()["ffprobe"][0]
 
@@ -377,7 +412,9 @@ def test_preflight_reports_missing_ffprobe_fix(tmp_path: Path, monkeypatch: pyte
     assert expected_fix in str(excinfo.value)
 
 
-def test_install_mcp_config_updates_claude_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_install_mcp_config_updates_claude_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_path = tmp_path / ".claude.json"
     config_path.write_text(json.dumps({"projects": {"demo": {}}}), encoding="utf-8")
     monkeypatch.setattr(workspace_module, "_DEFAULT_CLAUDE_CONFIG_PATH", config_path)

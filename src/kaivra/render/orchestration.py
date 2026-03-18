@@ -244,9 +244,7 @@ def _render_with_voice(
             result = provider.generate(scene.id, scene.narration, **generate_kwargs)
             generated_paths.append(Path(result.audio_path))
 
-            normalized_path = output_path.with_name(
-                f"{output_path.stem}_{scene.id}_narration.wav"
-            )
+            normalized_path = output_path.with_name(f"{output_path.stem}_{scene.id}_narration.wav")
             _emit_progress(
                 progress,
                 0.38 + (index / len(narrated_scenes)) * 0.18,

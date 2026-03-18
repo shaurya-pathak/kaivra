@@ -35,7 +35,9 @@ def test_concat_audio_copies_single_file_without_ffmpeg(tmp_path: Path, monkeypa
     monkeypatch.setattr(
         mux.shutil,
         "copy2",
-        lambda src, dst: copied.append((src, str(dst))) or Path(dst).write_bytes(Path(src).read_bytes()),
+        lambda src, dst: (
+            copied.append((src, str(dst))) or Path(dst).write_bytes(Path(src).read_bytes())
+        ),
     )
 
     mux.concat_audio([str(source)], str(tmp_path / "single-copy.wav"))

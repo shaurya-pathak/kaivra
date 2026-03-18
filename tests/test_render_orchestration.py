@@ -48,7 +48,9 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
         Path(output_path).write_bytes(b"video")
 
     def fake_concat(audio_paths: list[str], output_path: str) -> None:
-        steps.append(("concat", [Path(path).suffix for path in audio_paths], Path(output_path).suffix))
+        steps.append(
+            ("concat", [Path(path).suffix for path in audio_paths], Path(output_path).suffix)
+        )
         Path(output_path).write_bytes(b"concat")
 
     def fake_mux(_video_path: str, audio_path: str, output_path: str) -> None:
@@ -112,10 +114,12 @@ def test_voice_render_preserves_explicit_subtitles_setting(tmp_path, monkeypatch
     monkeypatch.setattr(
         orchestration,
         "_render_with_voice",
-        lambda _doc, **_kwargs: seen_subtitles.append(_doc.meta.show_subtitles)
-        or orchestration.RenderArtifact(
-            artifact_path=str(tmp_path / "narrated.mp4"),
-            duration_seconds=1.0,
+        lambda _doc, **_kwargs: (
+            seen_subtitles.append(_doc.meta.show_subtitles)
+            or orchestration.RenderArtifact(
+                artifact_path=str(tmp_path / "narrated.mp4"),
+                duration_seconds=1.0,
+            )
         ),
     )
 

@@ -12,12 +12,10 @@ import random
 import cairo
 
 from kaivra.dsl.schema import ObjectType
-from kaivra.scene_graph.models import SceneGraph, ResolvedScene, SceneNode, CameraState
+from kaivra.scene_graph.models import CameraState, ResolvedScene, SceneGraph, SceneNode
 from kaivra.scene_graph.timeline import apply_animations_at_time, compute_camera_at_time
 from kaivra.themes.base import ThemeSpec
-from kaivra.themes.registry import get_theme
 from kaivra.utils.color import hex_to_rgba
-from kaivra.utils.geometry import Rect
 
 
 class CairoRenderer:
@@ -61,19 +59,27 @@ class CairoRenderer:
 
         return surface
 
-    def _render_scene_to_surface(self, graph: SceneGraph, scene: "ResolvedScene", scene_time: float) -> cairo.ImageSurface:
+    def _render_scene_to_surface(
+        self, graph: SceneGraph, scene: "ResolvedScene", scene_time: float
+    ) -> cairo.ImageSurface:
         """Render a single scene to an offscreen surface."""
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, graph.width, graph.height)
         ctx = cairo.Context(surface)
         self._draw_scene(ctx, graph, scene, scene_time)
         return surface
 
-    def _draw_scene(self, ctx: cairo.Context, graph: SceneGraph, scene: "ResolvedScene", scene_time: float) -> None:
+    def _draw_scene(
+        self, ctx: cairo.Context, graph: SceneGraph, scene: "ResolvedScene", scene_time: float
+    ) -> None:
         """Draw a complete scene into an existing context."""
         apply_animations_at_time(scene.node_map, scene.timeline, scene_time)
         camera = compute_camera_at_time(
-            scene.camera_initial, scene.camera_keyframes,
-            scene_time, graph.width, graph.height, scene.node_map,
+            scene.camera_initial,
+            scene.camera_keyframes,
+            scene_time,
+            graph.width,
+            graph.height,
+            scene.node_map,
         )
         self._fill_background(ctx, graph.width, graph.height)
         ctx.save()
@@ -83,7 +89,9 @@ class CairoRenderer:
         ctx.restore()
         ctx.save()
         if graph.show_narration and scene.narration:
-            self._draw_narration(ctx, scene.narration, scene_time, scene.duration, graph.width, graph.height)
+            self._draw_narration(
+                ctx, scene.narration, scene_time, scene.duration, graph.width, graph.height
+            )
         self._draw_progress_bar(ctx, scene_time, scene.duration, graph.width)
         ctx.restore()
 
@@ -99,7 +107,9 @@ class CairoRenderer:
 
     # --- Internal ---
 
-    def _locate_scene(self, graph: SceneGraph, time: float) -> tuple[int, "ResolvedScene | None", float]:
+    def _locate_scene(
+        self, graph: SceneGraph, time: float
+    ) -> tuple[int, "ResolvedScene | None", float]:
         """Find (index, scene, local_scene_time) for the given global time."""
         elapsed = 0.0
         for i, scene in enumerate(graph.scenes):
@@ -122,7 +132,9 @@ class CairoRenderer:
             ctx.scale(camera.zoom, camera.zoom)
             ctx.translate(-cx, -cy)
 
-    def _draw_node(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
+    def _draw_node(
+        self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float
+    ) -> None:
         if not node.visible:
             return
 
@@ -155,7 +167,10 @@ class CairoRenderer:
 
         sx = node.scale_x * idle_scale
         sy = node.scale_y * idle_scale
-        shell_only_scale = not node.scale_text and node.obj_type in {ObjectType.BOX, ObjectType.TOKEN}
+        shell_only_scale = not node.scale_text and node.obj_type in {
+            ObjectType.BOX,
+            ObjectType.TOKEN,
+        }
         if shell_only_scale and (sx != 1.0 or sy != 1.0):
             ctx.save()
             cx, cy = node.rect.center.x, node.rect.center.y
@@ -184,7 +199,9 @@ class CairoRenderer:
 
         ctx.restore()
 
-    def _draw_node_visual(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
+    def _draw_node_visual(
+        self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float
+    ) -> None:
         match node.obj_type:
             case ObjectType.TEXT:
                 self._draw_text(ctx, node)
@@ -203,7 +220,9 @@ class CairoRenderer:
             case _:
                 self._draw_box(ctx, node)
 
-    def _draw_node_shell(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
+    def _draw_node_shell(
+        self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float
+    ) -> None:
         match node.obj_type:
             case ObjectType.BOX:
                 self._draw_box_shell(ctx, node)
@@ -226,7 +245,11 @@ class CairoRenderer:
         style = node.style_props
         font_size = style.get("font_size", self.theme.font_size_body)
         color = style.get("color", self.theme.text_color)
-        weight = cairo.FONT_WEIGHT_BOLD if style.get("font_weight") == "bold" else cairo.FONT_WEIGHT_NORMAL
+        weight = (
+            cairo.FONT_WEIGHT_BOLD
+            if style.get("font_weight") == "bold"
+            else cairo.FONT_WEIGHT_NORMAL
+        )
 
         ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, weight)
         ctx.set_font_size(font_size)
@@ -259,7 +282,14 @@ class CairoRenderer:
         # Shadow
         if self.theme.shadow:
             sr, sg, sb, sa = hex_to_rgba(self.theme.shadow_color)
-            self._rounded_rect(ctx, r.x + self.theme.shadow_offset, r.y + self.theme.shadow_offset, r.width, r.height, cr)
+            self._rounded_rect(
+                ctx,
+                r.x + self.theme.shadow_offset,
+                r.y + self.theme.shadow_offset,
+                r.width,
+                r.height,
+                cr,
+            )
             ctx.set_source_rgba(sr, sg, sb, sa * node.opacity)
             ctx.fill()
 
@@ -288,7 +318,7 @@ class CairoRenderer:
 
             text = node.content
             if node.draw_progress < 1.0:
-                text = text[:int(len(text) * node.draw_progress)]
+                text = text[: int(len(text) * node.draw_progress)]
 
             extents = ctx.text_extents(text)
             x = r.x + (r.width - extents.width) / 2
@@ -354,7 +384,9 @@ class CairoRenderer:
             ctx.move_to(x, y)
             ctx.show_text(tid_text)
 
-    def _draw_connector(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]) -> None:
+    def _draw_connector(
+        self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]
+    ) -> None:
         if not node.from_id or not node.to_id:
             return
 
@@ -414,7 +446,9 @@ class CairoRenderer:
             )
             ctx.stroke()
 
-    def _draw_group(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float) -> None:
+    def _draw_group(
+        self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float
+    ) -> None:
         # Draw label if present
         if node.label:
             ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
@@ -472,10 +506,20 @@ class CairoRenderer:
         r = node.rect
         intensity = node.highlight_intensity * 0.3
         ctx.set_source_rgba(hr, hg, hb, intensity * node.opacity)
-        self._rounded_rect(ctx, r.x - 4, r.y - 4, r.width + 8, r.height + 8, self.theme.box_corner_radius + 4)
+        self._rounded_rect(
+            ctx, r.x - 4, r.y - 4, r.width + 8, r.height + 8, self.theme.box_corner_radius + 4
+        )
         ctx.fill()
 
-    def _draw_narration(self, ctx: cairo.Context, text: str, scene_time: float, scene_duration: float, w: int, h: int) -> None:
+    def _draw_narration(
+        self,
+        ctx: cairo.Context,
+        text: str,
+        scene_time: float,
+        scene_duration: float,
+        w: int,
+        h: int,
+    ) -> None:
         """Draw cinematic narration subtitle at the bottom of the screen."""
         # Fade in/out narration
         fade_dur = 0.8
@@ -528,7 +572,9 @@ class CairoRenderer:
             ctx.move_to(x, text_y + i * line_height)
             ctx.show_text(line)
 
-    def _draw_progress_bar(self, ctx: cairo.Context, scene_time: float, scene_duration: float, w: int) -> None:
+    def _draw_progress_bar(
+        self, ctx: cairo.Context, scene_time: float, scene_duration: float, w: int
+    ) -> None:
         """Draw a thin accent-colored progress bar at the top of the screen."""
         if scene_duration <= 0:
             return
@@ -539,7 +585,9 @@ class CairoRenderer:
         ctx.rectangle(0, 0, w * progress, bar_h)
         ctx.fill()
 
-    def _draw_callout(self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]) -> None:
+    def _draw_callout(
+        self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode]
+    ) -> None:
         """Draw a callout annotation — a labeled pointer to another element."""
         if not node.content:
             return
@@ -607,7 +655,9 @@ class CairoRenderer:
                 ctx.stroke()
                 ctx.set_dash([])
 
-    def _rounded_rect(self, ctx: cairo.Context, x: float, y: float, w: float, h: float, r: float) -> None:
+    def _rounded_rect(
+        self, ctx: cairo.Context, x: float, y: float, w: float, h: float, r: float
+    ) -> None:
         """Draw a rounded rectangle path."""
         r = min(r, w / 2, h / 2)
         ctx.new_sub_path()
@@ -637,9 +687,12 @@ class CairoRenderer:
             elif seg_type == 2:  # CURVE_TO
                 x1, y1, x2, y2, x3, y3 = segment[1]
                 ctx.curve_to(
-                    x1 + rng.gauss(0, roughness), y1 + rng.gauss(0, roughness),
-                    x2 + rng.gauss(0, roughness), y2 + rng.gauss(0, roughness),
-                    x3 + rng.gauss(0, roughness), y3 + rng.gauss(0, roughness),
+                    x1 + rng.gauss(0, roughness),
+                    y1 + rng.gauss(0, roughness),
+                    x2 + rng.gauss(0, roughness),
+                    y2 + rng.gauss(0, roughness),
+                    x3 + rng.gauss(0, roughness),
+                    y3 + rng.gauss(0, roughness),
                 )
             elif seg_type == 3:  # CLOSE_PATH
                 ctx.close_path()

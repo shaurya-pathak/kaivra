@@ -53,7 +53,9 @@ def _box_size(obj: ObjectSpec, theme: ThemeSpec) -> Size:
     text_width = len(text) * char_width
     shadow_extra = theme.shadow_offset if theme.shadow else 0
     width = max(text_width + theme.box_padding * 2, theme.box_min_width) + shadow_extra
-    height = max(theme.font_size_body * 1.4 + theme.box_padding * 2, theme.box_min_height) + shadow_extra
+    height = (
+        max(theme.font_size_body * 1.4 + theme.box_padding * 2, theme.box_min_height) + shadow_extra
+    )
     return Size(width, height)
 
 
@@ -71,8 +73,12 @@ def _group_size(obj: ObjectSpec, theme: ThemeSpec) -> Size:
     if not obj.children:
         return Size(theme.box_min_width, theme.box_min_height)
     child_sizes = [estimate_object_size(c, theme) for c in obj.children]
-    child_layout = obj.layout if isinstance(obj.layout, LayoutSpec) else LayoutSpec(type=LayoutType.FLOW)
-    gap = theme.resolve_gap(child_layout.gap if isinstance(child_layout.gap, str) else str(child_layout.gap))
+    child_layout = (
+        obj.layout if isinstance(obj.layout, LayoutSpec) else LayoutSpec(type=LayoutType.FLOW)
+    )
+    gap = theme.resolve_gap(
+        child_layout.gap if isinstance(child_layout.gap, str) else str(child_layout.gap)
+    )
 
     if child_layout.type == LayoutType.STACK or (
         child_layout.type == LayoutType.FLOW and child_layout.direction == "vertical"

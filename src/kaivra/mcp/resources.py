@@ -7,7 +7,6 @@ from typing import Any
 
 from kaivra.dsl.schema import DocumentSpec
 
-
 RESOURCE_DEFINITIONS = [
     {
         "uri": "kaivra://authoring-profile",

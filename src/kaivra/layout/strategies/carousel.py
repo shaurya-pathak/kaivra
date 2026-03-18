@@ -5,9 +5,9 @@ from __future__ import annotations
 import math
 
 from kaivra.dsl.schema import LayoutSpec, ObjectSpec
+from kaivra.layout.strategies._sizing import estimate_object_size
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.geometry import Rect
-from kaivra.layout.strategies._sizing import estimate_object_size
 
 
 def carousel_scale_profile(
@@ -27,7 +27,7 @@ def carousel_scale_profile(
         else:
             max_distance = max(active_index, count - 1 - active_index, 1)
             distance = abs(idx - active_index) / max_distance
-        scale = active_scale + (inactive_scale - active_scale) * (distance ** 0.85)
+        scale = active_scale + (inactive_scale - active_scale) * (distance**0.85)
         scales.append(scale)
     return scales
 
@@ -62,10 +62,7 @@ class CarouselStrategy:
             centers[0] = scaled_widths[0] / 2
         for idx in range(1, len(objects)):
             centers[idx] = (
-                centers[idx - 1]
-                + scaled_widths[idx - 1] / 2
-                + gap
-                + scaled_widths[idx] / 2
+                centers[idx - 1] + scaled_widths[idx - 1] / 2 + gap + scaled_widths[idx] / 2
             )
 
         total_w = centers[-1] + scaled_widths[-1] / 2 if centers else 0.0

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from kaivra.dsl.schema import parse_duration
-from kaivra.dsl.schema import AnimAction, ObjectType
+from kaivra.dsl.schema import AnimAction, ObjectType, parse_duration
 from kaivra.mcp.blueprints import SUPPORTED_PATTERNS, build_starter_document
 from kaivra.qa.audit import audit_scene_graph
 from kaivra.scene_graph.builder import build_scene_graph
@@ -82,11 +81,7 @@ def test_visual_explainer_uses_connectors_and_draw_animations() -> None:
 
     scene = doc.scenes[0]
     objects = list(_walk_objects(scene.objects))
-    connector_ids = {
-        obj.id
-        for obj in objects
-        if obj.type == ObjectType.CONNECTOR and obj.id
-    }
+    connector_ids = {obj.id for obj in objects if obj.type == ObjectType.CONNECTOR and obj.id}
     draw_targets = {
         anim.target
         for anim in scene.animations
@@ -161,7 +156,9 @@ def test_pacing_changes_timing_without_overriding_visual_pattern_shape() -> None
 
     assert educational_ids == quick_demo_ids
     assert educational_draw_targets == quick_demo_draw_targets
-    assert parse_duration(educational.scenes[0].duration) > parse_duration(quick_demo.scenes[0].duration)
+    assert parse_duration(educational.scenes[0].duration) > parse_duration(
+        quick_demo.scenes[0].duration
+    )
     assert educational.meta.continuity_duration != quick_demo.meta.continuity_duration
     assert educational.scenes[0].focus_style is not None
     assert quick_demo.scenes[0].focus_style is not None

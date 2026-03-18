@@ -139,7 +139,9 @@ def resolve_meta_duration(
     profile = get_pacing_profile(
         _get_field(meta, "pacing"),
         include_narration=_coerce_bool(
-            include_narration if include_narration is not None else _get_field(meta, "show_subtitles")
+            include_narration
+            if include_narration is not None
+            else _get_field(meta, "show_subtitles")
         ),
     )
     default_value = getattr(profile, field_name)

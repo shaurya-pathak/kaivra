@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from kaivra.dsl.schema import LayoutSpec, LayoutType, ObjectSpec
+from kaivra.layout.strategies.carousel import CarouselStrategy
+from kaivra.layout.strategies.center import CenterStrategy
+from kaivra.layout.strategies.flow import FlowStrategy
+from kaivra.layout.strategies.grid import GridStrategy
+from kaivra.layout.strategies.split import SplitStrategy
+from kaivra.layout.strategies.stack import StackStrategy
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.geometry import Rect
-
-from kaivra.layout.strategies.center import CenterStrategy
-from kaivra.layout.strategies.grid import GridStrategy
-from kaivra.layout.strategies.flow import FlowStrategy
-from kaivra.layout.strategies.stack import StackStrategy
-from kaivra.layout.strategies.split import SplitStrategy
-from kaivra.layout.strategies.carousel import CarouselStrategy
 
 
 class LayoutEngine:

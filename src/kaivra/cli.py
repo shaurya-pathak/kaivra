@@ -53,7 +53,9 @@ def doctor(as_json: bool):
     default=None,
     help="Destination directory for the downloaded model bundle.",
 )
-@click.option("--force", is_flag=True, help="Redownload and replace an existing local model directory.")
+@click.option(
+    "--force", is_flag=True, help="Redownload and replace an existing local model directory."
+)
 def download_model(model_name: str, target_dir: Path | None, force: bool):
     """Download the default local TTS model bundle into ~/.kaivra/models."""
     from kaivra.mcp.workspace import KaivraWorkspace
@@ -75,7 +77,9 @@ def download_model(model_name: str, target_dir: Path | None, force: bool):
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 
-    status_line = "Model already installed." if not result["downloaded"] else "Model download complete."
+    status_line = (
+        "Model already installed." if not result["downloaded"] else "Model download complete."
+    )
     click.echo(status_line)
     click.echo(f"Model directory: {result['model_dir']}")
     click.echo(f"Model path: {result['model_path']}")
@@ -116,13 +120,19 @@ def mcp_install(client: str):
 @click.argument("input_file", type=click.Path(exists=True))
 @click.option("-o", "--output", required=True, help="Output file (e.g., output.mp4, output.png)")
 @click.option("--fps", default=30, help="Frames per second for video output")
-@click.option("--audio", type=click.Path(exists=True), help="Optional audio file to mux onto the rendered video")
+@click.option(
+    "--audio",
+    type=click.Path(exists=True),
+    help="Optional audio file to mux onto the rendered video",
+)
 @click.option(
     "--audio-timings",
     type=click.Path(exists=True),
     help="Optional JSON sidecar with scene durations or cue timings for retiming",
 )
-@click.option("--voice", is_flag=True, default=False, help="Generate voice narration from scene text")
+@click.option(
+    "--voice", is_flag=True, default=False, help="Generate voice narration from scene text"
+)
 @click.option(
     "--voice-provider",
     default=None,
@@ -198,7 +208,12 @@ def schema():
 
 @main.command("quick-render")
 @click.argument("input_file", type=click.Path(exists=True))
-@click.option("-o", "--output", default=None, help="Output artifact path. Defaults to artifacts/quick-renders/<name>.<format>.")
+@click.option(
+    "-o",
+    "--output",
+    default=None,
+    help="Output artifact path. Defaults to artifacts/quick-renders/<name>.<format>.",
+)
 @click.option(
     "--format",
     "requested_format",
@@ -207,13 +222,19 @@ def schema():
     help="Output format when --output is not provided.",
 )
 @click.option("--fps", default=30, help="Frames per second for video output")
-@click.option("--audio", type=click.Path(exists=True), help="Optional audio file to mux onto the rendered video")
+@click.option(
+    "--audio",
+    type=click.Path(exists=True),
+    help="Optional audio file to mux onto the rendered video",
+)
 @click.option(
     "--audio-timings",
     type=click.Path(exists=True),
     help="Optional JSON sidecar with scene durations or cue timings for retiming",
 )
-@click.option("--voice", is_flag=True, default=False, help="Generate voice narration from scene text")
+@click.option(
+    "--voice", is_flag=True, default=False, help="Generate voice narration from scene text"
+)
 @click.option(
     "--voice-provider",
     default=None,
@@ -245,9 +266,13 @@ def quick_render(
     if not check["valid"]:
         for issue in check["blocking_issues"]:
             click.echo(issue)
-        raise click.ClickException("Quick render stopped because the animation has blocking issues.")
+        raise click.ClickException(
+            "Quick render stopped because the animation has blocking issues."
+        )
 
-    output_path = _resolve_quick_render_output(str(input_path), output, requested_format, voice, audio)
+    output_path = _resolve_quick_render_output(
+        str(input_path), output, requested_format, voice, audio
+    )
     _run_preflight_for_render(
         workspace,
         command_name="quick-render",
@@ -293,7 +318,7 @@ def sample(input_file: str, outdir: str, count: int, seed: int | None):
     renderer = CairoRenderer(theme)
     for i in range(count):
         t = random.uniform(0.0, graph.total_duration)
-        filename = f"frame_{i+1:02d}_{t:0.2f}s.png"
+        filename = f"frame_{i + 1:02d}_{t:0.2f}s.png"
         path = os.path.join(outdir, filename)
         renderer.render_frame_to_file(graph, t, path)
         click.echo(f"Wrote {path}")
@@ -404,7 +429,9 @@ def _render_to_output(
 
     if output_path.suffix == ".png":
         if audio or audio_timings or voice:
-            raise click.ClickException("Audio options are only supported for video outputs (.mp4 or .webm).")
+            raise click.ClickException(
+                "Audio options are only supported for video outputs (.mp4 or .webm)."
+            )
     elif output_path.suffix not in {".mp4", ".webm"}:
         raise click.ClickException(f"Unsupported output format: {output}")
 

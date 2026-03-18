@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from kaivra.scene_graph.models import SceneNode, AnimationKeyframe, CameraState, CameraKeyframe
 from kaivra.dsl.schema import AnimAction
+from kaivra.scene_graph.models import AnimationKeyframe, CameraKeyframe, CameraState, SceneNode
 from kaivra.utils.easing import get_easing
 
 
@@ -171,7 +171,9 @@ def apply_animations_at_time(
                         if t >= phase_start:
                             node.visible = True
                             node.opacity = 1.0
-                            phase_progress = min(1.0, (t - phase_start) / phase_dur) if phase_dur > 0 else 1.0
+                            phase_progress = (
+                                min(1.0, (t - phase_start) / phase_dur) if phase_dur > 0 else 1.0
+                            )
                             node.draw_progress = phase_progress
 
             case _:

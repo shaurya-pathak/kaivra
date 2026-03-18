@@ -5,7 +5,6 @@ import types
 from pathlib import Path
 
 import pytest
-
 from kaivra_voice.local import LocalProvider, resolve_local_model_paths
 
 

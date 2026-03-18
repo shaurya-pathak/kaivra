@@ -29,86 +29,98 @@ def build_web_preview_html(
 
         timeline_data = []
         for kf in scene.timeline:
-            timeline_data.append({
-                "target_id": kf.target_id,
-                "action": kf.action.value,
-                "start_time": kf.start_time,
-                "duration": kf.duration,
-                "easing": kf.easing,
-                "to_value": kf.to_value,
-                "from_value": kf.from_value,
-                "style": kf.style,
-                "color": kf.color,
-                "stagger": kf.stagger,
-                "phases": kf.phases,
-                "to_id": kf.to_id,
-                "offset_x": kf.offset_x,
-                "offset_y": kf.offset_y,
-                "from_offset_x": kf.from_offset_x,
-                "from_offset_y": kf.from_offset_y,
-            })
+            timeline_data.append(
+                {
+                    "target_id": kf.target_id,
+                    "action": kf.action.value,
+                    "start_time": kf.start_time,
+                    "duration": kf.duration,
+                    "easing": kf.easing,
+                    "to_value": kf.to_value,
+                    "from_value": kf.from_value,
+                    "style": kf.style,
+                    "color": kf.color,
+                    "stagger": kf.stagger,
+                    "phases": kf.phases,
+                    "to_id": kf.to_id,
+                    "offset_x": kf.offset_x,
+                    "offset_y": kf.offset_y,
+                    "from_offset_x": kf.from_offset_x,
+                    "from_offset_y": kf.from_offset_y,
+                }
+            )
 
         camera_kfs = []
         for ckf in scene.camera_keyframes:
-            camera_kfs.append({
-                "action": ckf.action,
-                "start_time": ckf.start_time,
-                "duration": ckf.duration,
-                "easing": ckf.easing,
-                "to_zoom": ckf.to_zoom,
-                "focus_id": ckf.focus_id,
-            })
+            camera_kfs.append(
+                {
+                    "action": ckf.action,
+                    "start_time": ckf.start_time,
+                    "duration": ckf.duration,
+                    "easing": ckf.easing,
+                    "to_zoom": ckf.to_zoom,
+                    "focus_id": ckf.focus_id,
+                }
+            )
 
-        scenes_data.append({
-            "id": scene.id,
-            "duration": scene.duration,
-            "nodes": nodes_data,
-            "timeline": timeline_data,
-            "camera_initial": {
-                "zoom": scene.camera_initial.zoom,
-                "center_x": scene.camera_initial.center_x,
-                "center_y": scene.camera_initial.center_y,
-            },
-            "camera_keyframes": camera_kfs,
-            "transition": {
-                "type": scene.transition.type,
-                "duration": scene.transition.duration,
-            } if scene.transition else None,
-            "narration": scene.narration,
-        })
+        scenes_data.append(
+            {
+                "id": scene.id,
+                "duration": scene.duration,
+                "nodes": nodes_data,
+                "timeline": timeline_data,
+                "camera_initial": {
+                    "zoom": scene.camera_initial.zoom,
+                    "center_x": scene.camera_initial.center_x,
+                    "center_y": scene.camera_initial.center_y,
+                },
+                "camera_keyframes": camera_kfs,
+                "transition": {
+                    "type": scene.transition.type,
+                    "duration": scene.transition.duration,
+                }
+                if scene.transition
+                else None,
+                "narration": scene.narration,
+            }
+        )
 
-    graph_json = json.dumps({
-        "width": graph.width,
-        "height": graph.height,
-        "fps": graph.fps,
-        "theme": graph.theme_name,
-        "totalDuration": graph.total_duration,
-        "showNarration": graph.show_narration,
-        "scenes": scenes_data,
-    })
+    graph_json = json.dumps(
+        {
+            "width": graph.width,
+            "height": graph.height,
+            "fps": graph.fps,
+            "theme": graph.theme_name,
+            "totalDuration": graph.total_duration,
+            "showNarration": graph.show_narration,
+            "scenes": scenes_data,
+        }
+    )
 
     # Theme data for the JS renderer
-    theme_json = json.dumps({
-        "backgroundColor": theme.background_color,
-        "textColor": theme.text_color,
-        "textLight": theme.text_light,
-        "accent": theme.accent,
-        "success": theme.success,
-        "muted": theme.muted,
-        "boxFill": theme.box_fill,
-        "boxBorder": theme.box_border,
-        "boxBorderWidth": theme.box_border_width,
-        "boxCornerRadius": theme.box_corner_radius,
-        "boxPadding": theme.box_padding,
-        "tokenFill": theme.token_fill,
-        "tokenBorder": theme.token_border,
-        "connectorColor": theme.connector_color,
-        "connectorWidth": theme.connector_width,
-        "fontSizeHeading": theme.font_size_heading,
-        "fontSizeSectionHeading": theme.font_size_section_heading,
-        "fontSizeBody": theme.font_size_body,
-        "fontSizeCaption": theme.font_size_caption,
-    })
+    theme_json = json.dumps(
+        {
+            "backgroundColor": theme.background_color,
+            "textColor": theme.text_color,
+            "textLight": theme.text_light,
+            "accent": theme.accent,
+            "success": theme.success,
+            "muted": theme.muted,
+            "boxFill": theme.box_fill,
+            "boxBorder": theme.box_border,
+            "boxBorderWidth": theme.box_border_width,
+            "boxCornerRadius": theme.box_corner_radius,
+            "boxPadding": theme.box_padding,
+            "tokenFill": theme.token_fill,
+            "tokenBorder": theme.token_border,
+            "connectorColor": theme.connector_color,
+            "connectorWidth": theme.connector_width,
+            "fontSizeHeading": theme.font_size_heading,
+            "fontSizeSectionHeading": theme.font_size_section_heading,
+            "fontSizeBody": theme.font_size_body,
+            "fontSizeCaption": theme.font_size_caption,
+        }
+    )
 
     return _generate_html(graph_json, theme_json)
 
@@ -674,9 +686,8 @@ requestAnimationFrame(tick);
 def _serve_with_reload(html: str, port: int) -> None:
     """Serve the HTML with a simple HTTP server."""
     import http.server
-    import threading
-    import tempfile
     import os
+    import tempfile
 
     tmpdir = tempfile.mkdtemp(prefix="kaivra-")
     path = os.path.join(tmpdir, "index.html")

@@ -12,7 +12,6 @@ from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -128,22 +127,37 @@ class GridPositionSpec(BaseModel):
     col: int | None = Field(None, description="1-based column index")
     span: int | None = Field(None, description="Number of columns to span")
     row_span: int | None = Field(None, description="Number of rows to span")
-    region: str | None = Field(None, description="Named region defined in layout.regions (e.g. 'main', 'sidebar')")
+    region: str | None = Field(
+        None, description="Named region defined in layout.regions (e.g. 'main', 'sidebar')"
+    )
 
 
 class LayoutSpec(BaseModel):
     """Full layout specification for arranging child objects."""
 
-    type: LayoutType = Field(LayoutType.CENTER, description="Layout algorithm: center, grid, flow, stack, split, absolute")
+    type: LayoutType = Field(
+        LayoutType.CENTER,
+        description="Layout algorithm: center, grid, flow, stack, split, absolute",
+    )
     columns: int | None = Field(None, description="Number of grid columns (for grid layout)")
     rows: int | None = Field(None, description="Number of grid rows (for grid layout)")
-    gap: GapSize | str = Field(GapSize.MEDIUM, description="Spacing between objects: 'small', 'medium', or 'large'")
-    direction: Literal["horizontal", "vertical"] = Field("horizontal", description="Flow direction for flow/stack layouts")
-    align: Literal["center", "top", "bottom", "left", "right"] = Field("center", description="Alignment of objects within the layout")
+    gap: GapSize | str = Field(
+        GapSize.MEDIUM, description="Spacing between objects: 'small', 'medium', or 'large'"
+    )
+    direction: Literal["horizontal", "vertical"] = Field(
+        "horizontal", description="Flow direction for flow/stack layouts"
+    )
+    align: Literal["center", "top", "bottom", "left", "right"] = Field(
+        "center", description="Alignment of objects within the layout"
+    )
     ratio: str | None = Field(None, description="Size ratio for split layouts, e.g. '1:1', '1:3'")
-    regions: dict[str, GridRegionSpec] | None = Field(None, description="Named grid regions for Bootstrap-style placement")
+    regions: dict[str, GridRegionSpec] | None = Field(
+        None, description="Named grid regions for Bootstrap-style placement"
+    )
     # Carousel-specific options
-    curve: float | None = Field(None, description="Carousel arc height in pixels (positive = upward arc)")
+    curve: float | None = Field(
+        None, description="Carousel arc height in pixels (positive = upward arc)"
+    )
     active: str | None = Field(None, description="Active item ID for carousel emphasis")
     active_scale: float | None = Field(None, description="Scale for active carousel item")
     inactive_scale: float | None = Field(None, description="Scale for inactive carousel items")
@@ -163,7 +177,9 @@ Layout = LayoutSpec | str
 class MotionSpec(BaseModel):
     """High-level motion preset for enter/exit/idle."""
 
-    preset: str = Field(..., description="Motion preset name (e.g. 'fade', 'pop', 'slide-up', 'breathe')")
+    preset: str = Field(
+        ..., description="Motion preset name (e.g. 'fade', 'pop', 'slide-up', 'breathe')"
+    )
     at: str | None = Field(None, description="Start time for the motion (optional)")
     duration: str = Field("0.6s", description="Motion duration")
     easing: EasingType = Field(EasingType.EASE_OUT, description="Easing function")
@@ -195,14 +211,29 @@ class MotionSpec(BaseModel):
 class ObjectSpec(BaseModel):
     """Specification for any visual object in a scene."""
 
-    type: ObjectType = Field(description="Object type: text, box, circle, group, connector, token, callout")
-    id: str | None = Field(None, description="Unique identifier for this object (auto-generated if omitted)")
+    type: ObjectType = Field(
+        description="Object type: text, box, circle, group, connector, token, callout"
+    )
+    id: str | None = Field(
+        None, description="Unique identifier for this object (auto-generated if omitted)"
+    )
     content: str | None = Field(None, description="Text content displayed inside the object")
-    style: str | None = Field(None, description="Visual style preset: 'heading', 'section-heading', 'body', 'caption', 'code'")
-    position: Literal["top", "bottom", "left", "right", "above-layout"] | None = Field(None, description="Pin object to a canvas edge instead of participating in layout")
-    grid: GridPositionSpec | None = Field(None, description="Explicit grid placement (row, col, span, or named region)")
-    label: str | None = Field(None, description="Small label displayed on the object (e.g. badge text)")
-    visible: bool | None = Field(None, description="Default visibility for this object (overrides scene auto_visible)")
+    style: str | None = Field(
+        None,
+        description="Visual style preset: 'heading', 'section-heading', 'body', 'caption', 'code'",
+    )
+    position: Literal["top", "bottom", "left", "right", "above-layout"] | None = Field(
+        None, description="Pin object to a canvas edge instead of participating in layout"
+    )
+    grid: GridPositionSpec | None = Field(
+        None, description="Explicit grid placement (row, col, span, or named region)"
+    )
+    label: str | None = Field(
+        None, description="Small label displayed on the object (e.g. badge text)"
+    )
+    visible: bool | None = Field(
+        None, description="Default visibility for this object (overrides scene auto_visible)"
+    )
     scale_text: bool | None = Field(
         None,
         description="Whether content text should scale with the object transform. Defaults to false for boxes/tokens and true otherwise.",
@@ -213,19 +244,31 @@ class ObjectSpec(BaseModel):
     idle: "MotionSpec | None" = Field(None, description="Idle motion preset for this object")
 
     # Group children
-    children: list[ObjectSpec] | None = Field(None, description="Child objects (only for type='group')")
-    layout: Layout | None = Field(None, description="Layout for arranging children (only for type='group')")
+    children: list[ObjectSpec] | None = Field(
+        None, description="Child objects (only for type='group')"
+    )
+    layout: Layout | None = Field(
+        None, description="Layout for arranging children (only for type='group')"
+    )
 
     # Connector
     from_id: str | None = Field(None, alias="from", description="Source object ID (for connectors)")
-    to_id: str | None = Field(None, alias="to", description="Destination object ID (for connectors)")
-    target: str | None = Field(None, description="Target object ID that this callout points to (for callouts)")
+    to_id: str | None = Field(
+        None, alias="to", description="Destination object ID (for connectors)"
+    )
+    target: str | None = Field(
+        None, description="Target object ID that this callout points to (for callouts)"
+    )
 
     # Token
-    token_id: int | None = Field(None, description="Numeric token ID displayed as a badge (for tokens)")
+    token_id: int | None = Field(
+        None, description="Numeric token ID displayed as a badge (for tokens)"
+    )
 
     # Callout
-    callout_side: Literal["left", "right", "top", "bottom"] | None = Field(None, description="Which side of the target to place the callout")
+    callout_side: Literal["left", "right", "top", "bottom"] | None = Field(
+        None, description="Which side of the target to place the callout"
+    )
 
     model_config = {"populate_by_name": True, "extra": "allow"}
 
@@ -247,7 +290,9 @@ class BuildPhase(BaseModel):
 class AnimSpec(BaseModel):
     """Specification for an animation action."""
 
-    action: AnimAction = Field(description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build")
+    action: AnimAction = Field(
+        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build"
+    )
     target: str | list[str] | None = Field(None, description="Object ID(s) to animate")
     to_id: str | None = Field(None, description="Destination object ID (for move-to)")
 
@@ -255,19 +300,38 @@ class AnimSpec(BaseModel):
     at: str | None = Field(None, description="Start time, e.g. '0.5s' or '200ms'")
     after: str | None = Field(None, description="Start after another animation completes")
     duration: str = Field("0.5s", description="Animation duration, e.g. '1s' or '500ms'")
-    stagger: str | None = Field(None, description="Delay between targets when animating multiple objects")
-    easing: EasingType = Field(EasingType.EASE_IN_OUT, description="Easing function: linear, ease-in, ease-out, ease-in-out, spring, bounce")
+    stagger: str | None = Field(
+        None, description="Delay between targets when animating multiple objects"
+    )
+    easing: EasingType = Field(
+        EasingType.EASE_IN_OUT,
+        description="Easing function: linear, ease-in, ease-out, ease-in-out, spring, bounce",
+    )
 
     # Action-specific
-    scale_factor: float | None = Field(None, description="Target scale multiplier (for scale action, e.g. 1.5 = 150%)")
-    from_scale: float | None = Field(None, description="Starting scale for scale action (defaults to 1.0)")
-    style: Literal["glow", "outline"] | None = Field(None, description="Highlight visual style (for highlight/pulse)")
-    color: str | None = Field(None, description="Color name for emphasis animations (e.g. 'accent', 'success', 'error')")
+    scale_factor: float | None = Field(
+        None, description="Target scale multiplier (for scale action, e.g. 1.5 = 150%)"
+    )
+    from_scale: float | None = Field(
+        None, description="Starting scale for scale action (defaults to 1.0)"
+    )
+    style: Literal["glow", "outline"] | None = Field(
+        None, description="Highlight visual style (for highlight/pulse)"
+    )
+    color: str | None = Field(
+        None, description="Color name for emphasis animations (e.g. 'accent', 'success', 'error')"
+    )
     phases: list[BuildPhase] | None = Field(None, description="Build phases (for build action)")
-    offset_x: float | None = Field(None, description="Horizontal offset in pixels (for move/move-to)")
+    offset_x: float | None = Field(
+        None, description="Horizontal offset in pixels (for move/move-to)"
+    )
     offset_y: float | None = Field(None, description="Vertical offset in pixels (for move/move-to)")
-    from_offset_x: float | None = Field(None, description="Starting horizontal offset for move action (animates to offset_x)")
-    from_offset_y: float | None = Field(None, description="Starting vertical offset for move action (animates to offset_y)")
+    from_offset_x: float | None = Field(
+        None, description="Starting horizontal offset for move action (animates to offset_x)"
+    )
+    from_offset_y: float | None = Field(
+        None, description="Starting vertical offset for move action (animates to offset_y)"
+    )
 
     model_config = {"extra": "allow"}
 
@@ -302,7 +366,9 @@ class CameraAnimSpec(BaseModel):
 
     action: CameraAction = Field(description="Camera action: zoom or pan")
     to: float | None = Field(None, description="Target zoom level (for zoom action)")
-    focus: str | None = Field(None, description="Target focus point: object ID or 'center' (for pan)")
+    focus: str | None = Field(
+        None, description="Target focus point: object ID or 'center' (for pan)"
+    )
     at: str = Field(description="Start time, e.g. '1s'")
     duration: str = Field("1s", description="Animation duration")
     easing: EasingType = Field(EasingType.EASE_IN_OUT, description="Easing function")
@@ -351,20 +417,34 @@ class SceneSpec(BaseModel):
     """A single scene in the animation."""
 
     id: str | None = Field(None, description="Unique scene identifier (auto-generated if omitted)")
-    duration: str = Field("auto", description="Scene duration, e.g. '5s'. Use 'auto' to infer from animations")
+    duration: str = Field(
+        "auto", description="Scene duration, e.g. '5s'. Use 'auto' to infer from animations"
+    )
     layout: Layout = "center"
     template: str | None = Field(None, description="Layout template: 'two-column' or 'one-column'")
-    narration: str | None = Field(None, description="Narration text displayed at the bottom of the scene")
+    narration: str | None = Field(
+        None, description="Narration text displayed at the bottom of the scene"
+    )
 
-    objects: list[ObjectSpec] = Field(default_factory=list, description="Visual objects in this scene")
-    animations: list[AnimSpec] = Field(default_factory=list, description="Animations to play during this scene")
-    auto_visible: bool = Field(False, description="If true, objects are visible by default without appear animations")
+    objects: list[ObjectSpec] = Field(
+        default_factory=list, description="Visual objects in this scene"
+    )
+    animations: list[AnimSpec] = Field(
+        default_factory=list, description="Animations to play during this scene"
+    )
+    auto_visible: bool = Field(
+        False, description="If true, objects are visible by default without appear animations"
+    )
     focus: str | list[str] | None = Field(None, description="Auto-focus target(s) for this scene")
     focus_style: FocusStyleSpec | None = Field(None, description="Focus styling options")
-    continuity: bool | None = Field(None, description="If true, inherit positions from previous scene for shared IDs")
+    continuity: bool | None = Field(
+        None, description="If true, inherit positions from previous scene for shared IDs"
+    )
 
     camera: CameraSpec | None = Field(None, description="Camera configuration")
-    camera_animations: list[CameraAnimSpec] = Field(default_factory=list, description="Camera animations")
+    camera_animations: list[CameraAnimSpec] = Field(
+        default_factory=list, description="Camera animations"
+    )
     transition: TransitionSpec | None = Field(None, description="Transition to next scene")
 
     @field_validator("layout", mode="before")
@@ -384,7 +464,9 @@ class MetaSpec(BaseModel):
     """Top-level metadata."""
 
     title: str = Field("Untitled Animation", description="Animation title")
-    resolution: tuple[int, int] = Field((1920, 1080), description="Canvas resolution [width, height]")
+    resolution: tuple[int, int] = Field(
+        (1920, 1080), description="Canvas resolution [width, height]"
+    )
     fps: int = Field(30, description="Frames per second")
     theme: str = Field("whiteboard", description="Visual theme name")
     show_subtitles: bool = Field(
@@ -393,9 +475,13 @@ class MetaSpec(BaseModel):
         validation_alias=AliasChoices("show_subtitles", "show_narration"),
         serialization_alias="show_subtitles",
     )
-    pacing: PacingPreset = Field(PacingPreset.BALANCED, description="Timing profile: quick-demo, balanced, or educational")
+    pacing: PacingPreset = Field(
+        PacingPreset.BALANCED, description="Timing profile: quick-demo, balanced, or educational"
+    )
     continuity: bool = Field(True, description="Inherit positions between scenes for shared IDs")
-    continuity_duration: str = Field("0.6s", description="Duration for continuity moves between scenes")
+    continuity_duration: str = Field(
+        "0.6s", description="Duration for continuity moves between scenes"
+    )
     glow_release_padding: str = Field(
         "0.6s",
         description="Minimum tail time at scene end after highlight/pulse effects",
@@ -429,5 +515,7 @@ class DocumentSpec(BaseModel):
 
     version: str = Field("1.0", description="Schema version")
     meta: MetaSpec = Field(default_factory=MetaSpec, description="Animation metadata")
-    objects: list[ObjectSpec] = Field(default_factory=list, description="Persistent objects visible in every scene")
+    objects: list[ObjectSpec] = Field(
+        default_factory=list, description="Persistent objects visible in every scene"
+    )
     scenes: list[SceneSpec] = Field(default_factory=list, description="Ordered list of scenes")

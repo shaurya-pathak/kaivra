@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from kaivra.dsl.schema import ObjectType, AnimAction
+from kaivra.dsl.schema import AnimAction, ObjectType
 from kaivra.utils.geometry import Rect
 
 

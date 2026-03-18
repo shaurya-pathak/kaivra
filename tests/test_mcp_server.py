@@ -24,13 +24,16 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "10-15 seconds" in instructions
     assert "Use start_animation first, then check_animation" in instructions
 
-    assert server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        }
-    ) == []
+    assert (
+        server.handle_message(
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/initialized",
+                "params": {},
+            }
+        )
+        == []
+    )
 
     tools_response = server.handle_message(
         {

@@ -88,7 +88,9 @@ def theme_field_names() -> list[str]:
     return sorted(field.name for field in fields(ThemeSpec))
 
 
-def _load_named_theme(name: str, *, search_roots: Iterable[str | Path] | None = None) -> ThemeSpec | None:
+def _load_named_theme(
+    name: str, *, search_roots: Iterable[str | Path] | None = None
+) -> ThemeSpec | None:
     for candidate in _theme_candidates(name, search_roots=search_roots):
         if not candidate.exists():
             continue

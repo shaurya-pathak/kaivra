@@ -13,12 +13,18 @@ def test_voice_and_audio_are_mutually_exclusive(tmp_path):
     dummy_input.write_text('{"meta": {}, "scenes": []}')
 
     runner = CliRunner()
-    result = runner.invoke(main, [
-        "render", str(dummy_input),
-        "-o", str(tmp_path / "out.mp4"),
-        "--voice",
-        "--audio", str(dummy_audio),
-    ])
+    result = runner.invoke(
+        main,
+        [
+            "render",
+            str(dummy_input),
+            "-o",
+            str(tmp_path / "out.mp4"),
+            "--voice",
+            "--audio",
+            str(dummy_audio),
+        ],
+    )
     assert result.exit_code != 0
     assert "--voice cannot be combined" in result.output
 
@@ -31,11 +37,17 @@ def test_voice_and_audio_timings_are_mutually_exclusive(tmp_path):
     dummy_input.write_text('{"meta": {}, "scenes": []}')
 
     runner = CliRunner()
-    result = runner.invoke(main, [
-        "render", str(dummy_input),
-        "-o", str(tmp_path / "out.mp4"),
-        "--voice",
-        "--audio-timings", str(dummy_timings),
-    ])
+    result = runner.invoke(
+        main,
+        [
+            "render",
+            str(dummy_input),
+            "-o",
+            str(tmp_path / "out.mp4"),
+            "--voice",
+            "--audio-timings",
+            str(dummy_timings),
+        ],
+    )
     assert result.exit_code != 0
     assert "--voice cannot be combined" in result.output

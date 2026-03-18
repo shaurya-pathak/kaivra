@@ -36,15 +36,9 @@ def audit_scene_graph(
             nodes = deepcopy(scene.node_map)
             apply_animations_at_time(nodes, scene.timeline, t)
 
-            visible_nodes = [
-                node for node in nodes.values()
-                if _should_audit_node(node)
-            ]
+            visible_nodes = [node for node in nodes.values() if _should_audit_node(node)]
 
-            effective_rects = {
-                node.id: _effective_rect(node)
-                for node in visible_nodes
-            }
+            effective_rects = {node.id: _effective_rect(node) for node in visible_nodes}
 
             findings.extend(_audit_clipping(scene.id, t, visible_nodes, effective_rects, canvas))
             findings.extend(_audit_overlaps(scene.id, t, visible_nodes, effective_rects))
@@ -57,10 +51,7 @@ def _sample_times(duration: float, count: int) -> list[float]:
     count = max(1, count)
     # Midpoint sampling avoids treating deliberate continuity crossfades at the
     # exact scene boundary as hard layout regressions.
-    return [
-        min(duration - 0.001, duration * (idx + 0.5) / count)
-        for idx in range(count)
-    ]
+    return [min(duration - 0.001, duration * (idx + 0.5) / count) for idx in range(count)]
 
 
 def _should_audit_node(node: SceneNode) -> bool:
@@ -72,10 +63,8 @@ def _should_audit_node(node: SceneNode) -> bool:
 
 
 def _effective_rect(node: SceneNode) -> Rect:
-    return (
-        node.rect
-        .scaled_about_center(node.scale_x, node.scale_y)
-        .translated(node.translate_x, node.translate_y)
+    return node.rect.scaled_about_center(node.scale_x, node.scale_y).translated(
+        node.translate_x, node.translate_y
     )
 
 
@@ -105,16 +94,16 @@ def _audit_clipping(
         else:
             severity = "warning"
 
-        findings.append(AuditFinding(
-            severity=severity,
-            kind="clipping",
-            scene_id=scene_id,
-            time_seconds=time_seconds,
-            message=(
-                f"{node.id} extends outside the canvas by up to {overflow:.1f}px"
-            ),
-            node_ids=(node.id,),
-        ))
+        findings.append(
+            AuditFinding(
+                severity=severity,
+                kind="clipping",
+                scene_id=scene_id,
+                time_seconds=time_seconds,
+                message=(f"{node.id} extends outside the canvas by up to {overflow:.1f}px"),
+                node_ids=(node.id,),
+            )
+        )
     return findings
 
 
@@ -137,7 +126,7 @@ def _audit_overlaps(
         if _is_transitional_node(left):
             continue
         left_rect = rects[left.id]
-        for right in nodes[idx + 1:]:
+        for right in nodes[idx + 1 :]:
             if _is_transitional_node(right):
                 continue
             right_rect = rects[right.id]
@@ -147,17 +136,19 @@ def _audit_overlaps(
             overlap_ratio = intersection.area / max(1.0, min(left_rect.area, right_rect.area))
             if overlap_ratio <= 0.04:
                 continue
-            findings.append(AuditFinding(
-                severity="error",
-                kind="overlap",
-                scene_id=scene_id,
-                time_seconds=time_seconds,
-                message=(
-                    f"{left.id} overlaps {right.id} "
-                    f"({intersection.width:.1f}px x {intersection.height:.1f}px)"
-                ),
-                node_ids=(left.id, right.id),
-            ))
+            findings.append(
+                AuditFinding(
+                    severity="error",
+                    kind="overlap",
+                    scene_id=scene_id,
+                    time_seconds=time_seconds,
+                    message=(
+                        f"{left.id} overlaps {right.id} "
+                        f"({intersection.width:.1f}px x {intersection.height:.1f}px)"
+                    ),
+                    node_ids=(left.id, right.id),
+                )
+            )
     return findings
 
 

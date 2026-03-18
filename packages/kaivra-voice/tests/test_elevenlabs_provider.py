@@ -9,8 +9,9 @@ import pytest
 # Add kaivra-voice src to path for direct testing
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from kaivra.audio.base import AudioResult, VoiceProvider
 from kaivra_voice.elevenlabs import ElevenLabsProvider
+
+from kaivra.audio.base import AudioResult, VoiceProvider
 
 
 def test_implements_voice_provider():
@@ -44,13 +45,15 @@ def test_generate_calls_elevenlabs_api(tmp_path):
     mock_elevenlabs = MagicMock()
     mock_elevenlabs.client.ElevenLabs = mock_client_cls
 
-    output_path = str(tmp_path / "kaivra_scene_01.mp3")
-
-    with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "test-key"}), \
-         patch.dict(sys.modules, {"elevenlabs": mock_elevenlabs, "elevenlabs.client": mock_elevenlabs.client}), \
-         patch("kaivra_voice.elevenlabs._measure_duration", return_value=5.2), \
-         patch("tempfile.gettempdir", return_value=str(tmp_path)):
-
+    with (
+        patch.dict(os.environ, {"ELEVENLABS_API_KEY": "test-key"}),
+        patch.dict(
+            sys.modules,
+            {"elevenlabs": mock_elevenlabs, "elevenlabs.client": mock_elevenlabs.client},
+        ),
+        patch("kaivra_voice.elevenlabs._measure_duration", return_value=5.2),
+        patch("tempfile.gettempdir", return_value=str(tmp_path)),
+    ):
         provider = ElevenLabsProvider(voice_id="rachel")
         result = provider.generate("scene_01", "Hello world")
 

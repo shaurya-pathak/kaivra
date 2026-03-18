@@ -35,12 +35,18 @@ def export_video(
     cmd = [
         "ffmpeg",
         "-y",  # overwrite
-        "-f", "rawvideo",
-        "-vcodec", "rawvideo",
-        "-pix_fmt", "bgra",  # Cairo ARGB32 is BGRA in memory on little-endian
-        "-s", f"{width}x{height}",
-        "-r", str(fps),
-        "-i", "-",  # read from stdin
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-pix_fmt",
+        "bgra",  # Cairo ARGB32 is BGRA in memory on little-endian
+        "-s",
+        f"{width}x{height}",
+        "-r",
+        str(fps),
+        "-i",
+        "-",  # read from stdin
         *codec_args,
         output_path,
     ]

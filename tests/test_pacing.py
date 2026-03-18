@@ -31,9 +31,7 @@ def test_silent_starter_defaults_to_balanced_pacing() -> None:
     doc = build_starter_document(
         title="Queues",
         pattern="process_explainer",
-        beats=[
-            {"title": "Observe", "detail": "A queue removes the oldest item first."}
-        ],
+        beats=[{"title": "Observe", "detail": "A queue removes the oldest item first."}],
         theme="modern",
         audience=None,
         include_narration=False,
@@ -48,9 +46,7 @@ def test_explicit_quick_demo_pacing_overrides_narration_default() -> None:
     doc = build_starter_document(
         title="Queues",
         pattern="process_explainer",
-        beats=[
-            {"title": "Observe", "detail": "A queue removes the oldest item first."}
-        ],
+        beats=[{"title": "Observe", "detail": "A queue removes the oldest item first."}],
         theme="modern",
         audience=None,
         include_narration=True,
@@ -67,15 +63,21 @@ def test_explicit_quick_demo_pacing_overrides_narration_default() -> None:
 def test_resolve_meta_duration_uses_profile_defaults_only_when_field_missing() -> None:
     profile = get_pacing_profile("educational", include_narration=True)
 
-    assert resolve_meta_duration(
-        {"pacing": "educational", "show_subtitles": True},
-        "continuity_duration",
-    ) == profile.continuity_duration
-    assert resolve_meta_duration(
-        {
-            "pacing": "educational",
-            "show_subtitles": True,
-            "continuity_duration": "2.5s",
-        },
-        "continuity_duration",
-    ) == "2.5s"
+    assert (
+        resolve_meta_duration(
+            {"pacing": "educational", "show_subtitles": True},
+            "continuity_duration",
+        )
+        == profile.continuity_duration
+    )
+    assert (
+        resolve_meta_duration(
+            {
+                "pacing": "educational",
+                "show_subtitles": True,
+                "continuity_duration": "2.5s",
+            },
+            "continuity_duration",
+        )
+        == "2.5s"
+    )

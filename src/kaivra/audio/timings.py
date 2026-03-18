@@ -106,11 +106,15 @@ def _load_scene_list(raw: object) -> dict[str, SceneAudioTiming]:
             raise ValueError(f"Scene timing at index {idx} is missing a valid 'id'.")
 
         if "duration_seconds" in scene:
-            duration = _coerce_duration_seconds(scene["duration_seconds"], field=f"scenes[{idx}].duration_seconds")
+            duration = _coerce_duration_seconds(
+                scene["duration_seconds"], field=f"scenes[{idx}].duration_seconds"
+            )
         elif "duration" in scene:
             duration = _coerce_duration_seconds(scene["duration"], field=f"scenes[{idx}].duration")
         else:
-            raise ValueError(f"Scene timing for {scene_id!r} must include 'duration_seconds' or 'duration'.")
+            raise ValueError(
+                f"Scene timing for {scene_id!r} must include 'duration_seconds' or 'duration'."
+            )
 
         cues = _load_cues(scene.get("cues"), field=f"scenes[{idx}].cues")
         result[scene_id] = SceneAudioTiming(
@@ -149,7 +153,9 @@ def _load_cues(raw: object, *, field: str) -> list[AudioCue]:
             if duration <= 0:
                 raise ValueError(f"{field}[{idx}] end must be greater than start.")
         else:
-            raise ValueError(f"{field}[{idx}] must include 'duration_seconds'/'duration' or 'end_seconds'/'end'.")
+            raise ValueError(
+                f"{field}[{idx}] must include 'duration_seconds'/'duration' or 'end_seconds'/'end'."
+            )
 
         text = cue.get("text")
         if text is not None and not isinstance(text, str):

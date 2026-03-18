@@ -47,7 +47,13 @@ def test_estimate_scene_duration_uses_auto_timeline():
         "duration": "auto",
         "objects": [],
         "animations": [
-            {"action": "highlight", "target": ["a", "b", "c"], "at": "1s", "duration": "2s", "stagger": "0.5s"}
+            {
+                "action": "highlight",
+                "target": ["a", "b", "c"],
+                "at": "1s",
+                "duration": "2s",
+                "stagger": "0.5s",
+            }
         ],
     }
 

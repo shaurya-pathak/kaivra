@@ -39,8 +39,7 @@ class LocalProvider(VoiceProvider):
             import sherpa_onnx
         except ImportError as exc:
             raise RuntimeError(
-                "sherpa-onnx is required for local TTS: "
-                "pip install kaivra-voice[local]"
+                "sherpa-onnx is required for local TTS: pip install kaivra-voice[local]"
             ) from exc
 
         resolved = resolve_local_model_paths(
@@ -198,14 +197,15 @@ def _measure_duration(path: str) -> float:
     """Measure audio duration in seconds using ffprobe."""
     cmd = [
         "ffprobe",
-        "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "csv=p=0",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "csv=p=0",
         path,
     ]
-    proc = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", check=False
-    )
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=False)
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {proc.stderr}")
     return float(proc.stdout.strip())

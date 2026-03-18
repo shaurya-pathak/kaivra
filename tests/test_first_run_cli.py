@@ -38,13 +38,17 @@ def test_mcp_install_auto_writes_cursor_config(tmp_path: Path, monkeypatch) -> N
     cursor_path = tmp_path / ".cursor" / "mcp.json"
     cursor_path.parent.mkdir(parents=True)
     cursor_path.write_text(
-        json.dumps({"mcpServers": {"existing": {"type": "stdio", "command": "keep-me", "args": []}}}),
+        json.dumps(
+            {"mcpServers": {"existing": {"type": "stdio", "command": "keep-me", "args": []}}}
+        ),
         encoding="utf-8",
     )
 
     monkeypatch.setattr("kaivra.mcp.workspace._DEFAULT_CLAUDE_CONFIG_PATH", claude_path)
     monkeypatch.setattr("kaivra.mcp.workspace._DEFAULT_CURSOR_CONFIG_PATH", cursor_path)
-    monkeypatch.setattr("kaivra.mcp.workspace._resolve_mcp_server_command", lambda: "/tmp/kaivra-mcp")
+    monkeypatch.setattr(
+        "kaivra.mcp.workspace._resolve_mcp_server_command", lambda: "/tmp/kaivra-mcp"
+    )
 
     runner = CliRunner()
     result = runner.invoke(main, ["mcp-install", "--client", "auto"])
@@ -60,7 +64,9 @@ def test_mcp_install_prints_doctor_hint_only_once(tmp_path: Path, monkeypatch) -
     hint_file = tmp_path / ".kaivra" / ".doctor_hint_seen"
 
     monkeypatch.setenv("KAIVRA_DOCTOR_HINT_FILE", str(hint_file))
-    monkeypatch.setattr("kaivra.mcp.workspace.KaivraWorkspace.preflight_command", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        "kaivra.mcp.workspace.KaivraWorkspace.preflight_command", lambda *args, **kwargs: {}
+    )
     monkeypatch.setattr(
         "kaivra.mcp.workspace.KaivraWorkspace.install_mcp_config",
         lambda *args, **kwargs: {
@@ -83,7 +89,9 @@ def test_mcp_install_prints_doctor_hint_only_once(tmp_path: Path, monkeypatch) -
 
 def test_quick_render_uses_png_default(tmp_path: Path, monkeypatch) -> None:
     input_file = tmp_path / "demo.json"
-    input_file.write_text(Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8")
+    input_file.write_text(
+        Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli_module, "_run_preflight_for_render", lambda *args, **kwargs: None)
 
@@ -106,7 +114,9 @@ def test_quick_render_uses_png_default(tmp_path: Path, monkeypatch) -> None:
 
 def test_quick_render_uses_mp4_when_voice_requested(tmp_path: Path, monkeypatch) -> None:
     input_file = tmp_path / "demo.json"
-    input_file.write_text(Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8")
+    input_file.write_text(
+        Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli_module, "_run_preflight_for_render", lambda *args, **kwargs: None)
 

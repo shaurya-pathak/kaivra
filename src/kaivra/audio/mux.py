@@ -29,11 +29,15 @@ def mux_audio(video_path: str, audio_path: str, output_path: str) -> None:
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", video_path,
-        "-i", audio_path,
-        "-c:v", "copy",
+        "-i",
+        video_path,
+        "-i",
+        audio_path,
+        "-c:v",
+        "copy",
         *audio_codec,
-        "-af", "apad",
+        "-af",
+        "apad",
         "-shortest",
         output_path,
     ]
@@ -56,11 +60,15 @@ def normalize_audio_to_wav(input_path: str, output_path: str) -> None:
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", input_path,
+        "-i",
+        input_path,
         "-vn",
-        "-ac", "1",
-        "-ar", "44100",
-        "-c:a", "pcm_s16le",
+        "-ac",
+        "1",
+        "-ar",
+        "44100",
+        "-c:a",
+        "pcm_s16le",
         output_path,
     ]
     proc = subprocess.run(
@@ -81,9 +89,12 @@ def measure_audio_duration(path: str) -> float:
     """Measure audio duration in seconds using ffprobe."""
     cmd = [
         "ffprobe",
-        "-v", "error",
-        "-show_entries", "format=duration",
-        "-of", "csv=p=0",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "csv=p=0",
         path,
     ]
     proc = subprocess.run(
@@ -121,9 +132,12 @@ def concat_audio(audio_paths: list[str], output_path: str) -> None:
         cmd = [
             "ffmpeg",
             "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", list_path,
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            list_path,
             *codec_args,
             output_path,
         ]
@@ -136,8 +150,6 @@ def concat_audio(audio_paths: list[str], output_path: str) -> None:
             encoding="utf-8",
         )
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"ffmpeg concat failed (exit {proc.returncode}):\n{proc.stderr}"
-            )
+            raise RuntimeError(f"ffmpeg concat failed (exit {proc.returncode}):\n{proc.stderr}")
     finally:
         Path(list_path).unlink(missing_ok=True)

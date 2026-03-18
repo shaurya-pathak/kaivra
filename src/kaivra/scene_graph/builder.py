@@ -9,16 +9,30 @@ from kaivra.dsl.pacing import (
     resolve_meta_duration,
 )
 from kaivra.dsl.schema import (
-    DocumentSpec, SceneSpec, ObjectSpec, LayoutSpec, LayoutType, GridPositionSpec,
-    AnimSpec, CameraAnimSpec, MotionSpec, FocusStyleSpec, parse_duration,
-)
-from kaivra.dsl.schema import ObjectType, AnimAction
-from kaivra.scene_graph.models import (
-    SceneGraph, ResolvedScene, SceneNode, AnimationKeyframe,
-    CameraState, CameraKeyframe, TransitionInfo,
+    AnimAction,
+    AnimSpec,
+    DocumentSpec,
+    FocusStyleSpec,
+    GridPositionSpec,
+    LayoutSpec,
+    LayoutType,
+    MotionSpec,
+    ObjectSpec,
+    ObjectType,
+    SceneSpec,
+    parse_duration,
 )
 from kaivra.layout.engine import LayoutEngine
 from kaivra.layout.strategies.carousel import carousel_scale_profile
+from kaivra.scene_graph.models import (
+    AnimationKeyframe,
+    CameraKeyframe,
+    CameraState,
+    ResolvedScene,
+    SceneGraph,
+    SceneNode,
+    TransitionInfo,
+)
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.geometry import Rect
 
@@ -62,7 +76,9 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
             glow_release_padding,
         )
         # Continuity: inherit positions from previous scene for shared IDs
-        continuity = scene_spec.continuity if scene_spec.continuity is not None else doc.meta.continuity
+        continuity = (
+            scene_spec.continuity if scene_spec.continuity is not None else doc.meta.continuity
+        )
         if continuity and prev_scene is not None:
             continuity_duration = parse_duration(
                 resolve_meta_duration(
@@ -73,7 +89,9 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
             )
             _apply_continuity(prev_scene, resolved, continuity_duration)
             resolved.timeline = _merge_highlights(resolved.timeline)
-            resolved.timeline = _trim_glows(resolved.timeline, resolved.duration, glow_release_padding)
+            resolved.timeline = _trim_glows(
+                resolved.timeline, resolved.duration, glow_release_padding
+            )
             resolved.timeline.sort(key=lambda k: k.start_time)
         scenes.append(resolved)
         prev_scene = resolved
@@ -110,10 +128,14 @@ def _build_scene(
     spec = _apply_scene_template(spec, persistent_ids)
     spec = _apply_dynamic_layout_hints(spec)
     node_hints = _collect_node_hints(spec.objects)
-    unclamped_ids = {node_id for node_id, hint in node_hints.items() if hint.get("skip_canvas_clamp")}
+    unclamped_ids = {
+        node_id for node_id, hint in node_hints.items() if hint.get("skip_canvas_clamp")
+    }
 
     # Resolve layout
-    layout = spec.layout if isinstance(spec.layout, LayoutSpec) else LayoutSpec(type=LayoutType.CENTER)
+    layout = (
+        spec.layout if isinstance(spec.layout, LayoutSpec) else LayoutSpec(type=LayoutType.CENTER)
+    )
 
     # Filter out objects with special positions (they're placed separately)
     layout_objects = [o for o in spec.objects if not o.position and not o.grid]
@@ -123,6 +145,7 @@ def _build_scene(
     # Place special-position objects and compute how much space they consume
     # so the main layout can avoid overlapping them.
     from kaivra.layout.strategies._sizing import estimate_object_size
+
     positions = {}
     edge_offsets = {
         "top": 0.0,
@@ -132,7 +155,9 @@ def _build_scene(
         "above-layout": 0.0,
     }
     for obj in special_objects:
-        pos = _resolve_special_position(obj, canvas, theme, offset=edge_offsets.get(obj.position or "", 0.0))
+        pos = _resolve_special_position(
+            obj, canvas, theme, offset=edge_offsets.get(obj.position or "", 0.0)
+        )
         positions[obj.id or f"special_{id(obj)}"] = pos
         size = estimate_object_size(obj, theme)
         edge_offsets = _accumulate_special_position(edge_offsets, obj.position, size, theme)
@@ -168,7 +193,9 @@ def _build_scene(
     nodes = []
     node_map = {}
     for obj in spec.objects:
-        node = _build_node(obj, positions, theme, auto_visible=spec.auto_visible, node_hints=node_hints)
+        node = _build_node(
+            obj, positions, theme, auto_visible=spec.auto_visible, node_hints=node_hints
+        )
         nodes.append(node)
         node_map[node.id] = node
         # Also register children
@@ -186,8 +213,10 @@ def _build_scene(
     expanded_anims.extend(_expand_focus_presets(spec, pacing_profile.focus_duration))
 
     # Resolve timeline
-    duration = parse_duration(spec.duration) if spec.duration != "auto" else _auto_duration(
-        spec.model_copy(update={"animations": expanded_anims})
+    duration = (
+        parse_duration(spec.duration)
+        if spec.duration != "auto"
+        else _auto_duration(spec.model_copy(update={"animations": expanded_anims}))
     )
     timeline = _resolve_animations(expanded_anims, duration)
     timeline = _normalize_timeline(timeline, duration, glow_release_padding)
@@ -307,7 +336,9 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
 
     existing_moves: set[str] = set()
     for kf in curr.timeline:
-        if kf.action in {AnimAction.MOVE, AnimAction.MOVE_TO} and kf.start_time <= max(0.2, duration):
+        if kf.action in {AnimAction.MOVE, AnimAction.MOVE_TO} and kf.start_time <= max(
+            0.2, duration
+        ):
             existing_moves.add(kf.target_id)
 
     fade_duration = min(0.9, max(0.32, duration * 0.4))
@@ -315,7 +346,9 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
     _stage_continuity_exit(prev, shared_ids, fade_duration)
     _delay_scene_opening(curr, duration + fade_duration)
     move_duration = duration
-    _stage_continuity_visibility(curr, shared_ids, entering_ids, parent_map, fade_start, fade_duration)
+    _stage_continuity_visibility(
+        curr, shared_ids, entering_ids, parent_map, fade_start, fade_duration
+    )
 
     for node_id in shared_ids:
         if node_id in existing_moves:
@@ -332,27 +365,31 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
         if abs(dx) < 0.5 and abs(dy) < 0.5:
             continue
         # Start at previous position via offset, animate to zero
-        curr.timeline.append(AnimationKeyframe(
-            target_id=node_id,
-            action=AnimAction.MOVE,
-            start_time=0.0,
-            duration=move_duration * (1.1 if node.layout_role == "carousel-item" else 1.0),
-            easing="ease-in-out",
-            from_offset_x=dx,
-            from_offset_y=dy,
-            offset_x=0.0,
-            offset_y=0.0,
-        ))
-        if abs(prev_node.base_scale_x - node.base_scale_x) >= 0.01:
-            curr.timeline.append(AnimationKeyframe(
+        curr.timeline.append(
+            AnimationKeyframe(
                 target_id=node_id,
-                action=AnimAction.SCALE,
+                action=AnimAction.MOVE,
                 start_time=0.0,
-                duration=move_duration,
+                duration=move_duration * (1.1 if node.layout_role == "carousel-item" else 1.0),
                 easing="ease-in-out",
-                from_value=prev_node.base_scale_x,
-                to_value=node.base_scale_x,
-            ))
+                from_offset_x=dx,
+                from_offset_y=dy,
+                offset_x=0.0,
+                offset_y=0.0,
+            )
+        )
+        if abs(prev_node.base_scale_x - node.base_scale_x) >= 0.01:
+            curr.timeline.append(
+                AnimationKeyframe(
+                    target_id=node_id,
+                    action=AnimAction.SCALE,
+                    start_time=0.0,
+                    duration=move_duration,
+                    easing="ease-in-out",
+                    from_value=prev_node.base_scale_x,
+                    to_value=node.base_scale_x,
+                )
+            )
 
     for node_id in shared_ids:
         if node_id in existing_moves:
@@ -365,15 +402,17 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
             continue
         if abs(prev_node.base_scale_x - node.base_scale_x) < 0.01:
             continue
-        curr.timeline.append(AnimationKeyframe(
-            target_id=node_id,
-            action=AnimAction.SCALE,
-            start_time=0.0,
-            duration=move_duration,
-            easing="ease-in-out",
-            from_value=prev_node.base_scale_x,
-            to_value=node.base_scale_x,
-        ))
+        curr.timeline.append(
+            AnimationKeyframe(
+                target_id=node_id,
+                action=AnimAction.SCALE,
+                start_time=0.0,
+                duration=move_duration,
+                easing="ease-in-out",
+                from_value=prev_node.base_scale_x,
+                to_value=node.base_scale_x,
+            )
+        )
 
     prev.timeline.sort(key=lambda k: k.start_time)
     curr.timeline.sort(key=lambda k: k.start_time)
@@ -398,7 +437,10 @@ def _continuity_compatible(prev_node: SceneNode, node: SceneNode) -> bool:
         return False
     if prev_node.label != node.label:
         return False
-    if abs(prev_node.rect.width - node.rect.width) > 1.0 or abs(prev_node.rect.height - node.rect.height) > 1.0:
+    if (
+        abs(prev_node.rect.width - node.rect.width) > 1.0
+        or abs(prev_node.rect.height - node.rect.height) > 1.0
+    ):
         return False
     if node.obj_type == ObjectType.CONNECTOR:
         return prev_node.from_id == node.from_id and prev_node.to_id == node.to_id
@@ -449,11 +491,7 @@ def _has_continuity_motion(prev_node: SceneNode, node: SceneNode) -> bool:
 
 def _delay_scene_opening(scene: ResolvedScene, delay: float) -> None:
     """Reserve a quiet continuity prelude at scene start before normal animations begin."""
-    delayed_targets = {
-        kf.target_id
-        for kf in scene.timeline
-        if kf.start_time < delay
-    }
+    delayed_targets = {kf.target_id for kf in scene.timeline if kf.start_time < delay}
     for kf in scene.timeline:
         if kf.target_id in delayed_targets:
             kf.start_time += delay
@@ -499,13 +537,15 @@ def _stage_continuity_visibility(
         fade_targets.add(node_id)
 
     for node_id in fade_targets:
-        scene.timeline.append(AnimationKeyframe(
-            target_id=node_id,
-            action=AnimAction.FADE_IN,
-            start_time=fade_start,
-            duration=fade_duration,
-            easing="ease-out",
-        ))
+        scene.timeline.append(
+            AnimationKeyframe(
+                target_id=node_id,
+                action=AnimAction.FADE_IN,
+                start_time=fade_start,
+                duration=fade_duration,
+                easing="ease-out",
+            )
+        )
 
 
 def _stage_continuity_exit(
@@ -541,13 +581,15 @@ def _stage_continuity_exit(
     for node_id in fade_targets:
         if node_id in existing_exits:
             continue
-        scene.timeline.append(AnimationKeyframe(
-            target_id=node_id,
-            action=AnimAction.FADE_OUT,
-            start_time=start_time,
-            duration=fade_duration,
-            easing="ease-in-out",
-        ))
+        scene.timeline.append(
+            AnimationKeyframe(
+                target_id=node_id,
+                action=AnimAction.FADE_OUT,
+                start_time=start_time,
+                duration=fade_duration,
+                easing="ease-in-out",
+            )
+        )
 
 
 def _build_parent_map(nodes: list[SceneNode]) -> dict[str, str]:
@@ -622,7 +664,9 @@ def _merge_highlights(keyframes: list[AnimationKeyframe]) -> list[AnimationKeyfr
     return merged
 
 
-def _auto_return_scales(keyframes: list[AnimationKeyframe], scene_duration: float) -> list[AnimationKeyframe]:
+def _auto_return_scales(
+    keyframes: list[AnimationKeyframe], scene_duration: float
+) -> list[AnimationKeyframe]:
     """Auto-insert a smooth scale-back to 1.0 after scale-up emphasis."""
     result = list(keyframes)
     by_target: dict[str, list[AnimationKeyframe]] = {}
@@ -652,15 +696,17 @@ def _auto_return_scales(keyframes: list[AnimationKeyframe], scene_duration: floa
             # Ensure the return happens before the scene ends
             if start_time + return_dur > scene_duration:
                 start_time = max(0.0, scene_duration - return_dur)
-            result.append(AnimationKeyframe(
-                target_id=target_id,
-                action=AnimAction.SCALE,
-                start_time=start_time,
-                duration=return_dur,
-                easing="ease-in-out",
-                from_value=to_val,
-                to_value=1.0,
-            ))
+            result.append(
+                AnimationKeyframe(
+                    target_id=target_id,
+                    action=AnimAction.SCALE,
+                    start_time=start_time,
+                    duration=return_dur,
+                    easing="ease-in-out",
+                    from_value=to_val,
+                    to_value=1.0,
+                )
+            )
 
     return result
 
@@ -721,9 +767,17 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
     easing = motion.easing
 
     def fade(action: str) -> AnimSpec:
-        return AnimSpec(action=AnimAction.FADE_IN if action == "in" else AnimAction.FADE_OUT, target=target_id, at=at, duration=duration, easing=easing)
+        return AnimSpec(
+            action=AnimAction.FADE_IN if action == "in" else AnimAction.FADE_OUT,
+            target=target_id,
+            at=at,
+            duration=duration,
+            easing=easing,
+        )
 
-    def move(from_x: float | None, from_y: float | None, to_x: float | None, to_y: float | None) -> AnimSpec:
+    def move(
+        from_x: float | None, from_y: float | None, to_x: float | None, to_y: float | None
+    ) -> AnimSpec:
         return AnimSpec(
             action=AnimAction.MOVE,
             target=target_id,
@@ -758,22 +812,55 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
         anims.append(scale(motion.from_scale or 0.92, motion.scale or 1.0))
     elif preset in {"slide-up"}:
         anims.append(fade("in"))
-        anims.append(move(motion.from_offset_x, motion.from_offset_y or 40.0, motion.offset_x, motion.offset_y))
+        anims.append(
+            move(
+                motion.from_offset_x, motion.from_offset_y or 40.0, motion.offset_x, motion.offset_y
+            )
+        )
     elif preset in {"slide-down"}:
         anims.append(fade("in"))
-        anims.append(move(motion.from_offset_x, motion.from_offset_y or -40.0, motion.offset_x, motion.offset_y))
+        anims.append(
+            move(
+                motion.from_offset_x,
+                motion.from_offset_y or -40.0,
+                motion.offset_x,
+                motion.offset_y,
+            )
+        )
     elif preset in {"slide-left"}:
         anims.append(fade("in"))
-        anims.append(move(motion.from_offset_x or 40.0, motion.from_offset_y, motion.offset_x, motion.offset_y))
+        anims.append(
+            move(
+                motion.from_offset_x or 40.0, motion.from_offset_y, motion.offset_x, motion.offset_y
+            )
+        )
     elif preset in {"slide-right"}:
         anims.append(fade("in"))
-        anims.append(move(motion.from_offset_x or -40.0, motion.from_offset_y, motion.offset_x, motion.offset_y))
+        anims.append(
+            move(
+                motion.from_offset_x or -40.0,
+                motion.from_offset_y,
+                motion.offset_x,
+                motion.offset_y,
+            )
+        )
     elif preset in {"drop"}:
         anims.append(fade("in"))
-        anims.append(move(motion.from_offset_x, motion.from_offset_y or -60.0, motion.offset_x, motion.offset_y))
+        anims.append(
+            move(
+                motion.from_offset_x,
+                motion.from_offset_y or -60.0,
+                motion.offset_x,
+                motion.offset_y,
+            )
+        )
     elif preset in {"rise"}:
         anims.append(fade("in"))
-        anims.append(move(motion.from_offset_x, motion.from_offset_y or 60.0, motion.offset_x, motion.offset_y))
+        anims.append(
+            move(
+                motion.from_offset_x, motion.from_offset_y or 60.0, motion.offset_x, motion.offset_y
+            )
+        )
     elif preset in {"scale"}:
         anims.append(scale(motion.from_scale or 0.9, motion.scale or 1.0))
     else:
@@ -796,7 +883,9 @@ def _compute_group_children(
     group_rect = positions.get(obj_id)
     if group_rect is None:
         return
-    child_layout = obj.layout if isinstance(obj.layout, LayoutSpec) else LayoutSpec(type=LayoutType.FLOW)
+    child_layout = (
+        obj.layout if isinstance(obj.layout, LayoutSpec) else LayoutSpec(type=LayoutType.FLOW)
+    )
     child_positions = layout_engine.compute(obj.children, child_layout, group_rect)
     positions.update(child_positions)
     # Recurse into nested groups
@@ -819,7 +908,9 @@ def _build_node(
     children = []
     if obj.children:
         for child in obj.children:
-            child_node = _build_node(child, positions, theme, auto_visible=auto_visible, node_hints=node_hints)
+            child_node = _build_node(
+                child, positions, theme, auto_visible=auto_visible, node_hints=node_hints
+            )
             children.append(child_node)
 
     from_id = obj.from_id
@@ -869,31 +960,37 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
         duration = parse_duration(anim.duration)
         stagger = parse_duration(anim.stagger) if anim.stagger else 0.0
 
-        targets = anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
+        targets = (
+            anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
+        )
 
         if anim.action == AnimAction.SWAP:
             if len(targets) == 2:
                 a, b = targets
-                keyframes.append(AnimationKeyframe(
-                    target_id=a,
-                    action=AnimAction.MOVE_TO,
-                    start_time=start,
-                    duration=duration,
-                    easing=anim.easing.value,
-                    to_id=b,
-                    offset_x=anim.offset_x,
-                    offset_y=anim.offset_y,
-                ))
-                keyframes.append(AnimationKeyframe(
-                    target_id=b,
-                    action=AnimAction.MOVE_TO,
-                    start_time=start,
-                    duration=duration,
-                    easing=anim.easing.value,
-                    to_id=a,
-                    offset_x=anim.offset_x,
-                    offset_y=anim.offset_y,
-                ))
+                keyframes.append(
+                    AnimationKeyframe(
+                        target_id=a,
+                        action=AnimAction.MOVE_TO,
+                        start_time=start,
+                        duration=duration,
+                        easing=anim.easing.value,
+                        to_id=b,
+                        offset_x=anim.offset_x,
+                        offset_y=anim.offset_y,
+                    )
+                )
+                keyframes.append(
+                    AnimationKeyframe(
+                        target_id=b,
+                        action=AnimAction.MOVE_TO,
+                        start_time=start,
+                        duration=duration,
+                        easing=anim.easing.value,
+                        to_id=a,
+                        offset_x=anim.offset_x,
+                        offset_y=anim.offset_y,
+                    )
+                )
             continue
 
         for i, target_id in enumerate(targets):
@@ -922,7 +1019,9 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
     return keyframes
 
 
-def _clamp_to_canvas(positions: dict[str, Rect], canvas: Rect, skip_ids: set[str] | None = None) -> None:
+def _clamp_to_canvas(
+    positions: dict[str, Rect], canvas: Rect, skip_ids: set[str] | None = None
+) -> None:
     """Clamp all object positions so they stay within the canvas bounds."""
     skip_ids = skip_ids or set()
     for obj_id, rect in positions.items():
@@ -1027,7 +1126,11 @@ def _compute_grid_positions(
         col = obj.grid.col if obj.grid.col is not None else (region.col if region else 1)
         span = obj.grid.span if obj.grid.span is not None else (region.span if region else 1)
         row = obj.grid.row if obj.grid.row is not None else (region.row if region else 1)
-        row_span = obj.grid.row_span if obj.grid.row_span is not None else (region.row_span if region else 1)
+        row_span = (
+            obj.grid.row_span
+            if obj.grid.row_span is not None
+            else (region.row_span if region else 1)
+        )
 
         col = max(1, min(cols, col))
         span = max(1, min(cols - col + 1, span))
@@ -1062,11 +1165,17 @@ def _resolve_special_position(
     offset: float = 0.0,
 ) -> Rect:
     from kaivra.layout.strategies._sizing import estimate_object_size
+
     size = estimate_object_size(obj, theme)
 
     match obj.position:
         case "top":
-            return Rect(canvas.x + (canvas.width - size.width) / 2, canvas.y + offset, size.width, size.height)
+            return Rect(
+                canvas.x + (canvas.width - size.width) / 2,
+                canvas.y + offset,
+                size.width,
+                size.height,
+            )
         case "above-layout":
             return Rect(
                 canvas.x + (canvas.width - size.width) / 2,
@@ -1089,7 +1198,12 @@ def _resolve_special_position(
                 size.height,
             )
         case "left":
-            return Rect(canvas.x + offset, canvas.y + (canvas.height - size.height) / 2, size.width, size.height)
+            return Rect(
+                canvas.x + offset,
+                canvas.y + (canvas.height - size.height) / 2,
+                size.width,
+                size.height,
+            )
         case _:
             return Rect(canvas.x, canvas.y, size.width, size.height)
 
@@ -1185,7 +1299,11 @@ def _apply_object_layout_hints(obj: ObjectSpec, spec: SceneSpec) -> ObjectSpec:
     updated_children = [_apply_object_layout_hints(child, spec) for child in children]
 
     updated_layout = obj.layout
-    if isinstance(obj.layout, LayoutSpec) and obj.layout.type == LayoutType.CAROUSEL and not obj.layout.active:
+    if (
+        isinstance(obj.layout, LayoutSpec)
+        and obj.layout.type == LayoutType.CAROUSEL
+        and not obj.layout.active
+    ):
         active_id = _infer_carousel_active(obj, spec)
         if active_id:
             updated_layout = obj.layout.model_copy(update={"active": active_id})
@@ -1201,7 +1319,9 @@ def _infer_carousel_active(obj: ObjectSpec, spec: SceneSpec) -> str | None:
     if not child_ids:
         return None
 
-    focus_targets = spec.focus if isinstance(spec.focus, list) else [spec.focus] if spec.focus else []
+    focus_targets = (
+        spec.focus if isinstance(spec.focus, list) else [spec.focus] if spec.focus else []
+    )
     for focus_id in focus_targets:
         if focus_id in child_ids:
             return focus_id
@@ -1218,7 +1338,9 @@ def _infer_carousel_active(obj: ObjectSpec, spec: SceneSpec) -> str | None:
     }
 
     for anim in spec.animations:
-        targets = anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
+        targets = (
+            anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
+        )
         weight = action_weight.get(anim.action, 0)
         if weight <= 0:
             continue
@@ -1246,20 +1368,32 @@ def _collect_node_hints_from_object(
     obj: ObjectSpec,
     hints: dict[str, dict[str, float | str | bool]],
 ) -> None:
-    if isinstance(obj.layout, LayoutSpec) and obj.layout.type == LayoutType.CAROUSEL and obj.children:
+    if (
+        isinstance(obj.layout, LayoutSpec)
+        and obj.layout.type == LayoutType.CAROUSEL
+        and obj.children
+    ):
         active_id = obj.layout.active
-        active_index = next((i for i, child in enumerate(obj.children) if child.id == active_id), None)
+        active_index = next(
+            (i for i, child in enumerate(obj.children) if child.id == active_id), None
+        )
         active_scale = obj.layout.active_scale if obj.layout.active_scale is not None else 1.16
-        inactive_scale = obj.layout.inactive_scale if obj.layout.inactive_scale is not None else 0.86
-        scales = carousel_scale_profile(len(obj.children), active_index, active_scale, inactive_scale)
+        inactive_scale = (
+            obj.layout.inactive_scale if obj.layout.inactive_scale is not None else 0.86
+        )
+        scales = carousel_scale_profile(
+            len(obj.children), active_index, active_scale, inactive_scale
+        )
         for idx, child in enumerate(obj.children):
             if not child.id:
                 continue
-            hints.setdefault(child.id, {}).update({
-                "layout_role": "carousel-item",
-                "base_scale": scales[idx],
-                "skip_canvas_clamp": True,
-            })
+            hints.setdefault(child.id, {}).update(
+                {
+                    "layout_role": "carousel-item",
+                    "base_scale": scales[idx],
+                    "skip_canvas_clamp": True,
+                }
+            )
 
     for child in obj.children or []:
         _collect_node_hints_from_object(child, hints)
