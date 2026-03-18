@@ -30,6 +30,9 @@ voice = [
 kaivra = "kaivra.cli:main"
 kaivra-mcp = "kaivra.mcp.cli:main"
 
+[tool.uv.sources]
+kaivra-voice = { path = "packages/kaivra-voice" }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/kaivra"]
 

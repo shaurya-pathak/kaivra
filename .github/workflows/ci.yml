@@ -34,7 +34,7 @@ jobs:
         run: uv sync --extra dev
 
       - name: Install local voice providers
-        run: .venv/bin/python -m pip install -e "./packages/kaivra-voice"
+        run: uv pip install --python .venv/bin/python -e "./packages/kaivra-voice"
 
       - name: Compile Python sources
         run: .venv/bin/python -m compileall src tests packages/kaivra-voice/src

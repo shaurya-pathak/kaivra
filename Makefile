@@ -4,7 +4,7 @@ install:
 	uv sync --extra dev
 
 install-voice-local: install
-	.venv/bin/python -m pip install -e "./packages/kaivra-voice[local]"
+	uv pip install --python .venv/bin/python -e "./packages/kaivra-voice[local]"
 
 test:
 	.venv/bin/pytest tests packages/kaivra-voice/tests
