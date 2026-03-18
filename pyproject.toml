@@ -34,4 +34,5 @@ kaivra-mcp = "kaivra.mcp.cli:main"
 packages = ["src/kaivra"]
 
 [tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
 testpaths = ["tests"]

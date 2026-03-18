@@ -4,7 +4,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kaivra.audio.base import AudioResult, ProviderRegistry, VoiceProvider
+from kaivra.audio.base import (
+    AudioResult,
+    ProviderRegistry,
+    VoiceProvider,
+    resolve_voice_provider_name,
+)
 
 
 class DummyProvider(VoiceProvider):
@@ -72,3 +77,18 @@ def test_dummy_provider_generates_audio_result():
     assert result.scene_id == "scene_01"
     assert result.duration_seconds == 3.5
     assert "scene_01" in result.audio_path
+
+
+def test_resolve_voice_provider_name_uses_env_default(monkeypatch):
+    monkeypatch.setenv("KAIVRA_VOICE_PROVIDER", "local")
+    assert resolve_voice_provider_name(None) == "local"
+
+
+def test_resolve_voice_provider_name_prefers_explicit_value(monkeypatch):
+    monkeypatch.setenv("KAIVRA_VOICE_PROVIDER", "local")
+    assert resolve_voice_provider_name("elevenlabs") == "elevenlabs"
+
+
+def test_resolve_voice_provider_name_falls_back_to_builtin_default(monkeypatch):
+    monkeypatch.delenv("KAIVRA_VOICE_PROVIDER", raising=False)
+    assert resolve_voice_provider_name(None) == "elevenlabs"

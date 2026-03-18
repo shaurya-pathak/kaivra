@@ -13,6 +13,12 @@ from statistics import median
 from typing import Any, Mapping
 
 from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
+from kaivra.dsl.pacing import (
+    document_has_narration,
+    get_pacing_profile,
+    resolve_meta_duration,
+    scene_has_narration,
+)
 from kaivra.dsl.schema import parse_duration
 
 EMPHASIS_ACTIONS = {"highlight", "pulse"}
@@ -64,7 +70,7 @@ def retime_document_to_audio_timings(
             continue
 
         target_duration = max(0.0, float(timing.duration_seconds))
-        source_duration = estimate_scene_duration(scene)
+        source_duration = estimate_scene_duration(scene, meta=retimed.get("meta"))
         scale = 1.0 if source_duration <= 0 else target_duration / source_duration
         scene_scales.append(scale)
 
@@ -83,9 +89,15 @@ def retime_document_to_audio_timings(
 
     global_scale = median(scene_scales)
     meta = retimed.get("meta")
+    include_narration = document_has_narration(retimed)
     if scale_meta and isinstance(meta, dict):
-        _scale_duration_field(meta, "continuity_duration", global_scale)
-        _scale_duration_field(meta, "glow_release_padding", global_scale)
+        for field_name in ("continuity_duration", "glow_release_padding"):
+            resolved_value = resolve_meta_duration(
+                meta,
+                field_name,
+                include_narration=include_narration,
+            )
+            meta[field_name] = format_duration(_parse_time(resolved_value, 0.0) * global_scale)
 
     if scale_persistent_objects:
         for obj in retimed.get("objects", []):
@@ -116,7 +128,11 @@ def retime_document_to_scene_durations(
     )
 
 
-def estimate_scene_duration(scene: Mapping[str, Any]) -> float:
+def estimate_scene_duration(
+    scene: Mapping[str, Any],
+    *,
+    meta: Mapping[str, Any] | None = None,
+) -> float:
     """Estimate the effective duration of a scene in seconds."""
     raw_duration = scene.get("duration", "auto")
     if isinstance(raw_duration, str) and raw_duration != "auto":
@@ -133,8 +149,16 @@ def estimate_scene_duration(scene: Mapping[str, Any]) -> float:
 
     focus_style = scene.get("focus_style")
     if isinstance(focus_style, dict):
+        default_focus_duration = 1.2
+        if meta is not None:
+            profile = get_pacing_profile(
+                meta.get("pacing"),
+                include_narration=scene_has_narration(scene)
+                or bool(meta.get("show_subtitles", meta.get("show_narration"))),
+            )
+            default_focus_duration = profile.focus_seconds
         start = _parse_time(focus_style.get("at"), 0.0)
-        duration = _parse_time(focus_style.get("duration"), 1.2)
+        duration = _parse_time(focus_style.get("duration"), default_focus_duration)
         max_end = max(max_end, start + duration)
 
     for obj in scene.get("objects", []) or []:

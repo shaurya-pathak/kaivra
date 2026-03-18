@@ -9,14 +9,16 @@ import webbrowser
 from pathlib import Path
 
 from kaivra.dsl.schema import DocumentSpec
-from kaivra.scene_graph.builder import build_scene_graph
-from kaivra.themes.registry import get_theme
+from kaivra.render.orchestration import build_render_graph
 
 
-def build_web_preview_html(doc: DocumentSpec) -> str:
+def build_web_preview_html(
+    doc: DocumentSpec,
+    *,
+    theme_search_roots: list[str | Path] | None = None,
+) -> str:
     """Build the self-contained HTML preview for a document."""
-    theme = get_theme(doc.meta.theme)
-    graph = build_scene_graph(doc, theme)
+    graph, theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
 
     # Serialize scene graph to JSON for the JS player
     scenes_data = []
@@ -111,17 +113,31 @@ def build_web_preview_html(doc: DocumentSpec) -> str:
     return _generate_html(graph_json, theme_json)
 
 
-def write_web_preview(doc: DocumentSpec, path: str | Path) -> Path:
+def write_web_preview(
+    doc: DocumentSpec,
+    path: str | Path,
+    *,
+    theme_search_roots: list[str | Path] | None = None,
+) -> Path:
     """Write the self-contained HTML preview to disk."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(build_web_preview_html(doc), encoding="utf-8")
+    path.write_text(
+        build_web_preview_html(doc, theme_search_roots=theme_search_roots),
+        encoding="utf-8",
+    )
     return path
 
 
-def export_web_preview(doc: DocumentSpec, *, serve: bool = False, port: int = 8080) -> None:
+def export_web_preview(
+    doc: DocumentSpec,
+    *,
+    serve: bool = False,
+    port: int = 8080,
+    theme_search_roots: list[str | Path] | None = None,
+) -> None:
     """Export an HTML preview and optionally serve it."""
-    html = build_web_preview_html(doc)
+    html = build_web_preview_html(doc, theme_search_roots=theme_search_roots)
 
     if serve:
         _serve_with_reload(html, port)

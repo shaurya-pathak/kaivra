@@ -1,0 +1,304 @@
+"""Shared render orchestration used by the CLI and MCP flows."""
+
+from __future__ import annotations
+
+import json
+import tempfile
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from kaivra.audio.base import ProviderRegistry, resolve_voice_provider_name
+from kaivra.audio.mux import (
+    concat_audio,
+    measure_audio_duration,
+    mux_audio,
+    normalize_audio_to_wav,
+)
+from kaivra.audio.timings import AudioTimingData, SceneAudioTiming, load_audio_timing_data
+from kaivra.dsl.parser import parse_string
+from kaivra.dsl.retime import retime_document_to_audio_timings
+from kaivra.render.cairo_renderer import CairoRenderer
+from kaivra.render.video.exporter import export_video
+from kaivra.scene_graph.builder import build_scene_graph
+from kaivra.themes.registry import get_theme
+
+ProgressReporter = Callable[[float, str], None]
+
+
+@dataclass(frozen=True)
+class RenderArtifact:
+    """Outcome of rendering a Kaivra document."""
+
+    artifact_path: str
+    duration_seconds: float
+    warnings: tuple[str, ...] = ()
+
+
+def render_document_artifact(
+    doc: Any,
+    *,
+    output_path: str | Path,
+    fps: int | None = None,
+    audio_path: str | Path | None = None,
+    audio_timings_path: str | Path | None = None,
+    voice: bool = False,
+    voice_provider: str | None = None,
+    voice_id: str | None = None,
+    theme_search_roots: Iterable[str | Path] | None = None,
+    progress: ProgressReporter | None = None,
+    log_video_progress: bool = False,
+) -> RenderArtifact:
+    """Render a document to PNG, MP4, or WebM with optional audio orchestration."""
+    artifact_path = Path(output_path)
+    chosen_format = artifact_path.suffix.lower()
+    if chosen_format not in {".png", ".mp4", ".webm"}:
+        raise ValueError("Output path must end with .png, .mp4, or .webm.")
+
+    audio_abs = Path(audio_path) if audio_path is not None else None
+    audio_timings_abs = Path(audio_timings_path) if audio_timings_path is not None else None
+    render_fps = fps or doc.meta.fps
+
+    if voice and (audio_abs or audio_timings_abs):
+        raise ValueError("Voice renders cannot be combined with external audio or audio timings.")
+
+    if chosen_format == ".png":
+        if audio_abs or audio_timings_abs or voice:
+            raise ValueError("PNG renders do not accept audio_path, audio_timings_path, or voice.")
+        _emit_progress(progress, 0.2, "Building the first frame.")
+        graph, theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
+        CairoRenderer(theme).render_frame_to_file(graph, 0.0, str(artifact_path))
+        _emit_progress(progress, 1.0, "PNG render complete.")
+        return RenderArtifact(
+            artifact_path=str(artifact_path),
+            duration_seconds=0.0,
+        )
+
+    if voice:
+        doc = _apply_voice_subtitle_defaults(doc)
+        return _render_with_voice(
+            doc,
+            output_path=artifact_path,
+            fps=render_fps,
+            voice_provider=voice_provider,
+            voice_id=voice_id,
+            theme_search_roots=theme_search_roots,
+            progress=progress,
+        )
+
+    _emit_progress(progress, 0.1, "Preparing the scene graph.")
+    graph, theme = build_render_graph(
+        doc,
+        audio_timings_path=audio_timings_abs,
+        theme_search_roots=theme_search_roots,
+    )
+
+    def video_progress(done: int, total: int) -> None:
+        if total <= 0:
+            return
+        _emit_progress(progress, 0.15 + (done / total) * 0.75, "Rendering video frames.")
+
+    if audio_abs is not None:
+        _emit_progress(progress, 0.15, "Rendering a silent video before muxing audio.")
+        with tempfile.NamedTemporaryFile(
+            prefix=f"{artifact_path.stem}_silent_",
+            suffix=chosen_format,
+            dir=artifact_path.parent,
+            delete=False,
+        ) as tmp:
+            silent_path = Path(tmp.name)
+
+        try:
+            export_video(
+                graph,
+                theme,
+                str(silent_path),
+                fps=render_fps,
+                log_progress=log_video_progress,
+                progress_callback=video_progress,
+            )
+            _emit_progress(progress, 0.92, "Muxing the external audio track.")
+            mux_audio(str(silent_path), str(audio_abs), str(artifact_path))
+        finally:
+            silent_path.unlink(missing_ok=True)
+    else:
+        export_video(
+            graph,
+            theme,
+            str(artifact_path),
+            fps=render_fps,
+            log_progress=log_video_progress,
+            progress_callback=video_progress,
+        )
+
+    _emit_progress(progress, 1.0, "Video render complete.")
+    warnings: list[str] = []
+    if audio_timings_abs is not None and audio_abs is None:
+        warnings.append("Applied audio timings for pacing, but no audio track was attached.")
+
+    return RenderArtifact(
+        artifact_path=str(artifact_path),
+        duration_seconds=round(graph.total_duration, 2),
+        warnings=tuple(warnings),
+    )
+
+
+def build_render_graph(
+    doc: Any,
+    audio_timings_path: str | Path | None = None,
+    *,
+    audio_timing_data: AudioTimingData | None = None,
+    theme_search_roots: Iterable[str | Path] | None = None,
+) -> tuple[Any, Any]:
+    """Resolve the theme and build the scene graph, optionally retimed to audio."""
+    if audio_timings_path is not None and audio_timing_data is not None:
+        raise ValueError("Provide either audio_timings_path or audio_timing_data, not both.")
+
+    if audio_timings_path is not None:
+        audio_timing_data = load_audio_timing_data(audio_timings_path)
+
+    if audio_timing_data is not None:
+        raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
+        retimed = retime_document_to_audio_timings(raw_doc, audio_timing_data)
+        doc = parse_string(json.dumps(retimed), format="json")
+
+    theme = get_theme(doc.meta.theme, search_roots=theme_search_roots)
+    graph = build_scene_graph(doc, theme)
+    return graph, theme
+
+
+def resolve_theme_search_roots(
+    document_path: str | Path,
+    *,
+    cwd: str | Path | None = None,
+) -> list[Path]:
+    """Find theme roots near a document path, with a cwd fallback."""
+    path = Path(document_path).expanduser().resolve()
+    search_start = path if path.is_dir() else path.parent
+
+    roots: list[Path] = []
+    for parent in (search_start, *search_start.parents):
+        candidate = parent / "themes"
+        if candidate.is_dir():
+            roots.append(candidate)
+            break
+
+    fallback_root = Path(cwd or Path.cwd()).expanduser().resolve() / "themes"
+    if fallback_root not in roots:
+        roots.append(fallback_root)
+    return roots
+
+
+def _apply_voice_subtitle_defaults(doc: Any) -> Any:
+    """Hide subtitles by default for voice renders unless the user opted in."""
+    if doc.meta.subtitles_were_explicitly_set():
+        return doc
+    return doc.model_copy(
+        update={
+            "meta": doc.meta.model_copy(update={"show_subtitles": False}),
+        }
+    )
+
+
+def _render_with_voice(
+    doc: Any,
+    *,
+    output_path: Path,
+    fps: int,
+    voice_provider: str | None,
+    voice_id: str | None,
+    theme_search_roots: Iterable[str | Path] | None,
+    progress: ProgressReporter | None,
+) -> RenderArtifact:
+    registry = ProviderRegistry()
+    provider_name = resolve_voice_provider_name(voice_provider)
+    _emit_progress(progress, 0.05, f"Discovering voice provider: {provider_name}.")
+    registry.discover()
+    provider_cls = registry.get(provider_name)
+    provider = provider_cls()
+
+    narrated_scenes = [scene for scene in doc.scenes if scene.narration]
+    if not narrated_scenes:
+        raise ValueError("No scenes have narration text for voice generation.")
+
+    generate_kwargs = {"voice_id": voice_id} if voice_id is not None else {}
+    generated_paths: list[Path] = []
+    normalized_paths: list[Path] = []
+    scene_timings: dict[str, SceneAudioTiming] = {}
+
+    with tempfile.NamedTemporaryFile(
+        prefix=f"{output_path.stem}_silent_",
+        suffix=output_path.suffix,
+        dir=output_path.parent,
+        delete=False,
+    ) as tmp:
+        silent_path = Path(tmp.name)
+
+    concat_path = output_path.with_suffix(".concat.wav")
+
+    try:
+        for index, scene in enumerate(narrated_scenes, start=1):
+            progress_value = 0.1 + (index / len(narrated_scenes)) * 0.25
+            _emit_progress(progress, progress_value, f"Generating voice for scene {scene.id}.")
+            result = provider.generate(scene.id, scene.narration, **generate_kwargs)
+            generated_paths.append(Path(result.audio_path))
+
+            normalized_path = output_path.with_name(
+                f"{output_path.stem}_{scene.id}_narration.wav"
+            )
+            _emit_progress(
+                progress,
+                0.38 + (index / len(narrated_scenes)) * 0.18,
+                f"Normalizing audio for scene {scene.id}.",
+            )
+            normalize_audio_to_wav(result.audio_path, str(normalized_path))
+            normalized_paths.append(normalized_path)
+
+            scene_timings[scene.id] = SceneAudioTiming(
+                id=scene.id,
+                duration_seconds=measure_audio_duration(str(normalized_path)),
+            )
+
+        timing_data = AudioTimingData(scenes=scene_timings)
+        _emit_progress(progress, 0.58, "Retiming the animation to narration.")
+        graph, theme = build_render_graph(
+            doc,
+            audio_timing_data=timing_data,
+            theme_search_roots=theme_search_roots,
+        )
+
+        def video_progress(done: int, total: int) -> None:
+            if total <= 0:
+                return
+            _emit_progress(progress, 0.62 + (done / total) * 0.22, "Rendering a silent video.")
+
+        export_video(
+            graph,
+            theme,
+            str(silent_path),
+            fps=fps,
+            log_progress=False,
+            progress_callback=video_progress,
+        )
+        _emit_progress(progress, 0.88, "Concatenating narration audio.")
+        concat_audio([str(path) for path in normalized_paths], str(concat_path))
+        _emit_progress(progress, 0.95, "Muxing narration onto the rendered video.")
+        mux_audio(str(silent_path), str(concat_path), str(output_path))
+    finally:
+        silent_path.unlink(missing_ok=True)
+        concat_path.unlink(missing_ok=True)
+        for path in {*generated_paths, *normalized_paths}:
+            path.unlink(missing_ok=True)
+
+    _emit_progress(progress, 1.0, "Narrated render complete.")
+    return RenderArtifact(
+        artifact_path=str(output_path),
+        duration_seconds=round(graph.total_duration, 2),
+    )
+
+
+def _emit_progress(progress: ProgressReporter | None, value: float, message: str) -> None:
+    if progress is None:
+        return
+    progress(value, message)

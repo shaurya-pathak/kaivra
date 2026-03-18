@@ -169,9 +169,13 @@ class KaivraMCPServer:
                 "resources": {"listChanged": False, "subscribe": False},
             },
             "instructions": (
-                "Use start_animation first for plain-English briefs. "
-                "Use check_animation after edits. "
-                "Prefer preview_animation before render_animation. "
+                "Create animations that explain concepts slowly and visually. "
+                "Prefer diagrams built from boxes, connectors, groups, and tokens. "
+                "Use draw on connectors to show flow and causality. "
+                "Keep narrated scenes around 10-15 seconds unless the user asks for a faster style. "
+                "Avoid walls of body text when narration is present. "
+                "Use start_animation first, then check_animation, then preview_animation or render_animation. "
+                "Use quick_render for the fastest first-run starter artifact. "
                 "Read the authoring and pattern resources before inventing raw DSL shapes."
             ),
         }
@@ -278,6 +282,7 @@ def _build_tools() -> list[ToolDefinition]:
                             "process_explainer",
                             "architecture_explainer",
                             "before_after_comparison",
+                            "visual_explainer",
                         ],
                     },
                     "beats": {
@@ -299,6 +304,10 @@ def _build_tools() -> list[ToolDefinition]:
                     "theme": {"type": "string"},
                     "audience": {"type": "string"},
                     "include_narration": {"type": "boolean"},
+                    "pacing": {
+                        "type": "string",
+                        "enum": ["quick-demo", "balanced", "educational"],
+                    },
                     "slug": {"type": "string"},
                 },
                 "required": ["title"],
@@ -312,6 +321,71 @@ def _build_tools() -> list[ToolDefinition]:
                 "openWorldHint": False,
             },
             handler=_start_tool,
+        ),
+        ToolDefinition(
+            name="quick_render",
+            title="Quick Render",
+            description="Create, validate, and render a starter animation in one first-run flow.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string"},
+                    "title": {"type": "string"},
+                    "pattern": {
+                        "type": "string",
+                        "enum": [
+                            "algorithm_walkthrough",
+                            "process_explainer",
+                            "architecture_explainer",
+                            "before_after_comparison",
+                            "visual_explainer",
+                        ],
+                    },
+                    "beats": {
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {"type": "string"},
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "title": {"type": "string"},
+                                        "detail": {"type": "string"},
+                                    },
+                                    "additionalProperties": True,
+                                },
+                            ]
+                        },
+                    },
+                    "theme": {"type": "string"},
+                    "audience": {"type": "string"},
+                    "include_narration": {"type": "boolean"},
+                    "pacing": {
+                        "type": "string",
+                        "enum": ["quick-demo", "balanced", "educational"],
+                    },
+                    "slug": {"type": "string"},
+                    "format": {
+                        "type": "string",
+                        "enum": ["png", "mp4", "webm"],
+                    },
+                    "output_name": {"type": "string"},
+                    "audio_path": {"type": "string"},
+                    "audio_timings_path": {"type": "string"},
+                    "voice": {"type": "boolean"},
+                    "voice_provider": {"type": "string"},
+                    "voice_id": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+            annotations={
+                "title": "Quick Render",
+                "readOnlyHint": False,
+                "destructiveHint": False,
+                "idempotentHint": False,
+                "openWorldHint": False,
+            },
+            handler=_quick_render_tool,
         ),
         ToolDefinition(
             name="check_animation",
@@ -372,6 +446,9 @@ def _build_tools() -> list[ToolDefinition]:
                     "output_name": {"type": "string"},
                     "audio_path": {"type": "string"},
                     "audio_timings_path": {"type": "string"},
+                    "voice": {"type": "boolean"},
+                    "voice_provider": {"type": "string"},
+                    "voice_id": {"type": "string"},
                 },
                 "required": ["file_path", "format"],
                 "additionalProperties": False,
@@ -402,6 +479,7 @@ def _start_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, An
         theme=arguments.get("theme"),
         audience=arguments.get("audience"),
         include_narration=bool(arguments.get("include_narration", False)),
+        pacing=arguments.get("pacing"),
         slug=arguments.get("slug"),
     )
     context.emit_progress(1.0, "Starter animation written to the workspace.")
@@ -430,6 +508,29 @@ def _check_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, An
     return result
 
 
+def _quick_render_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
+    context.emit_progress(0.05, "Starting the quick render workflow.")
+    return context.workspace.quick_render(
+        file_path=arguments.get("file_path"),
+        title=arguments.get("title"),
+        pattern=arguments.get("pattern"),
+        beats=arguments.get("beats"),
+        theme=arguments.get("theme"),
+        audience=arguments.get("audience"),
+        include_narration=bool(arguments.get("include_narration", False)),
+        pacing=arguments.get("pacing"),
+        slug=arguments.get("slug"),
+        format=arguments.get("format"),
+        output_name=arguments.get("output_name"),
+        audio_path=arguments.get("audio_path"),
+        audio_timings_path=arguments.get("audio_timings_path"),
+        voice=bool(arguments.get("voice", False)),
+        voice_provider=arguments.get("voice_provider"),
+        voice_id=arguments.get("voice_id"),
+        progress=context.emit_progress,
+    )
+
+
 def _preview_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
     context.emit_progress(0.2, "Building preview artifacts.")
     result = context.workspace.preview_animation(
@@ -447,6 +548,9 @@ def _render_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, A
         output_name=arguments.get("output_name"),
         audio_path=arguments.get("audio_path"),
         audio_timings_path=arguments.get("audio_timings_path"),
+        voice=bool(arguments.get("voice", False)),
+        voice_provider=arguments.get("voice_provider"),
+        voice_id=arguments.get("voice_id"),
         progress=context.emit_progress,
     )
 
@@ -511,6 +615,10 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
         if result.get("valid"):
             return "Animation validated cleanly."
         return "Animation check found blocking issues."
+    if name == "quick_render":
+        if result.get("status") == "ok":
+            return f"Quick render written to {result['artifact_path']}."
+        return "Quick render stopped because validation found blocking issues."
     if name == "preview_animation":
         return f"Preview HTML written to {result['html_path']}."
     if name == "render_animation":

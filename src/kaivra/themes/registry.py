@@ -1,9 +1,10 @@
 """Theme registry."""
 
 import json
+from collections.abc import Mapping
 from dataclasses import fields
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from kaivra.themes.base import ThemeSpec
 from kaivra.themes.modern import MODERN
@@ -26,21 +27,34 @@ def get_theme(name: str, *, search_roots: Iterable[str | Path] | None = None) ->
     return theme
 
 
-def register_theme(theme: ThemeSpec) -> None:
-    """Register a custom theme."""
-    _THEMES[theme.name] = theme
+def register_theme(
+    theme: ThemeSpec | str,
+    data: ThemeSpec | Mapping[str, Any] | None = None,
+) -> ThemeSpec:
+    """Register a theme from a ThemeSpec or ``name + data`` input."""
+    if isinstance(theme, ThemeSpec):
+        if data is not None:
+            raise TypeError("register_theme(theme) does not accept a second argument.")
+        resolved = theme
+    else:
+        if data is None:
+            raise TypeError("register_theme(name, data) requires theme data.")
+        raw = data.to_dict() if isinstance(data, ThemeSpec) else dict(data)
+        raw["name"] = theme
+        resolved = theme_from_dict(raw)
+
+    _THEMES[resolved.name] = resolved
+    return resolved
 
 
 def load_theme_file(path: str | Path) -> ThemeSpec:
-    """Load a theme from a JSON file and register it."""
+    """Load a JSON theme file, register it, and return the resulting ThemeSpec."""
     path = Path(path)
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("Theme files must be JSON objects.")
 
-    theme = theme_from_dict(raw)
-    register_theme(theme)
-    return theme
+    return register_theme(theme_from_dict(raw))
 
 
 def write_theme_file(theme: ThemeSpec, path: str | Path) -> Path:
@@ -83,9 +97,10 @@ def _load_named_theme(name: str, *, search_roots: Iterable[str | Path] | None = 
 
 
 def _theme_candidates(name: str, *, search_roots: Iterable[str | Path] | None = None) -> list[Path]:
-    roots = [Path.cwd() / "themes"]
-    if search_roots is not None:
-        roots.extend(Path(root) for root in search_roots)
+    if search_roots is None:
+        roots = [Path.cwd() / "themes"]
+    else:
+        roots = [Path(root) for root in search_roots]
 
     candidates: list[Path] = []
     for root in roots:

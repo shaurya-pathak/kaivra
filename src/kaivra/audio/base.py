@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -34,6 +35,7 @@ class VoiceProvider(ABC):
 
 
 _ENTRY_POINT_GROUP = "kaivra.voice_providers"
+DEFAULT_VOICE_PROVIDER = "elevenlabs"
 
 
 class ProviderRegistry:
@@ -70,3 +72,15 @@ class ProviderRegistry:
     def available(self) -> list[str]:
         """Names of discovered providers."""
         return sorted(self._providers)
+
+
+def resolve_voice_provider_name(name: str | None) -> str:
+    """Resolve the requested provider, falling back to env and defaults."""
+    if name is not None and name.strip():
+        return name.strip()
+
+    env_name = os.environ.get("KAIVRA_VOICE_PROVIDER", "").strip()
+    if env_name:
+        return env_name
+
+    return DEFAULT_VOICE_PROVIDER

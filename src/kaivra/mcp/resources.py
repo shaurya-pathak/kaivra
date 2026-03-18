@@ -81,27 +81,35 @@ def _authoring_profile() -> str:
 
 Use these defaults unless the user clearly needs something else:
 
-- Prefer `process_explainer`, `algorithm_walkthrough`, `architecture_explainer`, or `before_after_comparison`.
+- Prefer `visual_explainer` for narrated concept explainers. Use the other patterns when the user clearly wants a walkthrough, comparison, or sidebar-heavy architecture shape.
+- Choose `pacing: educational` for narrated explainers, `balanced` for normal silent demos, and `quick-demo` only when the user explicitly wants a faster, denser result.
 - Prefer `modern` for polished UI-style explainers and `whiteboard` for sketch-style teaching moments.
+- Build scenes from `box`, `group`, `connector`, `token`, and short `text` headings. Treat body copy as support, not the main event.
 - Use `one-column` or `two-column` templates instead of custom grids whenever possible.
-- Stick to `text`, `box`, `group`, `token`, and occasional `connector` or `callout`.
-- Keep scenes compact: one main idea, one focal object, one supporting text stack.
-- Prefer `highlight`, `scale`, `appear`, and light `pulse` over complex motion.
+- Use `draw` on connectors to reveal flow, dependency, and causality.
+- Keep narrated scenes around 10-15 seconds and let narration carry the longer prose.
+- Use `meta.show_subtitles` only when narration text should stay on screen. Subtitle visibility is separate from whether a scene has narration or voice.
+- Silent quick demos can use shorter scenes and compact text stacks when that helps the point land faster.
+- Reuse stable IDs for nodes and connectors that persist across scenes so follow-up animations and audits stay reliable.
+- Prefer `highlight`, `scale`, `appear`, light `pulse`, and connector `draw` over busy multi-effect motion.
 
 Avoid these in the starter workflow:
 
 - `absolute` layout
 - complex camera choreography
-- long unwrapped text in a single object
+- one long text stack standing in for the full diagram
+- walls of body text when narration is present
+- raw DSL invention before you have checked the pattern and example resources
 - niche animation combinations that are hard to debug
 
 Suggested loop:
 
-1. Read the pattern catalog if the user is vague.
-2. Call `start_animation`.
-3. If you edit the JSON, call `check_animation`.
-4. Call `preview_animation`.
-5. Call `render_animation` only when the preview shape is good.
+1. Use `quick_render` when the user wants the fastest first-run artifact.
+2. Read the pattern catalog if the user is vague or if you need to choose between narrated explainer shapes.
+3. Call `start_animation` with a `pattern` and `pacing` when you need a starter file you can steer more deliberately.
+4. If you edit the JSON, call `check_animation`.
+5. Call `preview_animation` before the final render when you need to inspect timing and layout.
+6. Call `render_animation` only when the preview shape is good.
 """
 
 
@@ -110,15 +118,19 @@ def _pattern_catalog() -> str:
 
 ## `process_explainer`
 
-Use when the user wants a short step-by-step explanation, product flow, or concept walkthrough.
+Use when the user wants a short step-by-step explanation, product flow, or silent quick demo with a compact central lane.
+
+## `visual_explainer`
+
+Default choice for narrated concept explainers. Use when the animation should read like one evolving diagram instead of a slide deck.
 
 ## `algorithm_walkthrough`
 
-Use when the user wants a sequence with a clear current step and surrounding context, like compare/swap/progress beats.
+Use when the user wants a sequence with a clear active step and surrounding context, like compare/swap/progress beats.
 
 ## `architecture_explainer`
 
-Use when the user wants a systems or pipeline explanation with a stronger sidebar/main-content structure.
+Use when the user wants a systems or pipeline explanation with a stronger sidebar/main-content structure and visible connections between stages.
 
 ## `before_after_comparison`
 
@@ -126,9 +138,12 @@ Use when the user is contrasting states, revisions, or outcomes. The MCP compare
 
 General advice:
 
+- Treat examples as shape references, not templates to copy literally.
 - Keep beats short and concrete.
 - Put one idea in each beat.
-- If the user is vague, choose `process_explainer`.
+- Prefer connectors, tokens, and persistent IDs when flow, causality, or before/after relationships matter.
+- Keep raw DSL invention discouraged unless the supported patterns clearly cannot express the scene.
+- If the user is vague, choose `visual_explainer` for narrated concept explainers and `process_explainer` or `algorithm_walkthrough` for silent quick demos.
 """
 
 
@@ -156,7 +171,7 @@ Recommendation:
 def _example_catalog() -> str:
     return """# Example Catalog
 
-Use these as shape references, not as something to copy verbatim:
+Use these as shape references for scene structure and pacing, not as templates to copy verbatim. Borrow the composition, then rewrite the content, IDs, and relationships for the user's concept.
 
 ## Bubble Sort
 
@@ -189,5 +204,6 @@ Use these as shape references, not as something to copy verbatim:
 
 - `two-column` scenes
 - Sidebar context + main explanation card
+- Connectors and tokens to show the system flow
 - Compact text stacks instead of long paragraphs
 """

@@ -22,6 +22,16 @@ Follow-up list for the architecture explainer, the Kaivra engine, and the audio-
 - [ ] P1: Turn carousel clipping audits into layout-aware guidance with suggested fixes instead of raw warnings.
 - [ ] P1: Add stronger depth and velocity styling so carousel motion feels more premium than simply shifted and scaled.
 
+## Execution Plans
+
+- [ ] [First-run ergonomics plan](kaivra-first-run-ergonomics-plan.md)
+- [ ] [Voice orchestration plan](kaivra-voice-orchestration-plan.md)
+- [ ] [Educational pacing plan](kaivra-educational-pacing-plan.md)
+- [ ] [Visual-first blueprints plan](kaivra-visual-first-blueprints-plan.md)
+- [ ] [MCP authoring guidance plan](kaivra-mcp-authoring-guidance-plan.md)
+- [ ] [Check-animation plan](kaivra-check-animation-plan.md)
+- [ ] [Discovery cleanups plan](kaivra-discovery-cleanups-plan.md)
+
 ## Immediate Quality Fixes
 
 - [ ] Prevent all component overlap before render time.

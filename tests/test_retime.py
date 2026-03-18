@@ -143,3 +143,30 @@ def test_duration_only_retime_scales_scene_local_emphasis_without_inferred_beats
     assert scene["animations"][1]["at"] == "1.2s"
     assert scene["animations"][2]["at"] == "4.8s"
     assert scene["focus_style"]["at"] == "6s"
+
+
+def test_retime_preserves_selected_pacing_baseline_when_meta_fields_are_missing():
+    document = {
+        "version": "1.1",
+        "meta": {
+            "title": "Test",
+            "theme": "modern",
+            "show_narration": True,
+            "pacing": "educational",
+        },
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "10s",
+                "objects": [],
+                "animations": [
+                    {"action": "highlight", "target": "step", "at": "2s", "duration": "4s"},
+                ],
+            }
+        ],
+    }
+
+    retimed = retime_document_to_scene_durations(document, {"intro": 12.0})
+
+    assert retimed["meta"]["continuity_duration"] == "1.56s"
+    assert retimed["meta"]["glow_release_padding"] == "1.68s"

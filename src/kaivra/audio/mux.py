@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
-__all__ = ["concat_audio", "mux_audio"]
+__all__ = [
+    "concat_audio",
+    "measure_audio_duration",
+    "mux_audio",
+    "normalize_audio_to_wav",
+]
 
 
 def mux_audio(video_path: str, audio_path: str, output_path: str) -> None:
@@ -44,6 +50,55 @@ def mux_audio(video_path: str, audio_path: str, output_path: str) -> None:
         raise RuntimeError(f"ffmpeg audio mux failed (exit {proc.returncode}):\n{proc.stderr}")
 
 
+def normalize_audio_to_wav(input_path: str, output_path: str) -> None:
+    """Re-encode audio to a canonical mono WAV for concat safety."""
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", input_path,
+        "-vn",
+        "-ac", "1",
+        "-ar", "44100",
+        "-c:a", "pcm_s16le",
+        output_path,
+    ]
+    proc = subprocess.run(
+        cmd,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"ffmpeg WAV normalization failed (exit {proc.returncode}):\n{proc.stderr}"
+        )
+
+
+def measure_audio_duration(path: str) -> float:
+    """Measure audio duration in seconds using ffprobe."""
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "csv=p=0",
+        path,
+    ]
+    proc = subprocess.run(
+        cmd,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffprobe failed (exit {proc.returncode}):\n{proc.stderr}")
+    return float(proc.stdout.strip())
+
+
 def concat_audio(audio_paths: list[str], output_path: str) -> None:
     """Concatenate multiple audio files in order using ffmpeg concat demuxer."""
     if not audio_paths:
@@ -51,7 +106,6 @@ def concat_audio(audio_paths: list[str], output_path: str) -> None:
 
     if len(audio_paths) == 1:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        import shutil
         shutil.copy2(audio_paths[0], output_path)
         return
 
@@ -63,13 +117,14 @@ def concat_audio(audio_paths: list[str], output_path: str) -> None:
         list_path = f.name
 
     try:
+        codec_args = ["-c:a", "pcm_s16le"] if output_path.endswith(".wav") else ["-c", "copy"]
         cmd = [
             "ffmpeg",
             "-y",
             "-f", "concat",
             "-safe", "0",
             "-i", list_path,
-            "-c", "copy",
+            *codec_args,
             output_path,
         ]
         proc = subprocess.run(

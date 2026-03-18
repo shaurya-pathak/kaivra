@@ -1,9 +1,11 @@
 """CLI entry point for kaivra."""
 
-import click
+from __future__ import annotations
+
 import json
-import tempfile
 from pathlib import Path
+
+import click
 
 
 @click.group()
@@ -26,6 +28,83 @@ def validate(input_file: str):
 
 
 @main.command()
+@click.option("--json", "as_json", is_flag=True, help="Print the doctor report as JSON.")
+def doctor(as_json: bool):
+    """Check the local Kaivra install and print setup guidance."""
+    from kaivra.mcp.workspace import KaivraWorkspace, format_doctor_report
+
+    report = KaivraWorkspace().run_doctor()
+    if as_json:
+        click.echo(json.dumps(report, indent=2))
+        return
+    click.echo(format_doctor_report(report))
+
+
+@main.command("download-model")
+@click.option(
+    "--model-name",
+    default="vits-piper-en_US-amy-low",
+    show_default=True,
+    help="Sherpa local TTS model bundle to install.",
+)
+@click.option(
+    "--target-dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Destination directory for the downloaded model bundle.",
+)
+@click.option("--force", is_flag=True, help="Redownload and replace an existing local model directory.")
+def download_model(model_name: str, target_dir: Path | None, force: bool):
+    """Download the default local TTS model bundle into ~/.kaivra/models."""
+    from kaivra.mcp.workspace import KaivraWorkspace
+
+    try:
+        result = KaivraWorkspace().download_model(
+            model_name=model_name,
+            target_dir=target_dir,
+            force=force,
+        )
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    status_line = "Model already installed." if not result["downloaded"] else "Model download complete."
+    click.echo(status_line)
+    click.echo(f"Model directory: {result['model_dir']}")
+    click.echo(f"Model path: {result['model_path']}")
+    click.echo(f"Tokens path: {result['tokens_path']}")
+    click.echo(f"Data dir: {result['data_dir']}")
+
+
+@main.command("mcp-install")
+@click.option(
+    "--client",
+    type=click.Choice(["auto", "claude-code", "cursor"]),
+    default="auto",
+    show_default=True,
+    help="Which local MCP client config to update.",
+)
+def mcp_install(client: str):
+    """Install a local stdio MCP config entry for Kaivra."""
+    from kaivra.mcp.workspace import KaivraWorkspace
+
+    workspace = KaivraWorkspace()
+    _run_preflight(
+        workspace,
+        "mcp-install",
+        needs_cairo=False,
+        needs_ffmpeg=False,
+        needs_ffprobe=False,
+    )
+    try:
+        result = workspace.install_mcp_config(client=client)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    click.echo(f"Updated {result['client']} MCP config: {result['config_path']}")
+    click.echo(f"Command: {result['command']}")
+
+
+@main.command()
 @click.argument("input_file", type=click.Path(exists=True))
 @click.option("-o", "--output", required=True, help="Output file (e.g., output.mp4, output.png)")
 @click.option("--fps", default=30, help="Frames per second for video output")
@@ -36,7 +115,11 @@ def validate(input_file: str):
     help="Optional JSON sidecar with scene durations or cue timings for retiming",
 )
 @click.option("--voice", is_flag=True, default=False, help="Generate voice narration from scene text")
-@click.option("--voice-provider", default="elevenlabs", help="Voice provider name (default: elevenlabs)")
+@click.option(
+    "--voice-provider",
+    default=None,
+    help="Voice provider name (default: KAIVRA_VOICE_PROVIDER or elevenlabs)",
+)
 @click.option("--voice-id", default=None, help="Voice ID passed to the provider")
 def render(
     input_file: str,
@@ -45,58 +128,32 @@ def render(
     audio: str | None,
     audio_timings: str | None,
     voice: bool,
-    voice_provider: str,
+    voice_provider: str | None,
     voice_id: str | None,
 ):
     """Render an animation to video or image."""
-    from kaivra.audio.mux import mux_audio
-    from kaivra.render.cairo_renderer import CairoRenderer
-    from kaivra.render.video.exporter import export_video
+    from kaivra.mcp.workspace import KaivraWorkspace
 
+    workspace = KaivraWorkspace()
     output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if voice and (audio or audio_timings):
-        raise click.ClickException(
-            "--voice cannot be combined with --audio or --audio-timings."
-        )
-
-    if output_path.suffix == ".png":
-        if audio or audio_timings or voice:
-            raise click.ClickException(
-                "Audio options are only supported for video outputs (.mp4 or .webm)."
-            )
-        graph, theme = _build_render_graph(input_file, audio_timings)
-        renderer = CairoRenderer(theme)
-        renderer.render_frame_to_file(graph, 0.0, output)
-        click.echo(f"Rendered frame to {output}")
-        return
-
-    if output_path.suffix not in {".mp4", ".webm"}:
-        raise click.ClickException(f"Unsupported output format: {output}")
-
-    if voice:
-        _render_with_voice(input_file, output, output_path, fps, voice_provider, voice_id)
-        return
-
-    graph, theme = _build_render_graph(input_file, audio_timings)
-    if audio:
-        with tempfile.NamedTemporaryFile(
-            prefix=f"{output_path.stem}_silent_",
-            suffix=output_path.suffix,
-            dir=output_path.parent,
-            delete=False,
-        ) as tmp:
-            silent_path = tmp.name
-
-        try:
-            export_video(graph, theme, silent_path, fps=fps)
-            mux_audio(silent_path, audio, output)
-        finally:
-            Path(silent_path).unlink(missing_ok=True)
-    else:
-        export_video(graph, theme, output, fps=fps)
-    click.echo(f"Rendered video to {output}")
+    _run_preflight_for_render(
+        workspace,
+        command_name="render",
+        output_path=output_path,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
+    )
+    _render_to_output(
+        input_file=input_file,
+        output=output,
+        fps=fps,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
+        voice_provider=voice_provider,
+        voice_id=voice_id,
+    )
 
 
 @main.command()
@@ -106,10 +163,20 @@ def render(
 def preview(input_file: str, serve: bool, port: int):
     """Open web preview of an animation."""
     from kaivra.dsl.parser import parse_file
+    from kaivra.mcp.workspace import KaivraWorkspace
+    from kaivra.render.orchestration import resolve_theme_search_roots
     from kaivra.render.web.exporter import export_web_preview
 
+    _run_preflight(
+        KaivraWorkspace(),
+        "preview",
+        needs_cairo=True,
+        needs_ffmpeg=False,
+        needs_ffprobe=False,
+    )
     doc = parse_file(input_file)
-    export_web_preview(doc, serve=serve, port=port)
+    theme_roots = resolve_theme_search_roots(input_file)
+    export_web_preview(doc, serve=serve, port=port, theme_search_roots=theme_roots)
 
 
 @main.command()
@@ -119,6 +186,78 @@ def schema():
 
     json_schema = DocumentSpec.model_json_schema()
     click.echo(json.dumps(json_schema, indent=2))
+
+
+@main.command("quick-render")
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("-o", "--output", default=None, help="Output artifact path. Defaults to artifacts/quick-renders/<name>.<format>.")
+@click.option(
+    "--format",
+    "requested_format",
+    type=click.Choice(["png", "mp4", "webm"]),
+    default=None,
+    help="Output format when --output is not provided.",
+)
+@click.option("--fps", default=30, help="Frames per second for video output")
+@click.option("--audio", type=click.Path(exists=True), help="Optional audio file to mux onto the rendered video")
+@click.option(
+    "--audio-timings",
+    type=click.Path(exists=True),
+    help="Optional JSON sidecar with scene durations or cue timings for retiming",
+)
+@click.option("--voice", is_flag=True, default=False, help="Generate voice narration from scene text")
+@click.option(
+    "--voice-provider",
+    default=None,
+    help="Voice provider name (default: KAIVRA_VOICE_PROVIDER or elevenlabs)",
+)
+@click.option("--voice-id", default=None, help="Voice ID passed to the provider")
+def quick_render(
+    input_file: str,
+    output: str | None,
+    requested_format: str | None,
+    fps: int,
+    audio: str | None,
+    audio_timings: str | None,
+    voice: bool,
+    voice_provider: str | None,
+    voice_id: str | None,
+):
+    """Validate, audit, and render an existing animation in one command."""
+    from kaivra.mcp.workspace import KaivraWorkspace
+
+    input_path = Path(input_file).expanduser().resolve()
+    workspace = KaivraWorkspace(input_path.parent)
+    check = workspace.check_animation(file_path=str(input_path))
+
+    if check["warnings"]:
+        for warning in check["warnings"]:
+            click.echo(f"Warning: {warning}")
+
+    if not check["valid"]:
+        for issue in check["blocking_issues"]:
+            click.echo(issue)
+        raise click.ClickException("Quick render stopped because the animation has blocking issues.")
+
+    output_path = _resolve_quick_render_output(str(input_path), output, requested_format, voice, audio)
+    _run_preflight_for_render(
+        workspace,
+        command_name="quick-render",
+        output_path=output_path,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
+    )
+    _render_to_output(
+        input_file=str(input_path),
+        output=str(output_path),
+        fps=fps,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
+        voice_provider=voice_provider,
+        voice_id=voice_id,
+    )
 
 
 @main.command()
@@ -132,13 +271,12 @@ def sample(input_file: str, outdir: str, count: int, seed: int | None):
     import random
 
     from kaivra.dsl.parser import parse_file
-    from kaivra.scene_graph.builder import build_scene_graph
-    from kaivra.themes.registry import get_theme
     from kaivra.render.cairo_renderer import CairoRenderer
+    from kaivra.render.orchestration import build_render_graph, resolve_theme_search_roots
 
     doc = parse_file(input_file)
-    theme = get_theme(doc.meta.theme)
-    graph = build_scene_graph(doc, theme)
+    theme_roots = resolve_theme_search_roots(input_file)
+    graph, theme = build_render_graph(doc, theme_search_roots=theme_roots)
 
     if seed is not None:
         random.seed(seed)
@@ -159,13 +297,12 @@ def sample(input_file: str, outdir: str, count: int, seed: int | None):
 def audit(input_file: str, samples: int):
     """Audit an animation for overlap and clipping issues."""
     from kaivra.dsl.parser import parse_file
-    from kaivra.scene_graph.builder import build_scene_graph
-    from kaivra.themes.registry import get_theme
     from kaivra.qa.audit import audit_scene_graph
+    from kaivra.render.orchestration import build_render_graph, resolve_theme_search_roots
 
     doc = parse_file(input_file)
-    theme = get_theme(doc.meta.theme)
-    graph = build_scene_graph(doc, theme)
+    theme_roots = resolve_theme_search_roots(input_file)
+    graph, _theme = build_render_graph(doc, theme_search_roots=theme_roots)
     findings = audit_scene_graph(graph, samples_per_scene=samples)
 
     if not findings:
@@ -183,103 +320,125 @@ def audit(input_file: str, samples: int):
         raise click.ClickException("Audit found overlap errors.")
 
 
-def _render_with_voice(
+class _CliProgressPrinter:
+    """Deduplicate stage messages during CLI renders."""
+
+    def __init__(self) -> None:
+        self._last_message: str | None = None
+
+    def __call__(self, _progress: float, message: str) -> None:
+        if message == self._last_message:
+            return
+        click.echo(message)
+        self._last_message = message
+
+
+def _run_preflight(
+    workspace,
+    command_name: str,
+    *,
+    needs_cairo: bool,
+    needs_ffmpeg: bool,
+    needs_ffprobe: bool,
+) -> None:
+    try:
+        workspace.preflight_command(
+            command_name,
+            needs_cairo=needs_cairo,
+            needs_ffmpeg=needs_ffmpeg,
+            needs_ffprobe=needs_ffprobe,
+        )
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+def _run_preflight_for_render(
+    workspace,
+    *,
+    command_name: str,
+    output_path: Path,
+    audio: str | None,
+    audio_timings: str | None,
+    voice: bool,
+) -> None:
+    is_video = output_path.suffix.lower() in {".mp4", ".webm"}
+    _run_preflight(
+        workspace,
+        command_name,
+        needs_cairo=True,
+        needs_ffmpeg=is_video or audio is not None or voice,
+        needs_ffprobe=is_video or audio_timings is not None or voice,
+    )
+
+
+def _render_to_output(
+    *,
     input_file: str,
     output: str,
-    output_path: Path,
     fps: int,
-    provider_name: str,
+    audio: str | None,
+    audio_timings: str | None,
+    voice: bool,
+    voice_provider: str | None,
     voice_id: str | None,
 ) -> None:
-    """Generate voice audio from narration, retime, render, and mux."""
-    from kaivra.audio.base import ProviderRegistry
-    from kaivra.audio.mux import concat_audio, mux_audio
-    from kaivra.audio.timings import AudioTimingData, SceneAudioTiming
-    from kaivra.dsl.parser import parse_file, parse_string
-    from kaivra.dsl.retime import retime_document_to_audio_timings
-    from kaivra.render.video.exporter import export_video
-    from kaivra.scene_graph.builder import build_scene_graph
-    from kaivra.themes.registry import get_theme
+    from kaivra.dsl.parser import parse_file
+    from kaivra.render.orchestration import render_document_artifact, resolve_theme_search_roots
 
-    registry = ProviderRegistry()
-    registry.discover()
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if voice and (audio or audio_timings):
+        raise click.ClickException("--voice cannot be combined with --audio or --audio-timings.")
+
+    if output_path.suffix == ".png":
+        if audio or audio_timings or voice:
+            raise click.ClickException("Audio options are only supported for video outputs (.mp4 or .webm).")
+    elif output_path.suffix not in {".mp4", ".webm"}:
+        raise click.ClickException(f"Unsupported output format: {output}")
+
+    doc = parse_file(input_file)
+    theme_roots = resolve_theme_search_roots(input_file)
+    progress = _CliProgressPrinter() if voice else None
     try:
-        provider_cls = registry.get(provider_name)
+        render_document_artifact(
+            doc,
+            output_path=output,
+            fps=fps,
+            audio_path=audio,
+            audio_timings_path=audio_timings,
+            voice=voice,
+            voice_provider=voice_provider,
+            voice_id=voice_id,
+            theme_search_roots=theme_roots,
+            progress=progress,
+            log_video_progress=not voice,
+        )
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
 
-    kwargs = {}
-    if voice_id is not None:
-        kwargs["voice_id"] = voice_id
-    provider = provider_cls(**kwargs) if kwargs else provider_cls()
-
-    doc = parse_file(input_file)
-
-    results = []
-    for scene in doc.scenes:
-        if not scene.narration:
-            continue
-        click.echo(f"Generating voice for scene {scene.id}...")
-        result = provider.generate(scene.id, scene.narration)
-        results.append(result)
-
-    if not results:
-        raise click.ClickException("No scenes have narration text for voice generation.")
-
-    scene_timings = {
-        r.scene_id: SceneAudioTiming(id=r.scene_id, duration_seconds=r.duration_seconds)
-        for r in results
-    }
-    timing_data = AudioTimingData(scenes=scene_timings)
-
-    raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
-    retimed = retime_document_to_audio_timings(raw_doc, timing_data)
-    doc = parse_string(json.dumps(retimed), format="json")
-
-    theme = get_theme(doc.meta.theme)
-    graph = build_scene_graph(doc, theme)
-
-    audio_paths = [r.audio_path for r in results]
-    concat_path = str(output_path.with_suffix(".concat.mp3"))
-
-    with tempfile.NamedTemporaryFile(
-        prefix=f"{output_path.stem}_silent_",
-        suffix=output_path.suffix,
-        dir=output_path.parent,
-        delete=False,
-    ) as tmp:
-        silent_path = tmp.name
-
-    try:
-        concat_audio(audio_paths, concat_path)
-        export_video(graph, theme, silent_path, fps=fps)
-        mux_audio(silent_path, concat_path, output)
-    finally:
-        Path(silent_path).unlink(missing_ok=True)
-        Path(concat_path).unlink(missing_ok=True)
-        for r in results:
-            Path(r.audio_path).unlink(missing_ok=True)
-
-    click.echo(f"Rendered video with voice to {output}")
+    if output_path.suffix == ".png":
+        click.echo(f"Rendered frame to {output}")
+    elif voice:
+        click.echo(f"Rendered video with voice to {output}")
+    else:
+        click.echo(f"Rendered video to {output}")
 
 
-def _build_render_graph(input_file: str, audio_timings: str | None):
-    from kaivra.audio.timings import load_audio_timing_data
-    from kaivra.dsl.parser import parse_file, parse_string
-    from kaivra.dsl.retime import retime_document_to_audio_timings
-    from kaivra.scene_graph.builder import build_scene_graph
-    from kaivra.themes.registry import get_theme
+def _resolve_quick_render_output(
+    input_file: str,
+    output: str | None,
+    requested_format: str | None,
+    voice: bool,
+    audio: str | None,
+) -> Path:
+    if output:
+        return Path(output)
 
-    doc = parse_file(input_file)
-    if audio_timings:
-        raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
-        timing_data = load_audio_timing_data(audio_timings)
-        retimed = retime_document_to_audio_timings(raw_doc, timing_data)
-        doc = parse_string(json.dumps(retimed), format="json")
-
-    theme = get_theme(doc.meta.theme)
-    graph = build_scene_graph(doc, theme)
-    return graph, theme
+    chosen_format = requested_format or ("mp4" if voice or audio else "png")
+    artifacts_dir = Path("artifacts") / "quick-renders"
+    input_path = Path(input_file)
+    return artifacts_dir / f"{input_path.stem}.{chosen_format}"
 
 
 if __name__ == "__main__":

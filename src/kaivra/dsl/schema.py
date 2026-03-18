@@ -10,7 +10,7 @@ import re
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +81,12 @@ class GapSize(str, Enum):
     SMALL = "small"
     MEDIUM = "medium"
     LARGE = "large"
+
+
+class PacingPreset(str, Enum):
+    QUICK_DEMO = "quick-demo"
+    BALANCED = "balanced"
+    EDUCATIONAL = "educational"
 
 
 # ---------------------------------------------------------------------------
@@ -381,13 +387,41 @@ class MetaSpec(BaseModel):
     resolution: tuple[int, int] = Field((1920, 1080), description="Canvas resolution [width, height]")
     fps: int = Field(30, description="Frames per second")
     theme: str = Field("whiteboard", description="Visual theme name")
-    show_narration: bool = Field(True, description="Whether to render narration captions")
+    show_subtitles: bool = Field(
+        True,
+        description="Whether to render scene narration as on-screen subtitles",
+        validation_alias=AliasChoices("show_subtitles", "show_narration"),
+        serialization_alias="show_subtitles",
+    )
+    pacing: PacingPreset = Field(PacingPreset.BALANCED, description="Timing profile: quick-demo, balanced, or educational")
     continuity: bool = Field(True, description="Inherit positions between scenes for shared IDs")
     continuity_duration: str = Field("0.6s", description="Duration for continuity moves between scenes")
     glow_release_padding: str = Field(
         "0.6s",
         description="Minimum tail time at scene end after highlight/pulse effects",
     )
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("continuity_duration", "glow_release_padding", mode="before")
+    @classmethod
+    def validate_meta_durations(cls, v: str | None) -> str | None:
+        if v is not None:
+            parse_duration(v)
+        return v
+
+    @property
+    def show_narration(self) -> bool:
+        """Backward-compatible alias for subtitle rendering."""
+        return self.show_subtitles
+
+    @show_narration.setter
+    def show_narration(self, value: bool) -> None:
+        self.show_subtitles = value
+
+    def subtitles_were_explicitly_set(self) -> bool:
+        """Whether subtitle visibility was explicitly authored in the input."""
+        return "show_subtitles" in self.model_fields_set
 
 
 class DocumentSpec(BaseModel):
