@@ -292,6 +292,7 @@ def test_start_animation_resolves_theme_from_nearest_ancestor_workspace(tmp_path
 def test_preflight_reports_missing_cairo_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workspace = KaivraWorkspace(tmp_path)
     real_import_module = workspace_module.importlib.import_module
+    expected_fix = workspace_module._platform_fix_commands()["pycairo"][0]
 
     def fake_import_module(name: str):
         if name == "cairo":
@@ -304,11 +305,12 @@ def test_preflight_reports_missing_cairo_fix(tmp_path: Path, monkeypatch: pytest
         workspace.preflight_command("preview", needs_cairo=True)
 
     assert "preview" in str(excinfo.value)
-    assert "brew install cairo pkg-config" in str(excinfo.value)
+    assert expected_fix in str(excinfo.value)
 
 
 def test_preflight_reports_missing_ffmpeg_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workspace = KaivraWorkspace(tmp_path)
+    expected_fix = workspace_module._platform_fix_commands()["ffmpeg"][0]
 
     def fake_command_available(command: str) -> tuple[bool, str]:
         if command == "ffmpeg":
@@ -321,11 +323,12 @@ def test_preflight_reports_missing_ffmpeg_fix(tmp_path: Path, monkeypatch: pytes
         workspace.preflight_command("render", needs_cairo=False, needs_ffmpeg=True)
 
     assert "ffmpeg was not found on PATH" in str(excinfo.value)
-    assert "brew install ffmpeg" in str(excinfo.value)
+    assert expected_fix in str(excinfo.value)
 
 
 def test_preflight_reports_missing_ffprobe_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workspace = KaivraWorkspace(tmp_path)
+    expected_fix = workspace_module._platform_fix_commands()["ffprobe"][0]
 
     def fake_command_available(command: str) -> tuple[bool, str]:
         if command == "ffprobe":
@@ -338,7 +341,7 @@ def test_preflight_reports_missing_ffprobe_fix(tmp_path: Path, monkeypatch: pyte
         workspace.preflight_command("quick-render", needs_cairo=False, needs_ffprobe=True)
 
     assert "ffprobe was not found on PATH" in str(excinfo.value)
-    assert "brew install ffmpeg" in str(excinfo.value)
+    assert expected_fix in str(excinfo.value)
 
 
 def test_install_mcp_config_updates_claude_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
