@@ -1,165 +1,201 @@
 # Kaivra
 
-`kaivra` is a declarative animation engine for turning JSON or YAML into:
+Kaivra is a declarative animation engine for turning structured JSON or YAML into polished stills, videos, and web previews.
 
-- MP4/WebM videos
-- PNG stills
-- a browser preview
+## First-Time Setup
 
-It is meant for explainers, product demos, and step-by-step visualizations where layout and timing matter more than hand-placing pixels.
+Run these commands from the repo root. This is the supported bootstrap path for a clean machine.
 
-## What It Does
+### 1. Install `uv`
 
-- validates an animation DSL
-- builds a scene graph from semantic layout rules
-- renders video, still frames, and a web preview
-- audits scenes for overlap and clipping
-- supports external theme files
-- retimes scenes from audio timing metadata
-- can generate offline narration locally with Sherpa
-
-## Quick Start
+macOS / Linux:
 
 ```bash
-python -m venv .venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+If you already have `uv`, skip that step.
+
+### 2. Install system dependencies
+
+macOS:
+
+```bash
+brew install cairo pkg-config ffmpeg
+```
+
+Ubuntu / Debian:
+
+```bash
+sudo apt update
+sudo apt install libcairo2-dev pkg-config ffmpeg
+```
+
+### 3. Install Kaivra core
+
+```bash
+make install
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
-
-kaivra validate examples/demos/bubble_sort_demo.json
-kaivra render examples/demos/bubble_sort_demo.json -o out.mp4
-kaivra preview examples/demos/bubble_sort_demo.json --serve
-kaivra audit examples/demos/bubble_sort_demo.json
 ```
 
-You will also need `ffmpeg` installed for video output.
+### 4. Optional: install local voice support
 
-## Common Commands
+Voice synthesis is opt-in. If you want local or provider-backed narration, install the editable voice package from this repo too:
 
 ```bash
-kaivra validate FILE.json
-kaivra render FILE.json -o out.mp4
-kaivra render FILE.json -o frame.png
-kaivra preview FILE.json --serve
-kaivra audit FILE.json
-kaivra schema
-kaivra theme-schema
-kaivra validate-theme examples/themes/nvidia.json
+make install-voice-local
 ```
 
-## Themes
+That installs `packages/kaivra-voice` in editable mode, plus the local Sherpa dependency set. The package exposes the built-in `local` and `elevenlabs` voice providers through Kaivra's provider discovery hooks.
 
-Built-in themes still work through `meta.theme`.
-
-You can override them with an external JSON theme file:
+### 5. Verify the install
 
 ```bash
-kaivra render \
-  examples/demos/bubble_sort_demo.json \
-  -o out.mp4 \
-  --theme-file examples/themes/nvidia.json
+kaivra doctor
 ```
 
-Bundled external theme:
+If `doctor` is green, you are ready to use Kaivra locally and connect it to an MCP client.
 
-- `examples/themes/nvidia.json`
-
-## Local Voice
-
-Local voice is optional and uses Sherpa.
-
-Install the extra:
+### 6. Render a first sample
 
 ```bash
-source .venv/bin/activate
-python -m pip install -e '.[local-voice]'
+kaivra quick-render examples/algorithms/bubble_sort.json
 ```
 
-Render with local narration:
+That validates, audits, and renders a quick PNG into `artifacts/quick-renders/`.
+
+## MCP Setup
+
+Kaivra ships with a local stdio MCP server for guided authoring in tools like Claude Code, Cursor, and other MCP clients.
+
+### One-command install
 
 ```bash
-kaivra render \
-  examples/explainers/agentic_debug_agent_explainer.json \
-  -o out.mp4 \
-  --voice-mode local \
-  --voice-model /path/to/sherpa-model-dir
+kaivra mcp-install --client auto
 ```
 
-The model directory should contain:
+`auto` prefers Claude Code when `~/.claude.json` is present, then Cursor.
 
-- an `.onnx` model
-- `tokens.txt`
-- `espeak-ng-data/`
+### Manual stdio MCP config
 
-`kaivra` will use the Sherpa executable if it exists, and otherwise fall back to the installed Python API. Local voice currently retimes by generated scene duration; it does not produce word-level timing data on its own.
-
-## Audio Inputs
-
-If you already have narration audio, you can render with it directly:
-
-```bash
-kaivra render \
-  examples/demos/agentic_triage.json \
-  -o out.mp4 \
-  --audio narration.wav \
-  --audio-timings timings.json
-```
-
-Supported timing sidecars:
+If your client asks for a command, point it at the virtualenv binary directly:
 
 ```json
 {
-  "scene_durations": {
-    "intro": 4.2,
-    "explain": 7.8
+  "mcpServers": {
+    "kaivra": {
+      "type": "stdio",
+      "command": "/absolute/path/to/this/repo/.venv/bin/kaivra-mcp",
+      "args": []
+    }
   }
 }
 ```
 
-```json
-{
-  "scenes": [
-    {
-      "id": "intro",
-      "duration_seconds": 4.2,
-      "cues": [
-        { "start_seconds": 0.6, "duration_seconds": 0.8, "text": "first beat" }
-      ]
-    }
-  ]
-}
+That same shape works for Claude Code, Cursor, and most other local stdio MCP clients. The key detail is: use the full path to `.venv/bin/kaivra-mcp` so the client does not need a manually activated shell.
+
+## Quick Smoke Test
+
+```bash
+make doctor
+make smoke
 ```
 
-## Repo Layout
+## Local MCP
+
+The MCP exposes a compact workflow:
+
+- `doctor_kaivra`
+- `add_theme`
+- `start_animation`
+- `check_animation`
+- `preview_animation`
+- `render_animation`
+
+It writes starter files to `animations/`, custom themes to `themes/`, previews to `artifacts/previews/`, and final renders to `artifacts/renders/`.
+
+More setup detail lives in `docs/LOCAL_MCP.md`.
+
+## CLI
+
+- `kaivra validate` checks an animation file against the DSL.
+- `kaivra doctor` checks Python, Cairo, ffmpeg, ffprobe, and a smoke render.
+- `kaivra quick-render` validates, audits, and renders an existing animation in one command.
+- `kaivra download-model` installs the default local Sherpa voice model into `~/.kaivra/models/`.
+- `kaivra mcp-install` writes a local MCP config for Claude Code or Cursor.
+- `kaivra render` exports PNG, MP4, or web-backed output.
+- `kaivra preview` builds the browser preview player.
+- `kaivra audit` samples scenes for overlap and clipping issues.
+- `kaivra schema` prints the JSON Schema for authoring.
+
+## Themes
+
+Kaivra supports built-in themes and local JSON theme files.
+
+```bash
+mkdir -p themes
+# add a custom theme file like themes/mint-breeze.json
+# then set "meta.theme": "mint-breeze" in your animation JSON
+kaivra render examples/algorithms/bubble_sort.json -o output.mp4
+```
+
+If you are using the MCP flow, `add_theme` will create the theme JSON for you inside `themes/`.
+
+If you are using the Python API, use `register_theme("mint-breeze", {...})` for an in-memory theme or `load_theme_file("themes/mint-breeze.json")` when the theme already lives on disk.
+
+## Audio
+
+Kaivra keeps the core package lightweight, and voice support lives in the local editable package at `packages/kaivra-voice`.
+
+Providers are discovered from installed `kaivra.voice_providers` entry points. After `make install-voice-local`, Kaivra can resolve `local` and `elevenlabs` automatically. Use `--voice-provider` or `KAIVRA_VOICE_PROVIDER` to pick the default provider.
+
+For local Sherpa narration after `make install-voice-local`, download the default model bundle with:
+
+```bash
+kaivra download-model
+```
+
+That installs into `~/.kaivra/models/vits-piper-en_US-amy-low/` and prints the resolved `model_path`, `tokens_path`, and `data_dir` so you can verify the bundle.
+
+You can still attach pre-generated audio without the voice package:
+
+```bash
+kaivra render \
+  examples/explainers/agentic_debug_agent_explainer.json \
+  -o artifacts/videos/explainers/agentic_debug_agent_explainer_with_audio.mp4 \
+  --audio artifacts/audio/explainers/agentic_debug_agent_explainer_audio_track.mp3 \
+  --audio-timings artifacts/audio/explainers/agentic_debug_agent_explainer_audio_timings.json
+```
+
+`--audio` muxes an existing track onto the render. `--audio-timings` retimes scene pacing from a JSON sidecar, and when cue windows are present Kaivra can align scene-local emphasis beats to those cues. If the sidecar only includes scene durations, Kaivra rescales authored timings proportionally and does not infer beat windows from narration text.
+
+On-screen narration text is controlled by `meta.show_subtitles`. Older documents that still use `meta.show_narration` remain valid as a backward-compatible alias.
+
+## Repository Layout
 
 ```text
 src/kaivra/
-  cli.py
-  dsl/
-  scene_graph/
-  layout/
-  render/
-  audio/
-  themes/
-  qa/
-
 examples/
-  algorithms/
-  demos/
-  explainers/
+docs/
+tests/
 ```
 
-## Development
-
-Run the basic checks:
+## Checks
 
 ```bash
 source .venv/bin/activate
 python -m compileall src tests
-pytest -q
+python -m pytest
+kaivra doctor
+kaivra quick-render examples/algorithms/bubble_sort.json
 ```
 
-Useful example files:
+## Examples
 
+- `examples/algorithms/bubble_sort.json`
 - `examples/demos/bubble_sort_demo.json`
 - `examples/demos/agentic_triage.json`
+- `examples/explainers/kaivra_architecture_explainer.json`
 - `examples/explainers/agentic_debug_agent_explainer.json`
+
+More detail on the stable baseline lives in `docs/BASELINE.md`.

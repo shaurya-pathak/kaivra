@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import subprocess
-import sys
+from collections.abc import Callable
 
+from kaivra.render.cairo_renderer import CairoRenderer
 from kaivra.scene_graph.models import SceneGraph
 from kaivra.themes.base import ThemeSpec
-from kaivra.render.cairo_renderer import CairoRenderer
+
+ProgressCallback = Callable[[int, int], None]
 
 
 def export_video(
@@ -15,10 +17,13 @@ def export_video(
     theme: ThemeSpec,
     output_path: str,
     fps: int = 30,
+    *,
+    log_progress: bool = True,
+    progress_callback: ProgressCallback | None = None,
 ) -> None:
     """Render all frames and encode to video via ffmpeg."""
     renderer = CairoRenderer(theme)
-    total_frames = int(graph.total_duration * fps)
+    total_frames = max(1, int(graph.total_duration * fps))
     width, height = graph.width, graph.height
 
     # Determine codec from extension
@@ -55,12 +60,22 @@ def export_video(
 
             # Progress
             if frame_idx % fps == 0:
-                pct = int(frame_idx / total_frames * 100)
-                print(f"\r  Rendering: {pct}% ({frame_idx}/{total_frames} frames)", end="", flush=True)
+                if progress_callback is not None:
+                    progress_callback(frame_idx, total_frames)
+                if log_progress:
+                    pct = int(frame_idx / total_frames * 100)
+                    print(
+                        f"\r  Rendering: {pct}% ({frame_idx}/{total_frames} frames)",
+                        end="",
+                        flush=True,
+                    )
 
         proc.stdin.close()
         proc.wait()
-        print(f"\r  Rendering: 100% ({total_frames}/{total_frames} frames)")
+        if progress_callback is not None:
+            progress_callback(total_frames, total_frames)
+        if log_progress:
+            print(f"\r  Rendering: 100% ({total_frames}/{total_frames} frames)")
 
         if proc.returncode != 0:
             stderr = proc.stderr.read().decode()

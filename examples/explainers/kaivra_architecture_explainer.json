@@ -641,7 +641,7 @@
       "auto_visible": true
     },
     {
-      "id": "dsa_translation",
+      "id": "kaivra_translation",
       "duration": "12s",
       "template": "one-column",
       "narration": "So instead of saying: paint the video, we say: write a plan in the Kaivra language. The plan defines what exists, where it goes, how it moves, and what the narrator says.",
@@ -1783,7 +1783,7 @@
                 },
                 {
                   "type": "box",
-                  "id": "dsa_bridge",
+                  "id": "kaivra_bridge",
                   "content": "Kaivra software"
                 },
                 {
@@ -1841,12 +1841,12 @@
           "type": "connector",
           "id": "human_c1",
           "from": "llm_intent",
-          "to": "dsa_bridge"
+          "to": "kaivra_bridge"
         },
         {
           "type": "connector",
           "id": "human_c2",
-          "from": "dsa_bridge",
+          "from": "kaivra_bridge",
           "to": "human_world_box"
         }
       ],
@@ -1880,7 +1880,7 @@
         },
         {
           "action": "highlight",
-          "target": "dsa_bridge",
+          "target": "kaivra_bridge",
           "at": "3.4s",
           "duration": "1.8s",
           "style": "glow",

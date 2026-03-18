@@ -1,202 +1,91 @@
-import json
-from pathlib import Path
-import wave
+from __future__ import annotations
 
-from click.testing import CliRunner
-
-from kaivra.audio.local_voice import LocalVoiceConfig, synthesize_local_voice_assets
-from kaivra.cli import main
-from kaivra.dsl.parser import parse_string
-
-
-def _write_fake_sherpa_binary(tmp_path: Path) -> Path:
-    script = tmp_path / "fake_sherpa_tts.py"
-    script.write_text(
-        """#!/usr/bin/env python3
-from pathlib import Path
-import math
 import sys
-import wave
+import types
+from pathlib import Path
 
-output = None
-text = None
-for arg in sys.argv[1:]:
-    if arg.startswith("--output-filename="):
-        output = Path(arg.split("=", 1)[1])
-    elif not arg.startswith("--"):
-        text = arg
+import pytest
 
-if output is None:
-    raise SystemExit("missing --output-filename")
-
-sample_rate = 24000
-duration_seconds = 0.25 if text else 0.0
-frame_count = int(sample_rate * duration_seconds)
-
-output.parent.mkdir(parents=True, exist_ok=True)
-with wave.open(str(output), "wb") as writer:
-    writer.setnchannels(1)
-    writer.setsampwidth(2)
-    writer.setframerate(sample_rate)
-    for index in range(frame_count):
-        amplitude = int(4000 * math.sin(2 * math.pi * 220 * index / sample_rate))
-        writer.writeframesraw(amplitude.to_bytes(2, byteorder="little", signed=True))
-""",
-        encoding="utf-8",
-    )
-    script.chmod(0o755)
-    return script
+from kaivra_voice.local import LocalProvider, resolve_local_model_paths
 
 
-def _write_fake_sherpa_assets(tmp_path: Path) -> Path:
-    model_dir = tmp_path / "model"
-    model_dir.mkdir()
-    (model_dir / "model.onnx").write_bytes(b"fake")
-    (model_dir / "tokens.txt").write_text("a\nb\n", encoding="utf-8")
-    (model_dir / "espeak-ng-data").mkdir()
-    return model_dir
+def test_local_provider_generate_autodiscovers_tokens_and_data_dir(tmp_path, monkeypatch):
+    bundle_dir = _make_model_bundle(tmp_path / "amy")
+    captured: dict[str, object] = {}
 
+    class FakeVitsModelConfig:
+        def __init__(self, *, model: str, tokens: str, data_dir: str) -> None:
+            captured["model"] = model
+            captured["tokens"] = tokens
+            captured["data_dir"] = data_dir
 
-def _read_wav_duration(path: Path) -> float:
-    with wave.open(str(path), "rb") as reader:
-        return reader.getnframes() / reader.getframerate()
+    class FakeModelConfig:
+        def __init__(self, *, vits: object) -> None:
+            captured["vits"] = vits
 
+    class FakeTtsConfig:
+        def __init__(self, *, model: object) -> None:
+            captured["tts_model"] = model
 
-def test_synthesize_local_voice_assets_with_fake_sherpa(tmp_path: Path):
-    fake_binary = _write_fake_sherpa_binary(tmp_path)
-    model_dir = _write_fake_sherpa_assets(tmp_path)
-    document = parse_string(
-        json.dumps(
-            {
-                "version": "1.1",
-                "meta": {"title": "Voice Test", "theme": "modern"},
-                "scenes": [
-                    {
-                        "id": "spoken",
-                        "duration": "1s",
-                        "narration": "Hello from local voice.",
-                        "objects": [],
-                    },
-                    {
-                        "id": "quiet",
-                        "duration": "1.4s",
-                        "objects": [],
-                    },
-                ],
-            }
-        ),
-        format="json",
+    class FakeAudio:
+        sample_rate = 22050
+
+        @staticmethod
+        def samples_as_bytes() -> bytes:
+            return b"\x00\x00"
+
+    class FakeOfflineTts:
+        def __init__(self, _config: object) -> None:
+            pass
+
+        @staticmethod
+        def generate(_text: str) -> FakeAudio:
+            return FakeAudio()
+
+    fake_sherpa = types.SimpleNamespace(
+        OfflineTtsVitsModelConfig=FakeVitsModelConfig,
+        OfflineTtsModelConfig=FakeModelConfig,
+        OfflineTtsConfig=FakeTtsConfig,
+        OfflineTts=FakeOfflineTts,
     )
 
-    config = LocalVoiceConfig.from_sources(
-        model_path=str(model_dir),
-        tokens_path=None,
-        data_dir=None,
-        lexicon_path=None,
-        rule_fsts=None,
-        speaker_id=None,
-        speed=None,
-        pad_seconds=0.5,
-        binary_name=str(fake_binary),
-    )
-    assets = synthesize_local_voice_assets(document, tmp_path / "artifacts", config, stem="demo")
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", fake_sherpa)
+    monkeypatch.setattr("kaivra_voice.local._measure_duration", lambda _path: 1.25)
 
-    timings_payload = json.loads(assets.timings_path.read_text(encoding="utf-8"))
-    assert timings_payload["scene_durations"]["spoken"] == 1.0
-    assert timings_payload["scene_durations"]["quiet"] == 1.4
-    assert round(_read_wav_duration(assets.audio_path), 2) == 2.4
+    provider = LocalProvider(model_path=str(bundle_dir))
+    result = provider.generate("intro", "hello")
+
+    assert result.scene_id == "intro"
+    assert result.duration_seconds == 1.25
+    assert Path(captured["model"]) == bundle_dir / "voice.onnx"
+    assert Path(captured["tokens"]) == bundle_dir / "tokens.txt"
+    assert Path(captured["data_dir"]) == bundle_dir / "espeak-ng-data"
 
 
-def test_cli_render_supports_local_voice_mode(tmp_path: Path, monkeypatch):
-    fake_binary = _write_fake_sherpa_binary(tmp_path)
-    model_dir = _write_fake_sherpa_assets(tmp_path)
-    animation_path = tmp_path / "animation.json"
-    animation_path.write_text(
-        json.dumps(
-            {
-                "version": "1.1",
-                "meta": {"title": "Voice CLI", "theme": "modern"},
-                "scenes": [
-                    {
-                        "id": "intro",
-                        "duration": "1s",
-                        "narration": "A narrated scene.",
-                        "objects": [],
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
+def test_resolve_local_model_paths_falls_back_to_default_download_root(tmp_path, monkeypatch):
+    bundle_dir = _make_model_bundle(tmp_path / ".kaivra" / "models" / "amy")
+    monkeypatch.setattr("kaivra_voice.local.Path.home", classmethod(lambda cls: tmp_path))
+    monkeypatch.delenv("SHERPA_MODEL_PATH", raising=False)
 
-    def fake_export_video(graph, theme, output, fps=30):
-        Path(output).write_bytes(b"silent-video")
+    resolved = resolve_local_model_paths(model_path=None, tokens_path=None, data_dir=None)
 
-    def fake_mux_audio(video_path, audio_path, output_path):
-        assert Path(video_path).exists()
-        assert Path(audio_path).exists()
-        Path(output_path).write_bytes(b"voiced-video")
-
-    monkeypatch.setattr("kaivra.render.video.exporter.export_video", fake_export_video)
-    monkeypatch.setattr("kaivra.audio.mux.mux_audio", fake_mux_audio)
-
-    output = tmp_path / "voice.mp4"
-    artifacts_dir = tmp_path / "voice_artifacts"
-    runner = CliRunner()
-
-    result = runner.invoke(
-        main,
-        [
-            "render",
-            str(animation_path),
-            "-o",
-            str(output),
-            "--voice-mode",
-            "local",
-            "--voice-model",
-            str(model_dir),
-            "--voice-binary",
-            str(fake_binary),
-            "--voice-artifacts-dir",
-            str(artifacts_dir),
-        ],
-    )
-
-    assert result.exit_code == 0, result.output
-    assert output.exists()
-    assert (artifacts_dir / "voice_local_voice.wav").exists()
-    assert (artifacts_dir / "voice_local_voice_timings.json").exists()
+    assert resolved.model_path == str(bundle_dir / "voice.onnx")
+    assert resolved.tokens_path == str(bundle_dir / "tokens.txt")
+    assert resolved.data_dir == str(bundle_dir / "espeak-ng-data")
 
 
-def test_cli_rejects_manual_audio_with_local_voice(tmp_path: Path):
-    animation_path = tmp_path / "animation.json"
-    animation_path.write_text(
-        json.dumps(
-            {
-                "version": "1.1",
-                "meta": {"title": "Conflict", "theme": "modern"},
-                "scenes": [{"id": "intro", "duration": "1s", "narration": "Hi", "objects": []}],
-            }
-        ),
-        encoding="utf-8",
-    )
-    audio_path = tmp_path / "manual.wav"
-    audio_path.write_bytes(b"manual")
+def test_resolve_local_model_paths_raises_clear_error_when_bundle_is_incomplete(tmp_path):
+    bundle_dir = tmp_path / "broken"
+    bundle_dir.mkdir(parents=True)
+    (bundle_dir / "voice.onnx").write_bytes(b"onnx")
 
-    runner = CliRunner()
-    result = runner.invoke(
-        main,
-        [
-            "render",
-            str(animation_path),
-            "-o",
-            str(tmp_path / "out.mp4"),
-            "--audio",
-            str(audio_path),
-            "--voice-mode",
-            "local",
-        ],
-    )
+    with pytest.raises(RuntimeError, match="tokens.txt"):
+        resolve_local_model_paths(model_path=str(bundle_dir), tokens_path=None, data_dir=None)
 
-    assert result.exit_code != 0
-    assert "Use either manual --audio/--audio-timings inputs or --voice-mode local" in result.output
+
+def _make_model_bundle(path: Path) -> Path:
+    path.mkdir(parents=True)
+    (path / "voice.onnx").write_bytes(b"onnx")
+    (path / "tokens.txt").write_text("a", encoding="utf-8")
+    (path / "espeak-ng-data").mkdir()
+    return path

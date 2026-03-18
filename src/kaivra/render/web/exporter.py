@@ -9,21 +9,16 @@ import webbrowser
 from pathlib import Path
 
 from kaivra.dsl.schema import DocumentSpec
-from kaivra.scene_graph.builder import build_scene_graph
-from kaivra.themes.base import ThemeSpec
-from kaivra.themes.loader import resolve_theme
+from kaivra.render.orchestration import build_render_graph
 
 
-def export_web_preview(
+def build_web_preview_html(
     doc: DocumentSpec,
     *,
-    theme: ThemeSpec | None = None,
-    serve: bool = False,
-    port: int = 8080,
-) -> None:
-    """Export an HTML preview and optionally serve it."""
-    theme = theme or resolve_theme(doc.meta.theme)
-    graph = build_scene_graph(doc, theme)
+    theme_search_roots: list[str | Path] | None = None,
+) -> str:
+    """Build the self-contained HTML preview for a document."""
+    graph, theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
 
     # Serialize scene graph to JSON for the JS player
     scenes_data = []
@@ -67,7 +62,6 @@ def export_web_preview(
         scenes_data.append({
             "id": scene.id,
             "duration": scene.duration,
-            "showProgress": scene.show_progress,
             "nodes": nodes_data,
             "timeline": timeline_data,
             "camera_initial": {
@@ -94,26 +88,7 @@ def export_web_preview(
     })
 
     # Theme data for the JS renderer
-    theme_data = _serialize_theme(theme)
-    theme_json = json.dumps(theme_data)
-
-    html = _generate_html(graph_json, theme_json, theme_data)
-
-    if serve:
-        _serve_with_reload(html, port)
-    else:
-        # Write to temp file and open in browser
-        tmpdir = tempfile.mkdtemp(prefix="kaivra-")
-        path = os.path.join(tmpdir, "preview.html")
-        with open(path, "w") as f:
-            f.write(html)
-        print(f"Preview saved to {path}")
-        webbrowser.open(f"file://{path}")
-
-
-def _serialize_theme(theme: ThemeSpec) -> dict:
-    """Serialize a runtime theme for the web preview player."""
-    return {
+    theme_json = json.dumps({
         "backgroundColor": theme.background_color,
         "textColor": theme.text_color,
         "textLight": theme.text_light,
@@ -127,57 +102,53 @@ def _serialize_theme(theme: ThemeSpec) -> dict:
         "boxPadding": theme.box_padding,
         "tokenFill": theme.token_fill,
         "tokenBorder": theme.token_border,
-        "tokenCornerRadius": theme.token_corner_radius,
-        "tokenBadgeFontSize": theme.token_badge_font_size,
-        "tokenBadgeColor": theme.token_badge_color,
-        "tokenBadgeOpacity": theme.token_badge_opacity,
-        "tokenBadgeOffsetY": theme.token_badge_offset_y,
         "connectorColor": theme.connector_color,
         "connectorWidth": theme.connector_width,
-        "arrowSize": theme.arrow_size,
-        "displayFontCss": theme.font_stack_for_css("display"),
-        "bodyFontCss": theme.font_stack_for_css("body"),
-        "codeFontCss": theme.font_stack_for_css("code"),
-        "fontSizeDisplay": theme.font_size_display,
         "fontSizeHeading": theme.font_size_heading,
         "fontSizeSectionHeading": theme.font_size_section_heading,
         "fontSizeBody": theme.font_size_body,
         "fontSizeCaption": theme.font_size_caption,
-        "fontSizeCode": theme.font_size_code,
-        "narrationBackgroundColor": theme.narration_background_color,
-        "narrationTextColor": theme.narration_text_color,
-        "narrationFontSize": theme.narration_font_size,
-        "narrationBarHeight": theme.narration_bar_height,
-        "narrationBottomOffset": theme.narration_bottom_offset,
-        "narrationHorizontalPadding": theme.narration_horizontal_padding,
-        "narrationLineHeight": theme.narration_line_height,
-        "calloutBackgroundColor": theme.callout_background_color,
-        "calloutTextColor": theme.callout_text_color,
-        "calloutBorderColor": theme.callout_border_color,
-        "calloutBorderWidth": theme.callout_border_width,
-        "calloutCornerRadius": theme.callout_corner_radius,
-        "calloutPadding": theme.callout_padding,
-        "calloutFontSize": theme.callout_font_size,
-        "calloutMaxWidth": theme.callout_max_width,
-        "calloutLineHeight": theme.callout_line_height,
-        "calloutPointerColor": theme.callout_pointer_color,
-        "calloutPointerWidth": theme.callout_pointer_width,
-        "calloutPointerDash": list(theme.callout_pointer_dash),
-        "progressBarColor": theme.progress_bar_color,
-        "progressBarHeight": theme.progress_bar_height,
-        "progressBarOpacity": theme.progress_bar_opacity,
-        "previewPageBackground": theme.preview_page_background,
-        "previewControlsTextColor": theme.preview_controls_text_color,
-        "previewCanvasCornerRadius": theme.preview_canvas_corner_radius,
-        "previewCanvasShadow": theme.preview_canvas_shadow,
-        "previewButtonFill": theme.preview_button_fill,
-        "previewButtonHoverFill": theme.preview_button_hover_fill,
-        "previewButtonTextColor": theme.preview_button_text_color,
-        "previewButtonCornerRadius": theme.preview_button_corner_radius,
-        "previewButtonFontSize": theme.preview_button_font_size,
-        "previewTimelineAccent": theme.preview_timeline_accent,
-        "previewNarrationTextColor": theme.preview_narration_text_color,
-    }
+    })
+
+    return _generate_html(graph_json, theme_json)
+
+
+def write_web_preview(
+    doc: DocumentSpec,
+    path: str | Path,
+    *,
+    theme_search_roots: list[str | Path] | None = None,
+) -> Path:
+    """Write the self-contained HTML preview to disk."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        build_web_preview_html(doc, theme_search_roots=theme_search_roots),
+        encoding="utf-8",
+    )
+    return path
+
+
+def export_web_preview(
+    doc: DocumentSpec,
+    *,
+    serve: bool = False,
+    port: int = 8080,
+    theme_search_roots: list[str | Path] | None = None,
+) -> None:
+    """Export an HTML preview and optionally serve it."""
+    html = build_web_preview_html(doc, theme_search_roots=theme_search_roots)
+
+    if serve:
+        _serve_with_reload(html, port)
+    else:
+        # Write to temp file and open in browser
+        tmpdir = tempfile.mkdtemp(prefix="kaivra-")
+        path = os.path.join(tmpdir, "preview.html")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"Preview saved to {path}")
+        webbrowser.open(f"file://{path}")
 
 
 def _serialize_node(node) -> dict:
@@ -208,7 +179,7 @@ def _serialize_node(node) -> dict:
     return data
 
 
-def _generate_html(graph_json: str, theme_json: str, theme_data: dict) -> str:
+def _generate_html(graph_json: str, theme_json: str) -> str:
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -216,15 +187,15 @@ def _generate_html(graph_json: str, theme_json: str, theme_data: dict) -> str:
 <title>kaivra Preview</title>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-  body {{ background: {theme_data["previewPageBackground"]}; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: {theme_data["bodyFontCss"]}; }}
+  body {{ background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; }}
   #container {{ position: relative; }}
-  canvas {{ border-radius: {theme_data["previewCanvasCornerRadius"]}px; box-shadow: {theme_data["previewCanvasShadow"]}; }}
-  #controls {{ display: flex; align-items: center; gap: 12px; margin-top: 16px; color: {theme_data["previewControlsTextColor"]}; }}
-  button {{ background: {theme_data["previewButtonFill"]}; color: {theme_data["previewButtonTextColor"]}; border: none; padding: 8px 20px; border-radius: {theme_data["previewButtonCornerRadius"]}px; cursor: pointer; font-size: {theme_data["previewButtonFontSize"]}px; font-family: {theme_data["bodyFontCss"]}; }}
-  button:hover {{ background: {theme_data["previewButtonHoverFill"]}; }}
-  #timeline {{ width: 400px; accent-color: {theme_data["previewTimelineAccent"]}; }}
+  canvas {{ border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }}
+  #controls {{ display: flex; align-items: center; gap: 12px; margin-top: 16px; color: #eee; }}
+  button {{ background: #0984E3; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }}
+  button:hover {{ background: #0770c2; }}
+  #timeline {{ width: 400px; accent-color: #0984E3; }}
   #time {{ font-variant-numeric: tabular-nums; min-width: 100px; text-align: center; }}
-  #narration {{ color: {theme_data["previewNarrationTextColor"]}; margin-top: 8px; font-style: italic; max-width: 600px; text-align: center; }}
+  #narration {{ color: #ccc; margin-top: 8px; font-style: italic; max-width: 600px; text-align: center; }}
 </style>
 </head>
 <body>
@@ -400,13 +371,7 @@ function hexToRgba(hex, alpha) {{
   const r = parseInt(h.substring(0, 2), 16);
   const g = parseInt(h.substring(2, 4), 16);
   const b = parseInt(h.substring(4, 6), 16);
-  const baseAlpha = h.length >= 8 ? parseInt(h.substring(6, 8), 16) / 255 : 1;
-  const finalAlpha = (alpha !== undefined ? alpha : 1) * baseAlpha;
-  return `rgba(${{r}},${{g}},${{b}},${{finalAlpha}})`;
-}}
-
-function fontSpec(weight, size, family) {{
-  return `${{weight}} ${{size}}px ${{family}}`;
+  return `rgba(${{r}},${{g}},${{b}},${{alpha !== undefined ? alpha : 1}})`;
 }}
 
 function roundedRect(ctx, x, y, w, h, r) {{
@@ -483,8 +448,6 @@ function drawNodeVisual(ctx, node, nodeMap) {{
     case 'token': drawToken(ctx, node); break;
     case 'connector': drawConnector(ctx, node, nodeMap); break;
     case 'group': drawGroup(ctx, node, nodeMap); break;
-    case 'circle': drawCircle(ctx, node); break;
-    case 'callout': drawCallout(ctx, node, nodeMap); break;
     default: drawBox(ctx, node); break;
   }}
 }}
@@ -510,8 +473,7 @@ function drawText(ctx, node) {{
   const fontSize = sp.font_size || THEME.fontSizeBody;
   const color = sp.color || THEME.textColor;
   const weight = sp.font_weight === 'bold' ? 'bold' : 'normal';
-  const family = sp.font_css || THEME.bodyFontCss;
-  ctx.font = fontSpec(weight, fontSize, family);
+  ctx.font = `${{weight}} ${{fontSize}}px sans-serif`;
   ctx.fillStyle = hexToRgba(color, node._opacity);
   let text = node.content;
   if (node._drawProgress < 1) text = text.substring(0, Math.floor(text.length * node._drawProgress));
@@ -537,7 +499,7 @@ function drawBoxShell(ctx, node) {{
 function drawBoxText(ctx, node) {{
   const r = node.rect;
   if (node.content) {{
-    ctx.font = fontSpec('normal', THEME.fontSizeBody, THEME.bodyFontCss);
+    ctx.font = `${{THEME.fontSizeBody}}px sans-serif`;
     ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
     let text = node.content;
     if (node._drawProgress < 1) text = text.substring(0, Math.floor(text.length * node._drawProgress));
@@ -553,29 +515,29 @@ function drawToken(ctx, node) {{
 
 function drawTokenShell(ctx, node) {{
   const r = node.rect;
-  roundedRect(ctx, r.x, r.y, r.w, r.h, THEME.tokenCornerRadius);
+  roundedRect(ctx, r.x, r.y, r.w, r.h, 4);
   ctx.fillStyle = hexToRgba(THEME.tokenFill, node._opacity);
   ctx.fill();
   ctx.strokeStyle = hexToRgba(THEME.tokenBorder, node._opacity);
-  ctx.lineWidth = THEME.boxBorderWidth;
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 }}
 
 function drawTokenText(ctx, node) {{
   const r = node.rect;
   if (node.content) {{
-    ctx.font = fontSpec('normal', THEME.fontSizeBody, THEME.bodyFontCss);
+    ctx.font = `${{THEME.fontSizeBody}}px sans-serif`;
     ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
     const text = node.content.trim();
     const m = ctx.measureText(text);
     ctx.fillText(text, r.x + (r.w - m.width) / 2, r.y + r.h / 2 + THEME.fontSizeBody * 0.35);
   }}
   if (node.tokenId != null) {{
-    ctx.font = fontSpec('normal', THEME.tokenBadgeFontSize, THEME.bodyFontCss);
-    ctx.fillStyle = hexToRgba(THEME.tokenBadgeColor, node._opacity * THEME.tokenBadgeOpacity);
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = hexToRgba(THEME.textLight, node._opacity * 0.8);
     const tid = String(node.tokenId);
     const m = ctx.measureText(tid);
-    ctx.fillText(tid, r.x + (r.w - m.width) / 2, r.y + r.h + THEME.tokenBadgeOffsetY);
+    ctx.fillText(tid, r.x + (r.w - m.width) / 2, r.y + r.h + 14);
   }}
 }}
 
@@ -597,7 +559,7 @@ function drawConnector(ctx, node, nodeMap) {{
 
 function drawGroup(ctx, node, nodeMap) {{
   if (node.label) {{
-    ctx.font = fontSpec('bold', THEME.fontSizeCaption, THEME.bodyFontCss);
+    ctx.font = `bold ${{THEME.fontSizeCaption}}px sans-serif`;
     ctx.fillStyle = hexToRgba(THEME.textLight, node._opacity);
     const m = ctx.measureText(node.label);
     ctx.fillText(node.label, node.rect.x + (node.rect.w - m.width) / 2, node.rect.y - 8);
@@ -613,78 +575,6 @@ function drawGroup(ctx, node, nodeMap) {{
     child._visible = prevVisible;
     child._opacity = prevOpacity;
     child._drawProgress = prevDrawProgress;
-  }}
-}}
-
-function drawCircle(ctx, node) {{
-  const cx = node.rect.x + node.rect.w / 2;
-  const cy = node.rect.y + node.rect.h / 2;
-  const radius = Math.min(node.rect.w, node.rect.h) / 2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fillStyle = hexToRgba(THEME.boxFill, node._opacity);
-  ctx.fill();
-  ctx.strokeStyle = hexToRgba(THEME.boxBorder, node._opacity);
-  ctx.lineWidth = THEME.boxBorderWidth;
-  ctx.stroke();
-  if (node.content) {{
-    ctx.font = fontSpec('normal', THEME.fontSizeBody, THEME.bodyFontCss);
-    ctx.fillStyle = hexToRgba(THEME.textColor, node._opacity);
-    const m = ctx.measureText(node.content);
-    ctx.fillText(node.content, cx - m.width / 2, cy + THEME.fontSizeBody * 0.35);
-  }}
-}}
-
-function drawCallout(ctx, node, nodeMap) {{
-  if (!node.content) return;
-  const r = node.rect;
-  const padding = THEME.calloutPadding;
-  ctx.font = fontSpec('normal', THEME.calloutFontSize, THEME.bodyFontCss);
-
-  const words = node.content.split(/\\s+/);
-  const lines = [];
-  let current = '';
-  for (const word of words) {{
-    const test = (current + ' ' + word).trim();
-    if (ctx.measureText(test).width > THEME.calloutMaxWidth && current) {{
-      lines.push(current);
-      current = word;
-    }} else {{
-      current = test;
-    }}
-  }}
-  if (current) lines.push(current);
-
-  const bubbleW = Math.min(THEME.calloutMaxWidth + padding * 2, r.w);
-  const bubbleH = lines.length * THEME.calloutLineHeight + padding * 2;
-  const bx = r.x + (r.w - bubbleW) / 2;
-  const by = r.y + (r.h - bubbleH) / 2;
-
-  roundedRect(ctx, bx, by, bubbleW, bubbleH, THEME.calloutCornerRadius);
-  ctx.fillStyle = hexToRgba(THEME.calloutBackgroundColor, node._opacity);
-  ctx.fill();
-  ctx.strokeStyle = hexToRgba(THEME.calloutBorderColor, node._opacity);
-  ctx.lineWidth = THEME.calloutBorderWidth;
-  ctx.stroke();
-
-  ctx.fillStyle = hexToRgba(THEME.calloutTextColor, node._opacity);
-  for (let i = 0; i < lines.length; i++) {{
-    const m = ctx.measureText(lines[i]);
-    ctx.fillText(lines[i], bx + (bubbleW - m.width) / 2, by + padding + THEME.calloutFontSize + i * THEME.calloutLineHeight);
-  }}
-
-  if (node.fromId) {{
-    const target = nodeMap[node.fromId];
-    if (target) {{
-      ctx.beginPath();
-      ctx.setLineDash(THEME.calloutPointerDash);
-      ctx.strokeStyle = hexToRgba(THEME.calloutPointerColor, node._opacity);
-      ctx.lineWidth = THEME.calloutPointerWidth;
-      ctx.moveTo(bx + bubbleW / 2, by + bubbleH);
-      ctx.lineTo(target.rect.x + target.rect.w / 2, target.rect.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }}
   }}
 }}
 
@@ -751,12 +641,6 @@ function render(t) {{
 
   for (const node of scene.nodes) drawNode(ctx, node, nodeMap);
   ctx.restore();
-
-  if (scene.showProgress && scene.duration > 0) {{
-    const progress = localTime / scene.duration;
-    ctx.fillStyle = hexToRgba(THEME.progressBarColor, THEME.progressBarOpacity);
-    ctx.fillRect(0, 0, GRAPH.width * progress, THEME.progressBarHeight);
-  }}
 
   // Narration
   if (GRAPH.showNarration) {{

@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from kaivra.dsl.pacing import (
+    PacingProfile,
+    document_has_narration,
+    get_pacing_profile,
+    resolve_meta_duration,
+)
 from kaivra.dsl.schema import (
     DocumentSpec, SceneSpec, ObjectSpec, LayoutSpec, LayoutType, GridPositionSpec,
     AnimSpec, CameraAnimSpec, MotionSpec, FocusStyleSpec, parse_duration,
@@ -22,7 +28,15 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     width, height = doc.meta.resolution
     layout_engine = LayoutEngine(theme)
     canvas = Rect(theme.margin, theme.margin, width - theme.margin * 2, height - theme.margin * 2)
-    glow_release_padding = parse_duration(doc.meta.glow_release_padding)
+    include_narration = document_has_narration(doc)
+    pacing_profile = get_pacing_profile(doc.meta.pacing, include_narration=include_narration)
+    glow_release_padding = parse_duration(
+        resolve_meta_duration(
+            doc.meta,
+            "glow_release_padding",
+            include_narration=include_narration,
+        )
+    )
 
     # Collect IDs of persistent (document-level) objects
     persistent_ids: set[str] = set()
@@ -33,11 +47,7 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     prev_scene: ResolvedScene | None = None
     for scene_spec in doc.scenes:
         # Prepend persistent objects so they appear in every scene
-        include_document_objects = scene_spec.include_document_objects
-        if include_document_objects is None:
-            include_document_objects = scene_spec.template != "title-opener"
-
-        if doc.objects and include_document_objects:
+        if doc.objects:
             merged_objects = list(doc.objects) + list(scene_spec.objects)
             merged_spec = scene_spec.model_copy(update={"objects": merged_objects})
         else:
@@ -47,13 +57,21 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
             layout_engine,
             theme,
             canvas,
+            pacing_profile,
             persistent_ids,
             glow_release_padding,
         )
         # Continuity: inherit positions from previous scene for shared IDs
         continuity = scene_spec.continuity if scene_spec.continuity is not None else doc.meta.continuity
         if continuity and prev_scene is not None:
-            _apply_continuity(prev_scene, resolved, parse_duration(doc.meta.continuity_duration))
+            continuity_duration = parse_duration(
+                resolve_meta_duration(
+                    doc.meta,
+                    "continuity_duration",
+                    include_narration=include_narration,
+                )
+            )
+            _apply_continuity(prev_scene, resolved, continuity_duration)
             resolved.timeline = _merge_highlights(resolved.timeline)
             resolved.timeline = _trim_glows(resolved.timeline, resolved.duration, glow_release_padding)
             resolved.timeline.sort(key=lambda k: k.start_time)
@@ -65,7 +83,7 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
         height=height,
         fps=doc.meta.fps,
         theme_name=doc.meta.theme,
-        show_narration=doc.meta.show_narration,
+        show_narration=doc.meta.show_subtitles,
         scenes=scenes,
     )
 
@@ -84,6 +102,7 @@ def _build_scene(
     layout_engine: LayoutEngine,
     theme: ThemeSpec,
     canvas: Rect,
+    pacing_profile: PacingProfile,
     persistent_ids: set[str] | None = None,
     glow_release_padding: float = 0.0,
 ) -> ResolvedScene:
@@ -105,29 +124,25 @@ def _build_scene(
     # so the main layout can avoid overlapping them.
     from kaivra.layout.strategies._sizing import estimate_object_size
     positions = {}
-    top_used = 0.0
-    bottom_used = 0.0
-    right_used = 0.0
-    left_used = 0.0
+    edge_offsets = {
+        "top": 0.0,
+        "bottom": 0.0,
+        "left": 0.0,
+        "right": 0.0,
+        "above-layout": 0.0,
+    }
     for obj in special_objects:
-        pos = _resolve_special_position(obj, canvas, theme)
+        pos = _resolve_special_position(obj, canvas, theme, offset=edge_offsets.get(obj.position or "", 0.0))
         positions[obj.id or f"special_{id(obj)}"] = pos
         size = estimate_object_size(obj, theme)
-        if obj.position == "top":
-            top_used = max(top_used, pos.y - canvas.y + size.height + theme.resolve_gap("medium"))
-        elif obj.position == "bottom":
-            bottom_used = max(bottom_used, canvas.bottom - pos.y + theme.resolve_gap("medium"))
-        elif obj.position == "right":
-            right_used = max(right_used, size.width + theme.resolve_gap("large"))
-        elif obj.position == "left":
-            left_used = max(left_used, size.width + theme.resolve_gap("large"))
+        edge_offsets = _accumulate_special_position(edge_offsets, obj.position, size, theme)
 
     # Shrink the layout canvas so centered content doesn't overlap pinned objects
     layout_canvas = Rect(
-        canvas.x + left_used,
-        canvas.y + top_used,
-        canvas.width - left_used - right_used,
-        canvas.height - top_used - bottom_used,
+        canvas.x + edge_offsets["left"],
+        canvas.y + edge_offsets["top"],
+        canvas.width - edge_offsets["left"] - edge_offsets["right"],
+        canvas.height - edge_offsets["top"] - edge_offsets["bottom"],
     )
 
     # Compute layout positions within the adjusted bounds
@@ -168,7 +183,7 @@ def _build_scene(
     # Expand motion presets and focus into animations
     expanded_anims = list(spec.animations)
     expanded_anims.extend(_expand_motion_presets(spec))
-    expanded_anims.extend(_expand_focus_presets(spec))
+    expanded_anims.extend(_expand_focus_presets(spec, pacing_profile.focus_duration))
 
     # Resolve timeline
     duration = parse_duration(spec.duration) if spec.duration != "auto" else _auto_duration(
@@ -225,7 +240,6 @@ def _build_scene(
         camera_keyframes=camera_keyframes,
         transition=transition,
         narration=spec.narration,
-        show_progress=spec.show_progress if spec.show_progress is not None else True,
     )
 
 
@@ -670,12 +684,16 @@ def _expand_motion_presets(spec: SceneSpec) -> list[AnimSpec]:
     return anims
 
 
-def _expand_focus_presets(spec: SceneSpec) -> list[AnimSpec]:
+def _expand_focus_presets(spec: SceneSpec, default_duration: str) -> list[AnimSpec]:
     """Auto-generate highlight + scale for scene focus targets."""
     if not spec.focus:
         return []
     targets = spec.focus if isinstance(spec.focus, list) else [spec.focus]
     style = spec.focus_style or FocusStyleSpec()
+    if spec.focus_style is None:
+        style = FocusStyleSpec(duration=default_duration)
+    elif "duration" not in spec.focus_style.model_fields_set:
+        style = spec.focus_style.model_copy(update={"duration": default_duration})
     return [
         AnimSpec(
             action=AnimAction.HIGHLIGHT,
@@ -1036,23 +1054,62 @@ def _compute_grid_positions(
     return results
 
 
-def _resolve_special_position(obj: ObjectSpec, canvas: Rect, theme: ThemeSpec) -> Rect:
+def _resolve_special_position(
+    obj: ObjectSpec,
+    canvas: Rect,
+    theme: ThemeSpec,
+    *,
+    offset: float = 0.0,
+) -> Rect:
     from kaivra.layout.strategies._sizing import estimate_object_size
     size = estimate_object_size(obj, theme)
 
     match obj.position:
         case "top":
-            return Rect(canvas.x + (canvas.width - size.width) / 2, canvas.y, size.width, size.height)
+            return Rect(canvas.x + (canvas.width - size.width) / 2, canvas.y + offset, size.width, size.height)
         case "above-layout":
-            return Rect(canvas.x + (canvas.width - size.width) / 2, canvas.y - size.height - 10, size.width, size.height)
+            return Rect(
+                canvas.x + (canvas.width - size.width) / 2,
+                canvas.y - size.height - 10 - offset,
+                size.width,
+                size.height,
+            )
         case "bottom":
-            return Rect(canvas.x + (canvas.width - size.width) / 2, canvas.bottom - size.height, size.width, size.height)
+            return Rect(
+                canvas.x + (canvas.width - size.width) / 2,
+                canvas.bottom - size.height - offset,
+                size.width,
+                size.height,
+            )
         case "right":
-            return Rect(canvas.right - size.width, canvas.y + (canvas.height - size.height) / 2, size.width, size.height)
+            return Rect(
+                canvas.right - size.width - offset,
+                canvas.y + (canvas.height - size.height) / 2,
+                size.width,
+                size.height,
+            )
         case "left":
-            return Rect(canvas.x, canvas.y + (canvas.height - size.height) / 2, size.width, size.height)
+            return Rect(canvas.x + offset, canvas.y + (canvas.height - size.height) / 2, size.width, size.height)
         case _:
             return Rect(canvas.x, canvas.y, size.width, size.height)
+
+
+def _accumulate_special_position(
+    offsets: dict[str, float],
+    position: str | None,
+    size: object,
+    theme: ThemeSpec,
+) -> dict[str, float]:
+    if position is None or position == "above-layout":
+        return offsets
+
+    updated = dict(offsets)
+    gap = theme.resolve_gap("large" if position in {"left", "right"} else "medium")
+    if position in {"top", "bottom"}:
+        updated[position] += size.height + gap
+    elif position in {"left", "right"}:
+        updated[position] += size.width + gap
+    return updated
 
 
 def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> SceneSpec:
@@ -1084,27 +1141,13 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
                 "main": {"row": 2, "row_span": 11, "col": 1, "span": 12},
             },
         )
-    elif template == "title-opener":
-        layout = LayoutSpec(
-            type=LayoutType.GRID,
-            columns=12,
-            rows=12,
-            gap="large",
-            regions={
-                "title": {"row": 3, "row_span": 2, "col": 2, "span": 10},
-                "body": {"row": 6, "row_span": 3, "col": 3, "span": 8},
-            },
-        )
     else:
         return spec
 
     persistent_ids = persistent_ids or set()
 
     def is_title(obj: ObjectSpec) -> bool:
-        return obj.style in {"display", "heading", "section-heading"}
-
-    if template == "title-opener":
-        return _apply_title_opener_template(spec, layout, persistent_ids)
+        return obj.style in {"heading", "section-heading"}
 
     new_objects: list[ObjectSpec] = []
     for obj in spec.objects:
@@ -1125,74 +1168,6 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
             new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region="main")}))
 
     return spec.model_copy(update={"layout": layout, "objects": new_objects})
-
-
-def _apply_title_opener_template(
-    spec: SceneSpec,
-    layout: LayoutSpec,
-    persistent_ids: set[str],
-) -> SceneSpec:
-    preserved: list[ObjectSpec] = []
-    title_objects: list[ObjectSpec] = []
-    body_objects: list[ObjectSpec] = []
-
-    for obj in spec.objects:
-        if obj.id in persistent_ids or obj.position or obj.grid:
-            preserved.append(obj)
-            continue
-
-        if obj.style in {"display", "heading", "section-heading"}:
-            upgraded_style = "display" if obj.style in {None, "display", "heading"} else obj.style
-            title_objects.append(
-                obj.model_copy(
-                    update={
-                        "style": upgraded_style,
-                        "grid": GridPositionSpec(region="title"),
-                    }
-                )
-            )
-        else:
-            body_objects.append(obj)
-
-    new_objects = list(preserved)
-    new_objects.extend(_collapse_title_opener_bucket(title_objects, spec, region="title", group_suffix="title"))
-    new_objects.extend(_collapse_title_opener_bucket(body_objects, spec, region="body", group_suffix="body"))
-
-    show_progress = spec.show_progress if spec.show_progress is not None else False
-    include_document_objects = (
-        spec.include_document_objects if spec.include_document_objects is not None else False
-    )
-    return spec.model_copy(
-        update={
-            "layout": layout,
-            "objects": new_objects,
-            "show_progress": show_progress,
-            "include_document_objects": include_document_objects,
-        }
-    )
-
-
-def _collapse_title_opener_bucket(
-    objects: list[ObjectSpec],
-    spec: SceneSpec,
-    *,
-    region: str,
-    group_suffix: str,
-) -> list[ObjectSpec]:
-    if not objects:
-        return []
-    if len(objects) == 1:
-        return [objects[0].model_copy(update={"grid": GridPositionSpec(region=region)})]
-
-    group_id = f"{spec.id or 'scene'}_{group_suffix}"
-    group = ObjectSpec(
-        type=ObjectType.GROUP,
-        id=group_id,
-        layout=LayoutSpec(type=LayoutType.STACK, gap="medium", align="center"),
-        children=objects,
-        grid=GridPositionSpec(region=region),
-    )
-    return [group]
 
 
 def _apply_dynamic_layout_hints(spec: SceneSpec) -> SceneSpec:

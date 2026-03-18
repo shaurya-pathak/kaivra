@@ -19,7 +19,7 @@ __all__ = [
 
 @dataclass(frozen=True)
 class AudioCue:
-    """A cue window within a scene's narration."""
+    """A cue window within a scene's external audio timeline."""
 
     start_seconds: float
     duration_seconds: float

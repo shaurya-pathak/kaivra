@@ -1,0 +1,1597 @@
+{
+  "version": "1.1",
+  "meta": {
+    "title": "Agentic Debug Test Agent",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern",
+    "show_narration": false,
+    "continuity": true,
+    "continuity_duration": "2.4s",
+    "glow_release_padding": "1.4s"
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "chapters",
+      "position": "bottom",
+      "layout": {
+        "type": "carousel",
+        "gap": "medium",
+        "curve": 16,
+        "active_scale": 1.2,
+        "inactive_scale": 0.92
+      },
+      "children": [
+        {
+          "type": "token",
+          "id": "step_run",
+          "content": "1  Tests"
+        },
+        {
+          "type": "token",
+          "id": "step_poison",
+          "content": "2  Bad state"
+        },
+        {
+          "type": "token",
+          "id": "step_wait",
+          "content": "3  Human wait"
+        },
+        {
+          "type": "token",
+          "id": "step_instant",
+          "content": "4  Instant AI"
+        },
+        {
+          "type": "token",
+          "id": "step_diagnose",
+          "content": "5  Diagnose"
+        },
+        {
+          "type": "token",
+          "id": "step_remediate",
+          "content": "6  Repair"
+        },
+        {
+          "type": "token",
+          "id": "step_rerun",
+          "content": "7  Rerun + MR"
+        },
+        {
+          "type": "token",
+          "id": "step_outcome",
+          "content": "8  Outcome"
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "intro_hook",
+      "duration": "6s",
+      "template": "title-opener",
+      "narration": "CQA Copilot is an instant debug agent for broken test runs.",
+      "include_document_objects": false,
+      "show_progress": false,
+      "objects": [
+        {
+          "type": "text",
+          "id": "intro_title",
+          "content": "CQA Copilot",
+          "style": "heading"
+        },
+        {
+          "type": "text",
+          "id": "intro_subtitle",
+          "content": "instant AI triage for broken test runs",
+          "style": "body"
+        },
+        {
+          "type": "text",
+          "id": "intro_kicker",
+          "content": "detect. diagnose. repair. rerun.",
+          "style": "caption"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "intro_subtitle",
+          "at": "1.0s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "intro_kicker",
+          "at": "2.8s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "system_running",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "Imagine a bank of tests running across a system. Most of them pass. Then one fails, and worse, it leaves the machine in a bad state instead of exiting cleanly.",
+      "focus": "machine_c_stack",
+      "focus_style": {
+        "at": "5.4s",
+        "duration": "2.4s",
+        "scale": 1.08,
+        "color": "error"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "When One Test Breaks the Line",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_run",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "system_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "machine_a_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_a_box",
+                      "content": "Machine A"
+                    },
+                    {
+                      "type": "token",
+                      "id": "ma_status",
+                      "content": "PASS"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_b_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_b_box",
+                      "content": "Machine B"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mb_status",
+                      "content": "PASS"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_c_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_c_box",
+                      "content": "Machine C"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_fail",
+                      "content": "FAIL test_checkout"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_d_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_d_box",
+                      "content": "Machine D"
+                    },
+                    {
+                      "type": "token",
+                      "id": "md_status",
+                      "content": "PASS"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "token",
+              "id": "run_note",
+              "content": "parallel test fleet"
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_run",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "run_note",
+          "at": "0.8s",
+          "duration": "1.2s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "ma_status",
+            "mb_status",
+            "md_status"
+          ],
+          "at": "1.6s",
+          "duration": "2.6s",
+          "stagger": "0.25s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "mc_fail",
+          "at": "4.8s",
+          "duration": "2.6s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "pulse",
+          "target": "machine_c_box",
+          "at": "5.4s",
+          "duration": "1.6s"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "bad_state",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "Now the real cost begins. That machine is poisoned, the queue stalls, and the team waits for a human to notice, reset the environment, and figure out whether the problem lives in the product or the test harness.",
+      "focus": "machine_c_stack",
+      "focus_style": {
+        "at": "2.0s",
+        "duration": "2.4s",
+        "scale": 1.08,
+        "color": "error"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "A Machine Left In Bad State",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_bad_state",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "system_row_bad",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "machine_a_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_a_box",
+                      "content": "Machine A"
+                    },
+                    {
+                      "type": "token",
+                      "id": "ma_health",
+                      "content": "healthy"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_b_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_b_box",
+                      "content": "Machine B"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mb_health",
+                      "content": "healthy"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_c_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_c_box",
+                      "content": "Machine C"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_fail",
+                      "content": "FAIL test_checkout"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_dirty",
+                      "content": "dirty state"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_d_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_d_box",
+                      "content": "Machine D"
+                    },
+                    {
+                      "type": "token",
+                      "id": "md_health",
+                      "content": "healthy"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "queue_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "wait_jobs",
+                  "content": "waiting jobs"
+                },
+                {
+                  "type": "token",
+                  "id": "blocked_reruns",
+                  "content": "blocked reruns"
+                },
+                {
+                  "type": "box",
+                  "id": "time_box",
+                  "content": "time lost"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_poison",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": "mc_dirty",
+          "at": "1.4s",
+          "duration": "2.4s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "wait_jobs",
+            "blocked_reruns"
+          ],
+          "at": "4.4s",
+          "duration": "2.0s",
+          "stagger": "0.2s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "time_box",
+          "at": "5.4s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "warning"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "old_recovery_loop",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "In the old flow, the AI agent shows up late. A person gets online, gathers logs, and then feeds the whole mess into the model. That is reactive, slow, and it wastes the freshest context.",
+      "focus": "clock_box",
+      "focus_style": {
+        "at": "3.0s",
+        "duration": "2.0s",
+        "scale": 1.08,
+        "color": "warning"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "The Old Recovery Loop",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_old_flow",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "old_flow_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "machine_c_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_c_box",
+                      "content": "Machine C"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_fail",
+                      "content": "FAIL test_checkout"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_dirty",
+                      "content": "dirty state"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "id": "clock_box",
+                  "content": "40 min lost"
+                },
+                {
+                  "type": "box",
+                  "id": "human_box",
+                  "content": "Human reset"
+                },
+                {
+                  "type": "box",
+                  "id": "agent_box",
+                  "content": "AI debug agent",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                }
+              ]
+            },
+            {
+              "type": "token",
+              "id": "late_note",
+              "content": "AI arrives after the handoff"
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "old_c1",
+          "from": "machine_c_stack",
+          "to": "clock_box"
+        },
+        {
+          "type": "connector",
+          "id": "old_c2",
+          "from": "clock_box",
+          "to": "human_box"
+        },
+        {
+          "type": "connector",
+          "id": "old_c3",
+          "from": "human_box",
+          "to": "agent_box"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_wait",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "draw",
+          "target": "old_c1",
+          "at": "1.2s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "old_c2",
+          "at": "2.1s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "old_c3",
+          "at": "3.0s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "highlight",
+          "target": "clock_box",
+          "at": "3.2s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "human_box",
+          "at": "4.8s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "late_note",
+          "at": "6.1s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "warning"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "instant_agent",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "The better pattern is to deploy the debug agent the second the failure happens. It captures the machine while the state is still real, pulls logs immediately, and starts triage before the queue goes cold.",
+      "focus": "agent_box",
+      "focus_style": {
+        "at": "2.2s",
+        "duration": "2.2s",
+        "scale": 1.1,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Deploy The Agent Immediately",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_instant",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "instant_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "machine_c_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_c_box",
+                      "content": "Machine C"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_fail",
+                      "content": "FAIL test_checkout"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_dirty",
+                      "content": "dirty state"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "id": "agent_box",
+                  "content": "AI debug agent",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "logs_box",
+                  "content": "Logs + machine state"
+                }
+              ]
+            },
+            {
+              "type": "token",
+              "id": "instant_note",
+              "content": "fresh context captured immediately"
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "instant_c1",
+          "from": "machine_c_stack",
+          "to": "agent_box"
+        },
+        {
+          "type": "connector",
+          "id": "instant_c2",
+          "from": "agent_box",
+          "to": "logs_box"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_instant",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "instant_c1",
+          "at": "1.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "instant_c2",
+          "at": "2.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "agent_box",
+          "at": "2.4s",
+          "duration": "2.0s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "logs_box",
+          "at": "4.6s",
+          "duration": "2.0s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "instant_note",
+          "at": "6.2s",
+          "duration": "1.2s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "diagnose_split",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "The first question is diagnosis. Is this a product bug, or is it a test automation failure? That split tells the system whether to escalate to engineers or remediate the test infrastructure directly.",
+      "focus": "automation_box",
+      "focus_style": {
+        "at": "5.2s",
+        "duration": "2.2s",
+        "scale": 1.08,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Diagnose The Failure",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_diagnose",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "triage_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "agent_box",
+                  "content": "AI debug agent",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "logs_box",
+                  "content": "Logs + machine state"
+                },
+                {
+                  "type": "box",
+                  "id": "diagnose_box",
+                  "content": "Root cause?"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "decision_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "product_box",
+                  "content": "product bug"
+                },
+                {
+                  "type": "box",
+                  "id": "automation_box",
+                  "content": "test automation"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "diag_c1",
+          "from": "logs_box",
+          "to": "diagnose_box"
+        },
+        {
+          "type": "connector",
+          "id": "diag_c2",
+          "from": "diagnose_box",
+          "to": "product_box"
+        },
+        {
+          "type": "connector",
+          "id": "diag_c3",
+          "from": "diagnose_box",
+          "to": "automation_box"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_diagnose",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "diag_c1",
+          "at": "1.2s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "highlight",
+          "target": "diagnose_box",
+          "at": "2.2s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "diag_c2",
+          "at": "3.8s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "diag_c3",
+          "at": "4.7s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "highlight",
+          "target": "product_box",
+          "at": "4.4s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "automation_box",
+          "at": "5.4s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "automation_remediation",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "If the logs show automation failure, like a blocked port, stale browser session, or leaked fixture, the agent can repair it right away. It resets the machine, hardens the harness, and makes the environment healthy again.",
+      "focus": "fix_box",
+      "focus_style": {
+        "at": "5.4s",
+        "duration": "2.0s",
+        "scale": 1.08,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Remediate Test Automation",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_remediate",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "log_tokens",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "log_port",
+                  "content": "port 4444 busy"
+                },
+                {
+                  "type": "token",
+                  "id": "log_session",
+                  "content": "stale browser"
+                },
+                {
+                  "type": "token",
+                  "id": "log_fixture",
+                  "content": "fixture leak"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "repair_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "agent_box",
+                  "content": "AI debug agent",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "automation_box",
+                  "content": "test automation"
+                },
+                {
+                  "type": "box",
+                  "id": "fix_box",
+                  "content": "reset + patch"
+                },
+                {
+                  "type": "group",
+                  "id": "recovered_machine",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_c_box",
+                      "content": "Machine C"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_clean",
+                      "content": "healthy again"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "rem_c1",
+          "from": "agent_box",
+          "to": "automation_box"
+        },
+        {
+          "type": "connector",
+          "id": "rem_c2",
+          "from": "automation_box",
+          "to": "fix_box"
+        },
+        {
+          "type": "connector",
+          "id": "rem_c3",
+          "from": "fix_box",
+          "to": "recovered_machine"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_remediate",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "log_port",
+            "log_session",
+            "log_fixture"
+          ],
+          "at": "1.2s",
+          "duration": "2.4s",
+          "stagger": "0.16s",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "draw",
+          "target": "rem_c1",
+          "at": "3.6s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "rem_c2",
+          "at": "4.5s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "rem_c3",
+          "at": "5.4s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "highlight",
+          "target": "fix_box",
+          "at": "5.6s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "mc_clean",
+          "at": "6.6s",
+          "duration": "1.2s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "rerun_and_mr",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "Then the agent reruns the affected tests, verifies recovery, and opens a merge request with the remediation. Humans can review the change without being the bottleneck for getting the system back online.",
+      "focus": "mr_box",
+      "focus_style": {
+        "at": "5.6s",
+        "duration": "2.0s",
+        "scale": 1.08,
+        "color": "accent"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Rerun And Open MR",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_rerun",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "fleet_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "machine_a_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_a_box",
+                      "content": "Machine A"
+                    },
+                    {
+                      "type": "token",
+                      "id": "ma_green",
+                      "content": "PASS"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_b_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_b_box",
+                      "content": "Machine B"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mb_green",
+                      "content": "PASS"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "recovered_machine",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_c_box",
+                      "content": "Machine C"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mc_green",
+                      "content": "PASS"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "machine_d_stack",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "machine_d_box",
+                      "content": "Machine D"
+                    },
+                    {
+                      "type": "token",
+                      "id": "md_green",
+                      "content": "PASS"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "handoff_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "agent_box",
+                  "content": "AI debug agent",
+                  "idle": {
+                    "preset": "breathe",
+                    "intensity": 0.02
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "rerun_box",
+                  "content": "rerun triggered"
+                },
+                {
+                  "type": "group",
+                  "id": "mr_stack",
+                  "label": "Human review",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "mr_box",
+                      "content": "Merge request"
+                    },
+                    {
+                      "type": "token",
+                      "id": "mr_status",
+                      "content": "ready for review"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "connector",
+          "id": "rr_c1",
+          "from": "agent_box",
+          "to": "rerun_box"
+        },
+        {
+          "type": "connector",
+          "id": "rr_c2",
+          "from": "rerun_box",
+          "to": "mr_stack"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_rerun",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "ma_green",
+            "mb_green",
+            "mc_green",
+            "md_green"
+          ],
+          "at": "1.6s",
+          "duration": "2.6s",
+          "stagger": "0.18s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "draw",
+          "target": "rr_c1",
+          "at": "4.4s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "rr_c2",
+          "at": "5.2s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "highlight",
+          "target": "rerun_box",
+          "at": "4.8s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "mr_box",
+          "at": "5.8s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "mr_status",
+          "at": "6.6s",
+          "duration": "1.0s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    },
+    {
+      "id": "agentic_outcome",
+      "duration": "12s",
+      "template": "one-column",
+      "narration": "The result is faster diagnosis, less wasted machine time, and cleaner separation between product bugs and test bugs. Instead of waiting for manual babysitting, the system becomes agentic the moment the incident begins.",
+      "focus": "agent_box",
+      "focus_style": {
+        "at": "3.8s",
+        "duration": "2.0s",
+        "scale": 1.08,
+        "color": "success"
+      },
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "The Agentic Outcome",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "main_outcome",
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "compare_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "old_way_col",
+                  "label": "Old way",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "old_wait_box",
+                      "content": "human wait"
+                    },
+                    {
+                      "type": "token",
+                      "id": "old_idle",
+                      "content": "machines idle"
+                    },
+                    {
+                      "type": "token",
+                      "id": "old_late",
+                      "content": "late AI"
+                    }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "new_way_col",
+                  "label": "Agentic way",
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "align": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "agent_box",
+                      "content": "AI debug agent",
+                      "idle": {
+                        "preset": "breathe",
+                        "intensity": 0.02
+                      }
+                    },
+                    {
+                      "type": "token",
+                      "id": "new_now",
+                      "content": "diagnose now"
+                    },
+                    {
+                      "type": "token",
+                      "id": "new_review",
+                      "content": "rerun + MR"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "benefits_row",
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "benefit_speed",
+                  "content": "faster diagnosis"
+                },
+                {
+                  "type": "token",
+                  "id": "benefit_uptime",
+                  "content": "less machine waste"
+                },
+                {
+                  "type": "token",
+                  "id": "benefit_split",
+                  "content": "clear root cause"
+                },
+                {
+                  "type": "token",
+                  "id": "benefit_review",
+                  "content": "humans review only"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_outcome",
+          "at": "0s",
+          "duration": "7.8s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "old_wait_box",
+          "at": "1.0s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "agent_box",
+          "at": "3.0s",
+          "duration": "2.0s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "benefit_speed",
+            "benefit_uptime",
+            "benefit_split",
+            "benefit_review"
+          ],
+          "at": "5.0s",
+          "duration": "2.2s",
+          "stagger": "0.16s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "step_run",
+            "step_poison",
+            "step_wait",
+            "step_instant",
+            "step_diagnose",
+            "step_remediate",
+            "step_rerun",
+            "step_outcome"
+          ],
+          "at": "6.2s",
+          "duration": "1.4s",
+          "stagger": "0.1s",
+          "style": "glow",
+          "color": "success"
+        }
+      ],
+      "auto_visible": true
+    }
+  ]
+}

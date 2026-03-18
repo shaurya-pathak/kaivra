@@ -1,19 +1,24 @@
-"""Utilities for retiming a document against externally-derived scene durations.
+"""Utilities for retiming a document against externally supplied audio metadata.
 
-This is useful for audio-first workflows where scene timing is known only after
-TTS has been generated. The retimer keeps the existing structure of a scene, but
-rescales animation timestamps so the scene breathes with the real narration.
+The retimer keeps the existing structure of a scene, but rescales animation
+timestamps so the scene breathes with real audio durations and explicit cue
+windows provided by the caller.
 """
 
 from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-import re
 from statistics import median
 from typing import Any, Mapping
 
 from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
+from kaivra.dsl.pacing import (
+    document_has_narration,
+    get_pacing_profile,
+    resolve_meta_duration,
+    scene_has_narration,
+)
 from kaivra.dsl.schema import parse_duration
 
 EMPHASIS_ACTIONS = {"highlight", "pulse"}
@@ -65,15 +70,18 @@ def retime_document_to_audio_timings(
             continue
 
         target_duration = max(0.0, float(timing.duration_seconds))
-        source_duration = estimate_scene_duration(scene)
+        source_duration = estimate_scene_duration(scene, meta=retimed.get("meta"))
         scale = 1.0 if source_duration <= 0 else target_duration / source_duration
         scene_scales.append(scale)
 
         _retime_scene(scene, scale)
-        if align_audio_cues:
-            cues = list(timing.cues) or _infer_narration_cues(scene, target_duration, persistent_ids)
-            if cues:
-                _align_scene_emphasis_to_cues(scene, cues, persistent_ids, scene_duration=target_duration)
+        if align_audio_cues and timing.cues:
+            _align_scene_emphasis_to_cues(
+                scene,
+                list(timing.cues),
+                persistent_ids,
+                scene_duration=target_duration,
+            )
         scene["duration"] = format_duration(target_duration)
 
     if not scene_scales:
@@ -81,9 +89,15 @@ def retime_document_to_audio_timings(
 
     global_scale = median(scene_scales)
     meta = retimed.get("meta")
+    include_narration = document_has_narration(retimed)
     if scale_meta and isinstance(meta, dict):
-        _scale_duration_field(meta, "continuity_duration", global_scale)
-        _scale_duration_field(meta, "glow_release_padding", global_scale)
+        for field_name in ("continuity_duration", "glow_release_padding"):
+            resolved_value = resolve_meta_duration(
+                meta,
+                field_name,
+                include_narration=include_narration,
+            )
+            meta[field_name] = format_duration(_parse_time(resolved_value, 0.0) * global_scale)
 
     if scale_persistent_objects:
         for obj in retimed.get("objects", []):
@@ -110,11 +124,15 @@ def retime_document_to_scene_durations(
         timing_data,
         scale_meta=scale_meta,
         scale_persistent_objects=scale_persistent_objects,
-        align_audio_cues=True,
+        align_audio_cues=False,
     )
 
 
-def estimate_scene_duration(scene: Mapping[str, Any]) -> float:
+def estimate_scene_duration(
+    scene: Mapping[str, Any],
+    *,
+    meta: Mapping[str, Any] | None = None,
+) -> float:
     """Estimate the effective duration of a scene in seconds."""
     raw_duration = scene.get("duration", "auto")
     if isinstance(raw_duration, str) and raw_duration != "auto":
@@ -131,8 +149,16 @@ def estimate_scene_duration(scene: Mapping[str, Any]) -> float:
 
     focus_style = scene.get("focus_style")
     if isinstance(focus_style, dict):
+        default_focus_duration = 1.2
+        if meta is not None:
+            profile = get_pacing_profile(
+                meta.get("pacing"),
+                include_narration=scene_has_narration(scene)
+                or bool(meta.get("show_subtitles", meta.get("show_narration"))),
+            )
+            default_focus_duration = profile.focus_seconds
         start = _parse_time(focus_style.get("at"), 0.0)
-        duration = _parse_time(focus_style.get("duration"), 1.2)
+        duration = _parse_time(focus_style.get("duration"), default_focus_duration)
         max_end = max(max_end, start + duration)
 
     for obj in scene.get("objects", []) or []:
@@ -250,7 +276,7 @@ def _align_scene_emphasis_to_cues(
     if not events:
         return
 
-    matched_cues = _match_cues_to_events(cues, len(events), scene_duration)
+    matched_cues = _match_cues_to_events(cues, len(events))
     for event, cue in zip(events, matched_cues):
         if event.kind == "focus":
             _align_focus_style_to_cue(event.ref, cue)
@@ -305,12 +331,12 @@ def _collect_emphasis_events(
     return events
 
 
-def _match_cues_to_events(cues: list[AudioCue], event_count: int, scene_duration: float) -> list[AudioCue]:
+def _match_cues_to_events(cues: list[AudioCue], event_count: int) -> list[AudioCue]:
     if event_count <= 0:
         return []
 
     if not cues:
-        return _fallback_even_cues(scene_duration, event_count)
+        return []
 
     working = list(sorted(cues, key=lambda cue: cue.start_seconds))
     while len(working) < event_count:
@@ -326,7 +352,7 @@ def _match_cues_to_events(cues: list[AudioCue], event_count: int, scene_duration
         ]
 
     if len(working) < event_count:
-        return _fallback_even_cues(scene_duration, event_count)
+        return working
 
     if len(working) == event_count:
         return working
@@ -362,105 +388,6 @@ def _align_animation_to_cue(anim: dict[str, Any], cue: AudioCue) -> None:
 def _align_focus_style_to_cue(focus_style: dict[str, Any], cue: AudioCue) -> None:
     focus_style["at"] = format_duration(max(0.0, cue.start_seconds))
     focus_style["duration"] = format_duration(max(0.5, cue.duration_seconds * 0.9))
-
-
-def _infer_narration_cues(scene: Mapping[str, Any], scene_duration: float, persistent_ids: set[str]) -> list[AudioCue]:
-    events = _collect_emphasis_events(scene, persistent_ids, scene_duration)
-    event_count = len(events)
-    if event_count <= 0:
-        return []
-
-    narration = scene.get("narration")
-    if not isinstance(narration, str):
-        return []
-
-    text = " ".join(narration.split())
-    if not text:
-        return []
-
-    phrases = _split_narration_into_phrases(text)
-    if not phrases:
-        return _fallback_even_cues(scene_duration, event_count)
-
-    if len(phrases) < event_count:
-        phrases = _split_into_even_word_chunks(text, event_count)
-
-    phrase_windows = _phrases_to_cues(phrases, scene_duration)
-    return _match_cues_to_events(phrase_windows, event_count, scene_duration)
-
-
-def _split_narration_into_phrases(text: str) -> list[str]:
-    parts = [segment.strip(" ,") for segment in re.split(r"\s*(?:[.!?]+|[;:])\s*|\s+[—–-]\s+", text) if segment.strip(" ,")]
-    if len(parts) <= 1:
-        comma_parts = [segment.strip() for segment in re.split(r"\s*,\s*", text) if segment.strip()]
-        if len(comma_parts) > 1:
-            return comma_parts
-    return parts
-
-
-def _split_into_even_word_chunks(text: str, chunk_count: int) -> list[str]:
-    words = text.split()
-    if chunk_count <= 1 or len(words) <= 1:
-        return [text]
-
-    chunk_size = max(1, round(len(words) / chunk_count))
-    chunks: list[str] = []
-    for idx in range(0, len(words), chunk_size):
-        chunks.append(" ".join(words[idx : idx + chunk_size]))
-
-    while len(chunks) > chunk_count:
-        right = chunks.pop()
-        chunks[-1] = f"{chunks[-1]} {right}".strip()
-
-    return [chunk for chunk in chunks if chunk]
-
-
-def _phrases_to_cues(phrases: list[str], scene_duration: float) -> list[AudioCue]:
-    if not phrases:
-        return []
-
-    lead_in = min(0.8, scene_duration * 0.08)
-    tail = min(1.0, scene_duration * 0.1)
-    active_duration = max(scene_duration - lead_in - tail, scene_duration * 0.65)
-
-    word_counts = [max(1, len(phrase.split())) for phrase in phrases]
-    total_words = sum(word_counts)
-
-    cues: list[AudioCue] = []
-    cursor = lead_in
-    for phrase, word_count in zip(phrases, word_counts):
-        phrase_duration = active_duration * (word_count / total_words)
-        cues.append(
-            AudioCue(
-                start_seconds=cursor,
-                duration_seconds=max(0.5, phrase_duration),
-                text=phrase,
-                kind="phrase",
-            )
-        )
-        cursor += phrase_duration
-    return cues
-
-
-def _fallback_even_cues(scene_duration: float, count: int) -> list[AudioCue]:
-    if count <= 0:
-        return []
-
-    lead_in = min(0.7, scene_duration * 0.08)
-    tail = min(0.9, scene_duration * 0.1)
-    active = max(scene_duration - lead_in - tail, scene_duration * 0.6)
-    step = active / max(1, count)
-    span = max(0.45, step * 0.8)
-    return [
-        AudioCue(
-            start_seconds=lead_in + idx * step,
-            duration_seconds=min(
-                span,
-                max(MIN_CUE_DURATION_SECONDS, scene_duration - (lead_in + idx * step)),
-            ),
-        )
-        for idx in range(count)
-    ]
 
 
 def _normalize_targets(target: Any) -> list[str]:

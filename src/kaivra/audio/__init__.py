@@ -1,23 +1,17 @@
-"""Audio helpers for muxing and timing-aware animation rendering."""
+"""Audio helpers for muxing, timing-aware rendering, and voice provider plugins."""
 
-from kaivra.audio.local_voice import (
-    DEFAULT_SHERPA_BINARY,
-    GeneratedLocalVoiceAssets,
-    LocalVoiceConfig,
-    synthesize_local_voice_assets,
-)
+from kaivra.audio.base import AudioResult, ProviderRegistry, VoiceProvider
 from kaivra.audio.mux import mux_audio
 from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming, load_audio_timing_data, load_audio_timings
 
 __all__ = [
     "AudioCue",
+    "AudioResult",
     "AudioTimingData",
-    "DEFAULT_SHERPA_BINARY",
-    "GeneratedLocalVoiceAssets",
-    "LocalVoiceConfig",
+    "ProviderRegistry",
     "SceneAudioTiming",
+    "VoiceProvider",
     "load_audio_timing_data",
     "load_audio_timings",
     "mux_audio",
-    "synthesize_local_voice_assets",
 ]

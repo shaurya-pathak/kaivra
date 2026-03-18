@@ -22,15 +22,17 @@ dependencies = [
 dev = [
     "pytest>=7.0",
 ]
-local-voice = [
-    "sherpa-onnx",
+voice = [
+    "kaivra-voice>=0.1.0",
 ]
 
 [project.scripts]
 kaivra = "kaivra.cli:main"
+kaivra-mcp = "kaivra.mcp.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kaivra"]
 
 [tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
 testpaths = ["tests"]

@@ -14,11 +14,10 @@ This document describes the quality bar and supported feature set we are intenti
 - overlap and clipping audits
 - generic audio muxing
 - generic audio-timing-aware retiming
-- local Sherpa-powered narration rendering for `render`
 
 `kaivra` does not own:
 
-- remote/network TTS providers
+- speech synthesis or a TTS provider
 - prompt-engineering instructions such as `SKILL.md`
 - demo-specific orchestration outside the DSL
 
@@ -29,17 +28,12 @@ This document describes the quality bar and supported feature set we are intenti
 - `kaivra preview`
 - `kaivra audit`
 - `kaivra schema`
-- `kaivra theme-schema`
-- `kaivra validate-theme`
 
 ## Stable Render Flags
 
 - `--fps`
 - `--audio`
 - `--audio-timings`
-- `--voice-mode`
-- `--voice-model`
-- `--theme-file`
 
 ## Stable Timing Behavior
 
@@ -48,26 +42,11 @@ When `--audio-timings` is present:
 - scene durations retime to the supplied scene duration metadata
 - continuity and glow-release padding scale with the retime
 - scene-local `highlight`, `pulse`, and `focus_style` beats align to cue windows when cues are present
-- if only durations are present, Kaivra infers approximate beat windows from scene narration
+- if only durations are present, Kaivra only rescales authored timings and does not infer beat windows from narration text
 
 Intentional exceptions:
 
-- long-lived persistent glows such as chapter or carousel emphasis are left broad instead of being snapped to narrow voice cues
-
-When `--voice-mode local` is present:
-
-- scene durations retime from the generated Sherpa narration clips
-- the CLI stays offline and self-contained once the local model is installed
-- local voice currently does not generate word-level cue timings on its own
-- scene-local emphasis therefore still falls back to narration-clause inference unless richer timing data is supplied externally
-
-## Stable Scene Templates
-
-- `one-column`
-- `two-column`
-- `title-opener`
-
-`title-opener` is the preferred way to create a hero/title card scene without carrying persistent chrome into the opener.
+- long-lived persistent glows such as chapter or carousel emphasis are left broad instead of being snapped to narrow audio cues
 
 ## Quality Bar
 
@@ -77,7 +56,7 @@ Every stabilization pass should preserve these expectations:
 - no hard scene cuts for shared content when continuity is enabled
 - no text-scaling artifacts on shell-only scale by default
 - no provider-specific assumptions in the core CLI audio path
-- local voice mode stays offline and self-contained
+- no narration-derived timing inference in the core audio path
 - no undocumented JSON sidecar formats
 
 ## Required Local Checks
@@ -110,5 +89,5 @@ When cleaning up code, prefer:
 Avoid:
 
 - adding new primitives unless they are necessary for correctness
-- extra voice providers beyond the local Sherpa path unless they are necessary
+- provider-specific abstractions inside `kaivra`
 - demo-only hacks in core rendering code

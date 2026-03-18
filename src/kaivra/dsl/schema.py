@@ -10,7 +10,7 @@ import re
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +81,12 @@ class GapSize(str, Enum):
     SMALL = "small"
     MEDIUM = "medium"
     LARGE = "large"
+
+
+class PacingPreset(str, Enum):
+    QUICK_DEMO = "quick-demo"
+    BALANCED = "balanced"
+    EDUCATIONAL = "educational"
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +198,7 @@ class ObjectSpec(BaseModel):
     type: ObjectType = Field(description="Object type: text, box, circle, group, connector, token, callout")
     id: str | None = Field(None, description="Unique identifier for this object (auto-generated if omitted)")
     content: str | None = Field(None, description="Text content displayed inside the object")
-    style: str | None = Field(None, description="Visual style preset: 'display', 'heading', 'section-heading', 'body', 'caption', 'code'")
+    style: str | None = Field(None, description="Visual style preset: 'heading', 'section-heading', 'body', 'caption', 'code'")
     position: Literal["top", "bottom", "left", "right", "above-layout"] | None = Field(None, description="Pin object to a canvas edge instead of participating in layout")
     grid: GridPositionSpec | None = Field(None, description="Explicit grid placement (row, col, span, or named region)")
     label: str | None = Field(None, description="Small label displayed on the object (e.g. badge text)")
@@ -347,23 +353,12 @@ class SceneSpec(BaseModel):
     id: str | None = Field(None, description="Unique scene identifier (auto-generated if omitted)")
     duration: str = Field("auto", description="Scene duration, e.g. '5s'. Use 'auto' to infer from animations")
     layout: Layout = "center"
-    template: str | None = Field(
-        None,
-        description="Layout template: 'two-column', 'one-column', or 'title-opener'",
-    )
+    template: str | None = Field(None, description="Layout template: 'two-column' or 'one-column'")
     narration: str | None = Field(None, description="Narration text displayed at the bottom of the scene")
 
     objects: list[ObjectSpec] = Field(default_factory=list, description="Visual objects in this scene")
     animations: list[AnimSpec] = Field(default_factory=list, description="Animations to play during this scene")
     auto_visible: bool = Field(False, description="If true, objects are visible by default without appear animations")
-    include_document_objects: bool | None = Field(
-        None,
-        description="Whether persistent document-level objects should be included in this scene. Defaults to false for title-opener scenes.",
-    )
-    show_progress: bool | None = Field(
-        None,
-        description="Whether to show the thin scene progress bar in rendered video outputs.",
-    )
     focus: str | list[str] | None = Field(None, description="Auto-focus target(s) for this scene")
     focus_style: FocusStyleSpec | None = Field(None, description="Focus styling options")
     continuity: bool | None = Field(None, description="If true, inherit positions from previous scene for shared IDs")
@@ -392,13 +387,41 @@ class MetaSpec(BaseModel):
     resolution: tuple[int, int] = Field((1920, 1080), description="Canvas resolution [width, height]")
     fps: int = Field(30, description="Frames per second")
     theme: str = Field("whiteboard", description="Visual theme name")
-    show_narration: bool = Field(True, description="Whether to render narration captions")
+    show_subtitles: bool = Field(
+        True,
+        description="Whether to render scene narration as on-screen subtitles",
+        validation_alias=AliasChoices("show_subtitles", "show_narration"),
+        serialization_alias="show_subtitles",
+    )
+    pacing: PacingPreset = Field(PacingPreset.BALANCED, description="Timing profile: quick-demo, balanced, or educational")
     continuity: bool = Field(True, description="Inherit positions between scenes for shared IDs")
     continuity_duration: str = Field("0.6s", description="Duration for continuity moves between scenes")
     glow_release_padding: str = Field(
         "0.6s",
         description="Minimum tail time at scene end after highlight/pulse effects",
     )
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("continuity_duration", "glow_release_padding", mode="before")
+    @classmethod
+    def validate_meta_durations(cls, v: str | None) -> str | None:
+        if v is not None:
+            parse_duration(v)
+        return v
+
+    @property
+    def show_narration(self) -> bool:
+        """Backward-compatible alias for subtitle rendering."""
+        return self.show_subtitles
+
+    @show_narration.setter
+    def show_narration(self, value: bool) -> None:
+        self.show_subtitles = value
+
+    def subtitles_were_explicitly_set(self) -> bool:
+        """Whether subtitle visibility was explicitly authored in the input."""
+        return "show_subtitles" in self.model_fields_set
 
 
 class DocumentSpec(BaseModel):

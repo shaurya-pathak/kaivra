@@ -71,53 +71,6 @@
   ],
   "scenes": [
     {
-      "id": "intro_hook",
-      "duration": "6s",
-      "template": "title-opener",
-      "narration": "CQA Copilot is an instant debug agent for broken test runs.",
-      "include_document_objects": false,
-      "show_progress": false,
-      "objects": [
-        {
-          "type": "text",
-          "id": "intro_title",
-          "content": "CQA Copilot",
-          "style": "heading"
-        },
-        {
-          "type": "text",
-          "id": "intro_subtitle",
-          "content": "instant AI triage for broken test runs",
-          "style": "body"
-        },
-        {
-          "type": "text",
-          "id": "intro_kicker",
-          "content": "detect. diagnose. repair. rerun.",
-          "style": "caption"
-        }
-      ],
-      "animations": [
-        {
-          "action": "highlight",
-          "target": "intro_subtitle",
-          "at": "1.0s",
-          "duration": "1.4s",
-          "style": "glow",
-          "color": "accent"
-        },
-        {
-          "action": "highlight",
-          "target": "intro_kicker",
-          "at": "2.8s",
-          "duration": "1.4s",
-          "style": "glow",
-          "color": "success"
-        }
-      ],
-      "auto_visible": true
-    },
-    {
       "id": "system_running",
       "duration": "12s",
       "template": "one-column",
