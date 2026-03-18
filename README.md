@@ -72,7 +72,7 @@ KAIVRA_VOICE_PROVIDER=local \
 kaivra quick-render examples/explainers/agentic_debug_agent_explainer.json --voice
 ```
 
-If voice providers are not installed yet, Kaivra will tell you to run `make install-voice-local` or the equivalent editable `pip install` command from the repo root.
+If voice providers are not installed yet, Kaivra will tell you to run `make install-voice-local` or the equivalent editable `uv pip install` command from the repo root.
 
 ## MCP Setup
 
@@ -110,6 +110,22 @@ That same shape works for Claude Code, Cursor, and most other local stdio MCP cl
 make doctor
 make smoke
 ```
+
+## Pre-Commit Tests
+
+Install the git hook once from the repo root:
+
+```bash
+make install-pre-commit
+```
+
+Each commit will then build the repo's dedicated test container and run the full pytest suite inside it:
+
+```bash
+make precommit-test
+```
+
+The hook prefers Docker. If Docker is not available, it will try `colima start` and use the Colima-backed container runtime instead. If you use Colima without Docker Desktop, install `nerdctl` alongside Colima so the hook has a container CLI to call.
 
 For a narrated smoke pass after voice install:
 
@@ -172,7 +188,7 @@ If you see a "Voice providers are not installed" error, fix it with one of these
 ```bash
 make install-voice-local
 # or
-.venv/bin/python -m pip install -e "./packages/kaivra-voice[local]"
+uv pip install --python .venv/bin/python -e "./packages/kaivra-voice[local]"
 ```
 
 For local Sherpa narration after `make install-voice-local`, download the default model bundle with:
