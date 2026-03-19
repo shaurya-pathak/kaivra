@@ -193,6 +193,155 @@ class KaivraWorkspace:
             return candidate
         return (self.root / candidate).resolve()
 
+    def plan_animation(
+        self,
+        *,
+        topic: str | None = None,
+    ) -> dict[str, Any]:
+        """Return a structured questionnaire for the LLM to present to the user
+        before creating an animation.  The answers feed into start_animation."""
+        return {
+            "status": "ok",
+            "topic": topic,
+            "instructions": (
+                "Present these questions conversationally to the user.  "
+                "Collect their answers, then call start_animation with the "
+                "resolved parameters.  Skip questions the user has already "
+                "answered or that are not relevant."
+            ),
+            "questions": [
+                {
+                    "id": "topic",
+                    "category": "content",
+                    "question": "What topic or concept would you like to explain?",
+                    "skip_if": topic is not None,
+                    "maps_to": "title",
+                },
+                {
+                    "id": "audience",
+                    "category": "content",
+                    "question": "Who is the audience? (e.g. beginners, students, developers, general public)",
+                    "default": "general audience",
+                    "maps_to": "audience",
+                },
+                {
+                    "id": "detail_level",
+                    "category": "pacing",
+                    "question": "How detailed should the animation be?",
+                    "options": [
+                        {
+                            "value": "quick-demo",
+                            "label": "Quick demo — short, punchy, minimal narration",
+                        },
+                        {
+                            "value": "balanced",
+                            "label": "Balanced — moderate detail, good for most topics",
+                        },
+                        {
+                            "value": "educational",
+                            "label": "Educational — thorough, step-by-step explanations",
+                        },
+                    ],
+                    "default": "balanced",
+                    "maps_to": "pacing",
+                },
+                {
+                    "id": "voice_mode",
+                    "category": "audio",
+                    "question": "How should narration be delivered?",
+                    "options": [
+                        {
+                            "value": "elevenlabs",
+                            "label": "ElevenLabs voice — high-quality AI narration (requires API key)",
+                        },
+                        {
+                            "value": "sherpa",
+                            "label": "Sherpa local voice — free offline TTS narration",
+                        },
+                        {"value": "captions", "label": "Captions only — text subtitles, no audio"},
+                        {"value": "silent", "label": "Silent — no narration or captions"},
+                    ],
+                    "default": "captions",
+                    "maps_to_resolved": {
+                        "elevenlabs": {
+                            "include_narration": True,
+                            "show_subtitles": True,
+                            "voice_provider": "elevenlabs",
+                        },
+                        "sherpa": {
+                            "include_narration": True,
+                            "show_subtitles": True,
+                            "voice_provider": "sherpa",
+                        },
+                        "captions": {"include_narration": True, "show_subtitles": True},
+                        "silent": {"include_narration": False, "show_subtitles": False},
+                    },
+                },
+                {
+                    "id": "pattern",
+                    "category": "structure",
+                    "question": "What kind of animation pattern fits best?",
+                    "options": [
+                        {
+                            "value": "visual_explainer",
+                            "label": "Visual explainer — narrated walkthrough of a concept",
+                        },
+                        {
+                            "value": "algorithm_walkthrough",
+                            "label": "Algorithm walkthrough — step-by-step code/data visualization",
+                        },
+                        {
+                            "value": "architecture_explainer",
+                            "label": "Architecture explainer — system components and data flow",
+                        },
+                        {
+                            "value": "before_after_comparison",
+                            "label": "Before/after comparison — contrasting two approaches",
+                        },
+                    ],
+                    "default": "visual_explainer",
+                    "maps_to": "pattern",
+                },
+                {
+                    "id": "theme",
+                    "category": "visual",
+                    "question": "Which visual theme would you like?",
+                    "options": [
+                        {
+                            "value": "modern",
+                            "label": "Modern — clean light background with accent colors (default)",
+                        },
+                        {
+                            "value": "material",
+                            "label": "Material — Google Material Design inspired palette",
+                        },
+                        {
+                            "value": "whiteboard",
+                            "label": "Whiteboard — hand-drawn sketch aesthetic",
+                        },
+                    ],
+                    "default": "modern",
+                    "maps_to": "theme",
+                },
+                {
+                    "id": "num_beats",
+                    "category": "structure",
+                    "question": "Roughly how many sections/beats should the animation have? (or let me decide based on the topic)",
+                    "default": "auto",
+                    "hint": "Typically 4-8 beats for a good explainer.",
+                },
+            ],
+            "parameter_mapping": {
+                "topic → title": "The topic becomes the animation title",
+                "audience → audience": "Passed directly",
+                "detail_level → pacing": "Passed directly",
+                "voice_mode": "Resolves to include_narration, show_subtitles, and optionally voice_provider",
+                "pattern → pattern": "Passed directly",
+                "theme → theme": "Passed directly",
+                "num_beats": "If user specifies a number, generate that many beat outlines",
+            },
+        }
+
     def start_animation(
         self,
         *,

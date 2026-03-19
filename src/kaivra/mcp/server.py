@@ -173,7 +173,8 @@ class KaivraMCPServer:
                 "Use fade-in for reveals, draw for connectors. Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "
                 "Add a carousel chapter tracker as a persistent document-level object and highlight the active step each scene. "
                 "Set template: one-column on scenes. Write narration as conversational spoken English. "
-                "Workflow: start_animation → rewrite scenes → check_animation → preview_animation → render_animation."
+                "Workflow: plan_animation → start_animation → rewrite scenes → check_animation → preview_animation → render_animation. "
+                "Always start with plan_animation to ask the user about voice mode, detail level, audience, theme, and structure before creating."
             ),
         }
 
@@ -263,6 +264,26 @@ def _build_tools() -> list[ToolDefinition]:
                 "openWorldHint": False,
             },
             handler=_add_theme_tool,
+        ),
+        ToolDefinition(
+            name="plan_animation",
+            title="Plan Animation",
+            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, Sherpa, captions only), detail level, audience, visual theme, and structure. Present the questions conversationally, then use the answers to call start_animation.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "topic": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+            annotations={
+                "title": "Plan Animation",
+                "readOnlyHint": True,
+                "destructiveHint": False,
+                "idempotentHint": True,
+                "openWorldHint": False,
+            },
+            handler=_plan_tool,
         ),
         ToolDefinition(
             name="start_animation",
@@ -468,6 +489,12 @@ def _doctor_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, A
     return context.workspace.run_doctor()
 
 
+def _plan_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
+    return context.workspace.plan_animation(
+        topic=arguments.get("topic"),
+    )
+
+
 def _start_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
     context.emit_progress(0.1, "Choosing a starter blueprint.")
     result = context.workspace.start_animation(
@@ -611,6 +638,11 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             "Kaivra doctor passed."
             if result.get("ok")
             else "Kaivra doctor found local setup issues."
+        )
+    if name == "plan_animation":
+        return (
+            "Animation plan ready. Present the questions to the user, "
+            "collect their preferences, then call start_animation with the resolved parameters."
         )
     if name == "start_animation":
         return (
