@@ -68,7 +68,7 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     prev_scene: ResolvedScene | None = None
     for scene_spec in doc.scenes:
         # Prepend persistent objects so they appear in every scene
-        if doc.objects:
+        if doc.objects and scene_spec.include_persistent_objects:
             merged_objects = list(doc.objects) + list(scene_spec.objects)
             merged_spec = scene_spec.model_copy(update={"objects": merged_objects})
         else:
@@ -277,6 +277,7 @@ def _build_scene(
         camera_keyframes=camera_keyframes,
         transition=transition,
         narration=spec.narration,
+        show_progress_bar=spec.show_progress_bar,
     )
 
 

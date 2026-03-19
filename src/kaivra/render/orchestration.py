@@ -247,6 +247,8 @@ def _write_retimed_sidecar(
 
 
 def _apply_video_bookends(doc: Any) -> Any:
+    if not getattr(doc.meta, "video_bookends", True):
+        return doc
     scene_ids = [scene.id for scene in getattr(doc, "scenes", []) if getattr(scene, "id", None)]
     if not getattr(doc, "scenes", None):
         return doc
@@ -256,9 +258,12 @@ def _apply_video_bookends(doc: Any) -> Any:
     raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
     if not doc.meta.subtitles_were_explicitly_set():
         raw_doc.get("meta", {}).pop("show_subtitles", None)
+    scenes = list(raw_doc.get("scenes", []))
+    if scenes and "transition" not in scenes[-1]:
+        scenes[-1]["transition"] = {"type": "fade", "duration": "0.5s"}
     raw_doc["scenes"] = [
         _intro_scene(raw_doc.get("meta", {}).get("title")),
-        *raw_doc.get("scenes", []),
+        *scenes,
         _outro_scene(raw_doc.get("meta", {}).get("title")),
     ]
     return parse_string(json.dumps(raw_doc), format="json")
@@ -268,10 +273,12 @@ def _intro_scene(title: str | None) -> dict[str, Any]:
     resolved_title = (title or "Untitled Animation").strip() or "Untitled Animation"
     return {
         "id": _VIDEO_INTRO_SCENE_ID,
-        "duration": "1.8s",
+        "duration": "3.8s",
         "layout": "center",
         "auto_visible": False,
         "continuity": False,
+        "include_persistent_objects": False,
+        "show_progress_bar": False,
         "transition": {"type": "fade", "duration": "0.45s"},
         "objects": [
             {
@@ -284,7 +291,6 @@ def _intro_scene(title: str | None) -> dict[str, Any]:
                     "align": "center",
                 },
                 "children": [
-                    {"type": "token", "id": "__kaivra_intro_token", "content": "Walkthrough"},
                     {
                         "type": "text",
                         "id": "__kaivra_intro_title",
@@ -294,7 +300,7 @@ def _intro_scene(title: str | None) -> dict[str, Any]:
                     {
                         "type": "text",
                         "id": "__kaivra_intro_caption",
-                        "content": "Let's get oriented before we dive in.",
+                        "content": "A guided walkthrough",
                         "style": "caption",
                     },
                 ],
@@ -302,22 +308,20 @@ def _intro_scene(title: str | None) -> dict[str, Any]:
         ],
         "animations": [
             {
-                "action": "fade-in",
-                "target": "__kaivra_intro_token",
-                "at": "0.1s",
-                "duration": "0.45s",
+                "action": "appear",
+                "target": "__kaivra_intro_stack",
+                "at": "0s",
             },
             {
-                "action": "fade-in",
+                "action": "appear",
                 "target": "__kaivra_intro_title",
-                "at": "0.3s",
-                "duration": "0.65s",
+                "at": "0s",
             },
             {
                 "action": "fade-in",
                 "target": "__kaivra_intro_caption",
-                "at": "0.85s",
-                "duration": "0.45s",
+                "at": "0.55s",
+                "duration": "0.7s",
             },
         ],
     }
@@ -327,10 +331,12 @@ def _outro_scene(title: str | None) -> dict[str, Any]:
     resolved_title = (title or "Untitled Animation").strip() or "Untitled Animation"
     return {
         "id": _VIDEO_OUTRO_SCENE_ID,
-        "duration": "1.8s",
+        "duration": "3.4s",
         "layout": "center",
         "auto_visible": False,
         "continuity": False,
+        "include_persistent_objects": False,
+        "show_progress_bar": False,
         "objects": [
             {
                 "type": "group",
@@ -342,17 +348,16 @@ def _outro_scene(title: str | None) -> dict[str, Any]:
                     "align": "center",
                 },
                 "children": [
-                    {"type": "token", "id": "__kaivra_outro_token", "content": "Complete"},
                     {
                         "type": "text",
                         "id": "__kaivra_outro_title",
-                        "content": resolved_title,
+                        "content": "Thanks for watching",
                         "style": "heading",
                     },
                     {
                         "type": "text",
                         "id": "__kaivra_outro_caption",
-                        "content": "You've reached the end of the walkthrough.",
+                        "content": resolved_title,
                         "style": "caption",
                     },
                 ],
@@ -360,22 +365,20 @@ def _outro_scene(title: str | None) -> dict[str, Any]:
         ],
         "animations": [
             {
-                "action": "fade-in",
-                "target": "__kaivra_outro_token",
-                "at": "0.1s",
-                "duration": "0.45s",
+                "action": "appear",
+                "target": "__kaivra_outro_stack",
+                "at": "0s",
             },
             {
-                "action": "fade-in",
+                "action": "appear",
                 "target": "__kaivra_outro_title",
-                "at": "0.3s",
-                "duration": "0.65s",
+                "at": "0s",
             },
             {
                 "action": "fade-in",
                 "target": "__kaivra_outro_caption",
-                "at": "0.85s",
-                "duration": "0.45s",
+                "at": "0.55s",
+                "duration": "0.7s",
             },
         ],
     }

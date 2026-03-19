@@ -93,7 +93,8 @@ class CairoRenderer:
             self._draw_narration(
                 ctx, scene.narration, scene_time, scene.duration, graph.width, graph.height
             )
-        self._draw_progress_bar(ctx, scene_time, scene.duration, graph.width)
+        if scene.show_progress_bar:
+            self._draw_progress_bar(ctx, scene_time, scene.duration, graph.width)
         ctx.restore()
 
     def render_frame_to_file(self, graph: SceneGraph, time: float, path: str) -> None:

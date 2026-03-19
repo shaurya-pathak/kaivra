@@ -83,6 +83,7 @@ def build_web_preview_html(
                 if scene.transition
                 else None,
                 "narration": scene.narration,
+                "showProgressBar": scene.show_progress_bar,
             }
         )
 

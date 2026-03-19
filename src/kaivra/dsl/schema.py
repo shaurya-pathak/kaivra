@@ -457,6 +457,12 @@ class SceneSpec(BaseModel):
     continuity: bool | None = Field(
         None, description="If true, inherit positions from previous scene for shared IDs"
     )
+    include_persistent_objects: bool = Field(
+        True, description="Whether document-level persistent objects should appear in this scene"
+    )
+    show_progress_bar: bool = Field(
+        True, description="Whether to render the bottom progress bar for this scene"
+    )
 
     camera: CameraSpec | None = Field(None, description="Camera configuration")
     camera_animations: list[CameraAnimSpec] = Field(
@@ -502,6 +508,10 @@ class MetaSpec(BaseModel):
     glow_release_padding: str = Field(
         "0.6s",
         description="Minimum tail time at scene end after highlight/pulse effects",
+    )
+    video_bookends: bool = Field(
+        True,
+        description="Whether rendered videos should include intro and outro bookend scenes.",
     )
 
     model_config = {"populate_by_name": True}

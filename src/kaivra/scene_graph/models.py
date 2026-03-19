@@ -125,6 +125,7 @@ class ResolvedScene:
     camera_keyframes: list[CameraKeyframe] = field(default_factory=list)
     transition: TransitionInfo | None = None
     narration: str | None = None
+    show_progress_bar: bool = True
 
 
 @dataclass

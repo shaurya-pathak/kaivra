@@ -127,6 +127,32 @@ def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):
     assert seen_scene_ids == [["__kaivra_video_intro__", "intro", "__kaivra_video_outro__"]]
 
 
+def test_video_render_can_disable_bookends_via_meta(tmp_path, monkeypatch):
+    doc = _narrated_doc(video_bookends=False)
+    seen_scene_ids: list[list[str]] = []
+
+    def fake_build_render_graph(_doc, **_kwargs):
+        seen_scene_ids.append([scene.id for scene in _doc.scenes])
+        return SimpleNamespace(total_duration=1.0), object()
+
+    def fake_export_video(_graph, _theme, output_path: str, **kwargs) -> None:
+        callback = kwargs.get("progress_callback")
+        if callback is not None:
+            callback(1, 1)
+        Path(output_path).write_bytes(b"video")
+
+    monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
+    monkeypatch.setattr(orchestration, "export_video", fake_export_video)
+
+    result = orchestration.render_document_artifact(
+        doc,
+        output_path=tmp_path / "silent.mp4",
+    )
+
+    assert result.artifact_path == str(tmp_path / "silent.mp4")
+    assert seen_scene_ids == [["intro"]]
+
+
 def test_resolve_theme_search_roots_prefers_nearest_ancestor_theme_dir(tmp_path):
     workspace = tmp_path / "workspace"
     docs_dir = workspace / "animations" / "nested"
@@ -171,12 +197,19 @@ def test_voice_render_preserves_explicit_subtitles_setting(tmp_path, monkeypatch
     assert seen_subtitles == [True]
 
 
-def _narrated_doc(*, show_subtitles: bool | None = None, legacy_show_narration: bool | None = None):
+def _narrated_doc(
+    *,
+    show_subtitles: bool | None = None,
+    legacy_show_narration: bool | None = None,
+    video_bookends: bool | None = None,
+):
     meta = {"title": "Narrated", "theme": "modern"}
     if show_subtitles is not None:
         meta["show_subtitles"] = show_subtitles
     if legacy_show_narration is not None:
         meta["show_narration"] = legacy_show_narration
+    if video_bookends is not None:
+        meta["video_bookends"] = video_bookends
 
     return parse_string(
         json.dumps(
