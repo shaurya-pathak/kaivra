@@ -1,0 +1,1366 @@
+{
+  "version": "1.1",
+  "meta": {
+    "title": "Binary Search",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern",
+    "show_subtitles": true,
+    "pacing": "educational",
+    "continuity": true,
+    "continuity_duration": "1.3s",
+    "glow_release_padding": "1.4s",
+    "video_bookends": true
+  },
+  "objects": [],
+  "scenes": [
+    {
+      "id": "intro",
+      "duration": "14s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Binary search is one of the most elegant algorithms ever invented. Given a sorted array, it finds any element in O(log n) time \u2014 meaning one item among a billion takes at most thirty comparisons.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Binary Search",
+          "style": "heading"
+        },
+        {
+          "type": "text",
+          "id": "subtitle",
+          "content": "Find any value in a sorted array in O(log n) time",
+          "style": "body"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "title",
+          "at": "0s",
+          "duration": "0.8s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "subtitle",
+          "at": "1.2s",
+          "duration": "0.8s",
+          "easing": "ease-in-out"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "the_problem",
+      "duration": "14s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Here's our sorted array \u2014 ten numbers in ascending order. We want to find where 27 lives. Brute force starts at the left and checks every single cell one by one. Watch how slow that gets.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "prob_heading",
+          "content": "The Problem: Find 27",
+          "style": "section-heading"
+        },
+        {
+          "type": "group",
+          "id": "prob_arr",
+          "children": [
+            {
+              "type": "token",
+              "id": "p_t0",
+              "content": "2\n[0]"
+            },
+            {
+              "type": "token",
+              "id": "p_t1",
+              "content": "5\n[1]"
+            },
+            {
+              "type": "token",
+              "id": "p_t2",
+              "content": "8\n[2]"
+            },
+            {
+              "type": "token",
+              "id": "p_t3",
+              "content": "12\n[3]"
+            },
+            {
+              "type": "token",
+              "id": "p_t4",
+              "content": "16\n[4]"
+            },
+            {
+              "type": "token",
+              "id": "p_t5",
+              "content": "23\n[5]"
+            },
+            {
+              "type": "token",
+              "id": "p_t6",
+              "content": "27\n[6]"
+            },
+            {
+              "type": "token",
+              "id": "p_t7",
+              "content": "38\n[7]"
+            },
+            {
+              "type": "token",
+              "id": "p_t8",
+              "content": "56\n[8]"
+            },
+            {
+              "type": "token",
+              "id": "p_t9",
+              "content": "72\n[9]"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "medium",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "text",
+          "id": "prob_label",
+          "content": "Linear search checks every cell from the left  \u2192  7 comparisons to reach 27",
+          "style": "caption"
+        }
+      ],
+      "animations": [
+        {
+          "action": "appear",
+          "target": "prob_heading",
+          "at": "0s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "prob_arr",
+          "at": "0.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t0",
+          "at": "2.5s",
+          "duration": "0.7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t1",
+          "at": "3.2s",
+          "duration": "0.7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t2",
+          "at": "3.9s",
+          "duration": "0.7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t3",
+          "at": "4.6s",
+          "duration": "0.7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t4",
+          "at": "5.3s",
+          "duration": "0.7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t5",
+          "at": "6.0s",
+          "duration": "0.7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "highlight",
+          "target": "p_t6",
+          "at": "6.7s",
+          "duration": "5s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "appear",
+          "target": "prob_label",
+          "at": "7.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "setup",
+      "duration": "16s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Binary search uses three pointers \u2014 left, right, and mid. Left starts at index zero, right at index nine. Mid is computed as the integer average: (0 + 9) divided by 2 equals 4. We'll check the middle element first.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "setup_heading",
+          "content": "Initialize  \u00b7  left = 0  \u00b7  right = 9  \u00b7  mid = 4  \u00b7  target = 27",
+          "style": "section-heading"
+        },
+        {
+          "type": "group",
+          "id": "setup_arr",
+          "children": [
+            {
+              "type": "token",
+              "id": "s0_t0",
+              "content": "2\n[0]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t1",
+              "content": "5\n[1]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t2",
+              "content": "8\n[2]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t3",
+              "content": "12\n[3]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t4",
+              "content": "16\n[4]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t5",
+              "content": "23\n[5]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t6",
+              "content": "27\n[6]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t7",
+              "content": "38\n[7]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t8",
+              "content": "56\n[8]"
+            },
+            {
+              "type": "token",
+              "id": "s0_t9",
+              "content": "72\n[9]"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "medium",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "group",
+          "id": "setup_state",
+          "children": [
+            {
+              "type": "box",
+              "id": "s0_left_box",
+              "content": "L = 0"
+            },
+            {
+              "type": "box",
+              "id": "s0_mid_box",
+              "content": "mid = 4"
+            },
+            {
+              "type": "box",
+              "id": "s0_right_box",
+              "content": "R = 9"
+            },
+            {
+              "type": "box",
+              "id": "s0_tgt_box",
+              "content": "target = 27"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "appear",
+          "target": "setup_heading",
+          "at": "0s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "setup_arr",
+          "at": "0.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "setup_state",
+          "at": "2s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "s0_left_box",
+          "at": "2s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "s0_right_box",
+          "at": "2.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "s0_mid_box",
+          "at": "4s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "s0_tgt_box",
+          "at": "4.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "s0_t0",
+          "at": "2s",
+          "duration": "10s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "s0_t9",
+          "at": "2.6s",
+          "duration": "9.4s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "s0_t4",
+          "at": "4s",
+          "duration": "8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "iter1",
+      "duration": "18s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "We check index four \u2014 that's 16. Our target is 27, so 16 is too small. That means every element to the left of mid is also too small \u2014 we can throw away the entire left half. Left jumps to mid plus one, which is 5.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "i1_heading",
+          "content": "Iteration 1  \u00b7  arr[4] = 16 < 27  \u2192  left = 5",
+          "style": "section-heading"
+        },
+        {
+          "type": "group",
+          "id": "i1_arr",
+          "children": [
+            {
+              "type": "token",
+              "id": "i1_t0",
+              "content": "2\n[0]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t1",
+              "content": "5\n[1]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t2",
+              "content": "8\n[2]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t3",
+              "content": "12\n[3]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t4",
+              "content": "16\n[4]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t5",
+              "content": "23\n[5]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t6",
+              "content": "27\n[6]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t7",
+              "content": "38\n[7]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t8",
+              "content": "56\n[8]"
+            },
+            {
+              "type": "token",
+              "id": "i1_t9",
+              "content": "72\n[9]"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "medium",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "group",
+          "id": "i1_state",
+          "children": [
+            {
+              "type": "box",
+              "id": "i1_left_box",
+              "content": "L = 5  (moved \u2192)"
+            },
+            {
+              "type": "box",
+              "id": "i1_mid_box",
+              "content": "mid = 4  \u2717 too small"
+            },
+            {
+              "type": "box",
+              "id": "i1_right_box",
+              "content": "R = 9"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "appear",
+          "target": "i1_heading",
+          "at": "0s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i1_arr",
+          "at": "0.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "i1_t4",
+          "at": "1.2s",
+          "duration": "3s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "appear",
+          "target": "i1_state",
+          "at": "1.2s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i1_mid_box",
+          "at": "1.2s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i1_t0",
+            "i1_t1",
+            "i1_t2",
+            "i1_t3",
+            "i1_t4"
+          ],
+          "at": "4.5s",
+          "duration": "7.5s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "appear",
+          "target": "i1_left_box",
+          "at": "5.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i1_right_box",
+          "at": "5.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i1_t5",
+            "i1_t6",
+            "i1_t7",
+            "i1_t8",
+            "i1_t9"
+          ],
+          "at": "5.5s",
+          "duration": "6.5s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "iter2",
+      "duration": "17s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Left is now five, right is nine. Mid is (5 + 9) divided by 2 equals 7. Index seven holds 38. Thirty-eight is bigger than 27, so we eliminate the right half this time. Right drops to mid minus one \u2014 that's 6.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "i2_heading",
+          "content": "Iteration 2  \u00b7  arr[7] = 38 > 27  \u2192  right = 6",
+          "style": "section-heading"
+        },
+        {
+          "type": "group",
+          "id": "i2_arr",
+          "children": [
+            {
+              "type": "token",
+              "id": "i2_t0",
+              "content": "2\n[0]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t1",
+              "content": "5\n[1]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t2",
+              "content": "8\n[2]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t3",
+              "content": "12\n[3]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t4",
+              "content": "16\n[4]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t5",
+              "content": "23\n[5]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t6",
+              "content": "27\n[6]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t7",
+              "content": "38\n[7]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t8",
+              "content": "56\n[8]"
+            },
+            {
+              "type": "token",
+              "id": "i2_t9",
+              "content": "72\n[9]"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "medium",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "group",
+          "id": "i2_state",
+          "children": [
+            {
+              "type": "box",
+              "id": "i2_left_box",
+              "content": "L = 5"
+            },
+            {
+              "type": "box",
+              "id": "i2_mid_box",
+              "content": "mid = 7  \u2717 too large"
+            },
+            {
+              "type": "box",
+              "id": "i2_right_box",
+              "content": "R = 6  (moved \u2190)"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "appear",
+          "target": "i2_heading",
+          "at": "0s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i2_arr",
+          "at": "0.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i2_t0",
+            "i2_t1",
+            "i2_t2",
+            "i2_t3",
+            "i2_t4"
+          ],
+          "at": "0s",
+          "duration": "12s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i2_t5",
+            "i2_t6",
+            "i2_t7",
+            "i2_t8",
+            "i2_t9"
+          ],
+          "at": "0.6s",
+          "duration": "3.4s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "appear",
+          "target": "i2_state",
+          "at": "1.2s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i2_left_box",
+          "at": "1.2s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "i2_t7",
+          "at": "1.5s",
+          "duration": "3s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "appear",
+          "target": "i2_mid_box",
+          "at": "1.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i2_t7",
+            "i2_t8",
+            "i2_t9"
+          ],
+          "at": "5s",
+          "duration": "7s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "appear",
+          "target": "i2_right_box",
+          "at": "5.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i2_t5",
+            "i2_t6"
+          ],
+          "at": "5.5s",
+          "duration": "6.5s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "iter3",
+      "duration": "16s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Left is five, right is six. Mid is (5 + 6) divided by 2 equals 5. Index five holds 23 \u2014 still less than 27. So left moves up to 6. Now left and right both point at the same index.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "i3_heading",
+          "content": "Iteration 3  \u00b7  arr[5] = 23 < 27  \u2192  left = 6",
+          "style": "section-heading"
+        },
+        {
+          "type": "group",
+          "id": "i3_arr",
+          "children": [
+            {
+              "type": "token",
+              "id": "i3_t0",
+              "content": "2\n[0]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t1",
+              "content": "5\n[1]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t2",
+              "content": "8\n[2]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t3",
+              "content": "12\n[3]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t4",
+              "content": "16\n[4]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t5",
+              "content": "23\n[5]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t6",
+              "content": "27\n[6]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t7",
+              "content": "38\n[7]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t8",
+              "content": "56\n[8]"
+            },
+            {
+              "type": "token",
+              "id": "i3_t9",
+              "content": "72\n[9]"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "medium",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "group",
+          "id": "i3_state",
+          "children": [
+            {
+              "type": "box",
+              "id": "i3_left_box",
+              "content": "L = 6  (moved \u2192)"
+            },
+            {
+              "type": "box",
+              "id": "i3_mid_box",
+              "content": "mid = 5  \u2717 too small"
+            },
+            {
+              "type": "box",
+              "id": "i3_right_box",
+              "content": "R = 6"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "appear",
+          "target": "i3_heading",
+          "at": "0s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i3_arr",
+          "at": "0.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i3_t0",
+            "i3_t1",
+            "i3_t2",
+            "i3_t3",
+            "i3_t4",
+            "i3_t7",
+            "i3_t8",
+            "i3_t9"
+          ],
+          "at": "0s",
+          "duration": "11s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "i3_t5",
+            "i3_t6"
+          ],
+          "at": "0.6s",
+          "duration": "3.4s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "i3_t5",
+          "at": "1.5s",
+          "duration": "3s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "appear",
+          "target": "i3_state",
+          "at": "1.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i3_mid_box",
+          "at": "1.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "i3_t5",
+          "at": "5s",
+          "duration": "6s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "appear",
+          "target": "i3_left_box",
+          "at": "5.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "i3_right_box",
+          "at": "5.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "i3_t6",
+          "at": "5.5s",
+          "duration": "5.5s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "found",
+      "duration": "14s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Left equals right equals six \u2014 mid is also six. We check index six. It's 27! That's our target. We return index 6 and we're done. Four comparisons total. Linear search would have needed seven.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "found_heading",
+          "content": "Iteration 4  \u00b7  arr[6] = 27 = 27  \u2192  Found! Return 6",
+          "style": "section-heading"
+        },
+        {
+          "type": "group",
+          "id": "found_arr",
+          "children": [
+            {
+              "type": "token",
+              "id": "f_t0",
+              "content": "2\n[0]"
+            },
+            {
+              "type": "token",
+              "id": "f_t1",
+              "content": "5\n[1]"
+            },
+            {
+              "type": "token",
+              "id": "f_t2",
+              "content": "8\n[2]"
+            },
+            {
+              "type": "token",
+              "id": "f_t3",
+              "content": "12\n[3]"
+            },
+            {
+              "type": "token",
+              "id": "f_t4",
+              "content": "16\n[4]"
+            },
+            {
+              "type": "token",
+              "id": "f_t5",
+              "content": "23\n[5]"
+            },
+            {
+              "type": "token",
+              "id": "f_t6",
+              "content": "27\n[6]"
+            },
+            {
+              "type": "token",
+              "id": "f_t7",
+              "content": "38\n[7]"
+            },
+            {
+              "type": "token",
+              "id": "f_t8",
+              "content": "56\n[8]"
+            },
+            {
+              "type": "token",
+              "id": "f_t9",
+              "content": "72\n[9]"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "medium",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "text",
+          "id": "found_result",
+          "content": "Binary search: 4 comparisons  vs  Linear search: 7 comparisons",
+          "style": "caption"
+        }
+      ],
+      "animations": [
+        {
+          "action": "appear",
+          "target": "found_heading",
+          "at": "0s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "appear",
+          "target": "found_arr",
+          "at": "0.6s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": [
+            "f_t0",
+            "f_t1",
+            "f_t2",
+            "f_t3",
+            "f_t4",
+            "f_t5",
+            "f_t7",
+            "f_t8",
+            "f_t9"
+          ],
+          "at": "0s",
+          "duration": "11s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "error"
+        },
+        {
+          "action": "highlight",
+          "target": "f_t6",
+          "at": "1.2s",
+          "duration": "9.8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "appear",
+          "target": "found_result",
+          "at": "4s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    },
+    {
+      "id": "complexity",
+      "duration": "20s",
+      "layout": {
+        "type": "stack",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "narration": "Each step cuts the remaining elements in half. The number of steps is log-base-two of n. Ten elements takes four steps. A million elements takes just twenty. A billion? Thirty steps. That's O(log n) time and O(1) space \u2014 no extra memory beyond three pointers.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "cplx_heading",
+          "content": "Time Complexity: O(log n)  \u00b7  Space: O(1)",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "cplx_table",
+          "children": [
+            {
+              "type": "box",
+              "id": "cplx_10",
+              "content": "n = 10\n\u2308log\u2082 10\u2309 = 4 steps"
+            },
+            {
+              "type": "box",
+              "id": "cplx_1m",
+              "content": "n = 1,000,000\n\u2308log\u2082 n\u2309 = 20 steps"
+            },
+            {
+              "type": "box",
+              "id": "cplx_1b",
+              "content": "n = 1,000,000,000\n\u2308log\u2082 n\u2309 = 30 steps"
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "group",
+          "id": "cplx_code",
+          "children": [
+            {
+              "type": "text",
+              "id": "code_label",
+              "content": "The Loop Invariant",
+              "style": "caption"
+            },
+            {
+              "type": "box",
+              "id": "code_box",
+              "content": "while left <= right:\n    mid = (left + right) // 2\n    if arr[mid] == target: return mid\n    elif arr[mid] < target: left = mid + 1\n    else: right = mid - 1\nreturn -1"
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "small",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "cplx_heading",
+          "at": "0s",
+          "duration": "0.8s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "cplx_table",
+          "at": "1.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "cplx_code",
+          "at": "8.5s",
+          "duration": "0.5s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "cplx_10",
+          "at": "1.5s",
+          "duration": "0.6s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "cplx_10",
+          "at": "1.5s",
+          "duration": "2s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "fade-in",
+          "target": "cplx_1m",
+          "at": "3.5s",
+          "duration": "0.6s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "cplx_1m",
+          "at": "3.5s",
+          "duration": "2s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "fade-in",
+          "target": "cplx_1b",
+          "at": "5.5s",
+          "duration": "0.6s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "cplx_1b",
+          "at": "5.5s",
+          "duration": "3s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "code_label",
+          "at": "8.5s",
+          "duration": "0.6s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "code_box",
+          "at": "9s",
+          "duration": "0.8s",
+          "easing": "ease-in-out"
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "camera_animations": []
+    }
+  ]
+}

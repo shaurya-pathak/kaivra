@@ -169,30 +169,11 @@ class KaivraMCPServer:
                 "resources": {"listChanged": False, "subscribe": False},
             },
             "instructions": (
-                "CRITICAL WORKFLOW: start_animation and quick_render produce a generic SCAFFOLD, not a finished animation. "
-                "The scaffold repeats the same layout template in every scene with only labels changed. "
-                "You MUST rewrite each scene's objects array with topic-specific visual elements before the result is presentable. "
-                "A good scene has unique boxes showing actual values or computations, connectors showing real relationships, "
-                "tokens with concrete labels, and groups with layouts that match what the scene is explaining. "
-                "A bad scene reuses the same abstract Source→Focus→Result lane with swapped titles — that is a slideshow, not an explainer. "
-                "\n\n"
-                "After calling start_animation: read the generated JSON, then rewrite each scene's objects and animations "
-                "to build a scene-specific diagram. Show real values, worked examples, before/after transformations, or "
-                "domain-specific relationships — not generic placeholder lanes. "
-                "Each scene should look structurally different from the others because each beat explains something different. "
-                "\n\n"
-                "Build scene-specific diagrams from boxes, connectors, groups, and tokens. "
-                "Reuse the same object id and content across consecutive scenes when a value carries forward so continuity creates a smooth carry-over transition. "
-                "Start scene objects hidden and reveal them with staggered fade-in timings that track the narration flow. "
-                "Write narration as conversational spoken English with contractions and direct address, not title-plus-definition prose. "
-                "Never narrate internal MCP setup, workspace roots, packaged tool paths, or authoring-tool logistics in the user-facing result. "
-                "When voice timing is available, mention labels and values in the same order you want highlights and reveals to land. "
-                "Use draw on connectors to show flow and causality. "
-                "Avoid walls of body text when narration is present. "
-                "\n\n"
-                "Workflow: start_animation → rewrite scenes → check_animation → preview_animation → render_animation. "
-                "Use quick_render only for a fast first draft, then rewrite scenes and re-render. "
-                "Read the authoring and pattern resources before inventing raw DSL shapes."
+                "start_animation and quick_render produce a scaffold — rewrite each scene's objects and animations before shipping. "
+                "Use fade-in for reveals, draw for connectors. Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "
+                "Add a carousel chapter tracker as a persistent document-level object and highlight the active step each scene. "
+                "Set template: one-column on scenes. Write narration as conversational spoken English. "
+                "Workflow: start_animation → rewrite scenes → check_animation → preview_animation → render_animation."
             ),
         }
 

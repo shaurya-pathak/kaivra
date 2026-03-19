@@ -19,12 +19,12 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     )[0]
     assert init_response["result"]["serverInfo"]["name"] == "kaivra-local-mcp"
     instructions = init_response["result"]["instructions"]
-    assert "SCAFFOLD" in instructions
-    assert "rewrite each scene" in instructions
-    assert "Use draw on connectors" in instructions
-    assert "Reuse the same object id and content" in instructions
+    assert "scaffold" in instructions
+    assert "rewrite" in instructions
+    assert "fade-in" in instructions
+    assert "draw" in instructions
+    assert "continuity" in instructions
     assert "conversational spoken English" in instructions
-    assert "same order you want highlights and reveals to land" in instructions
 
     assert (
         server.handle_message(
@@ -101,19 +101,15 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     pattern_catalog = read_resource("kaivra://pattern-catalog")["contents"][0]["text"]
     examples = read_resource("kaivra://example-catalog")["contents"][0]["text"]
 
-    assert "SCAFFOLD" in authoring
-    assert "rewrite each scene" in authoring
-    assert "Choose `pacing: educational` for narrated explainers" in authoring
-    assert "Do not describe MCP setup" in authoring
+    assert "visual_explainer" in authoring
+    assert "Rewrite" in authoring
+    assert "educational" in authoring
+    assert "fade-in" in authoring
     assert "same `id` and `content`" in authoring
-    assert "Sparse animation is the common failure mode" in authoring
-    assert "Use `draw` on connectors" in authoring
-    assert "Walls of body text when narration is present" in authoring
-    assert "What a bad scene looks like" in authoring
-    assert "What a good scene looks like" in authoring
-    assert "Default choice for narrated concept explainers" in pattern_catalog
+    assert "draw" in authoring
+    assert "carousel" in authoring
+    assert "template" in authoring
     assert "algorithm_walkthrough" in pattern_catalog
-    assert "persistent IDs" in pattern_catalog
     assert "Rewrite scene objects before shipping" in pattern_catalog
     assert "BAD: Scaffold scene" in examples
     assert "GOOD: Rewritten scene" in examples

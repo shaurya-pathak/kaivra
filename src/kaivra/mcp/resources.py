@@ -78,78 +78,48 @@ def read_resource(uri: str) -> dict[str, Any]:
 def _authoring_profile() -> str:
     return """# Kaivra Authoring Profile
 
-## The Most Important Rule
-
-`start_animation` and `quick_render` produce a SCAFFOLD — a generic skeleton where every scene has the same repeating layout with swapped labels. **You must rewrite each scene's `objects` and `animations` arrays** to create topic-specific diagrams before the animation is presentable.
-
-If every scene in your output has the same structure (heading → panel → lane with source/focus/result), you have shipped the scaffold, not an animation. Each scene must have its own unique visual composition that matches what the beat is explaining.
-
-### What a bad scene looks like (scaffold output, do NOT ship this):
-- Heading: "Plants add water vapor"
-- Panel with generic lane: Context token → Focus card → Outcome token
-- Same structure in every scene, only labels change
-- Looks like a slideshow of identical slides
-
-### What a good scene looks like (rewritten with topic-specific content):
-- Heading: "1. Compute One Hidden Weighted Sum"
-- A row of boxes showing actual computed values: "0.70 × 0.50 = 0.35" and "−0.40 × −0.30 = 0.12"
-- A result box: "0.35 + 0.12 = 0.47"
-- Connectors drawn from each term to the sum
-- Tokens labeling what each term means: "x1 contributes evidence to h1"
-- Staggered fade-ins timed to match narration
-
-The good scene uses boxes for real values, connectors for real data flow, tokens for real annotations, and layouts that match the content. It does NOT use a generic "previous → current → next" lane.
-
 ## Defaults
 
-- Prefer `visual_explainer` for narrated concept explainers.
-- Choose `pacing: educational` for narrated explainers, `balanced` for normal silent demos.
-- Prefer `modern` for polished UI-style explainers and `whiteboard` for sketch-style teaching.
-- Do not describe MCP setup, workspace paths, or authoring logistics in user-facing output.
+- `visual_explainer` for narrated explainers, `algorithm_walkthrough` for silent demos.
+- `pacing: educational` for narrated, `balanced` for silent.
+- `modern` theme by default, `whiteboard` for sketch-style teaching.
 
 ## Scene Construction
 
-- Build each scene from `box`, `group`, `connector`, `token`, and short `text` headings. Treat body copy as support, not the main event.
-- For technical topics, show actual values, computations, and before/after transformations.
-- For non-technical topics, show concrete examples, labeled relationships, and visual hierarchies — not abstract category labels.
-- Use `one-column` or `two-column` templates.
-- Use `draw` on connectors to reveal flow, dependency, and causality.
-- Each scene should have 4–10 meaningful visual objects, not 3 generic placeholders.
+- Set `template: "one-column"` (or `"two-column"`) on every scene.
+- Build scenes from `box`, `group`, `connector`, `token`, and short `text` headings.
+- Use `draw` on connectors to animate flow and causality.
+- Each scene should have enough objects to fully illustrate the concept.
+
+## Document-Level Objects
+
+- Persistent objects in the top-level `objects` array appear in every scene (when `include_persistent_objects: true`).
+- For multi-scene explainers, add a carousel chapter tracker: a group of tokens with `layout.type: "carousel"` and `position: "bottom"`. In each scene, `highlight` + `scale` the active step token so the viewer knows where they are.
 
 ## Animation and Reveals
 
-- Start scene objects hidden and reveal them with staggered `fade-in` timings that track the narration.
-- Every element that becomes relevant during the scene should have a corresponding reveal or emphasis.
-- Prefer `highlight`, `scale`, `fade-in`, light `pulse`, and connector `draw` over busy multi-effect motion.
-- Sparse animation is the common failure mode — keep adding reveals until the visuals track the explanation.
+- Use `fade-in` for reveals — it animates opacity smoothly. `appear` is an instant pop; only use it when you want a hard cut.
+- Start scene objects hidden (`auto_visible: false`) and reveal them with staggered `fade-in` timings that track the narration.
+- Use `draw` on connectors to animate them in. Connectors without `draw` appear instantly.
+- `fade-in` on a group ID reveals the group and all its children. You don't need separate animations for children unless you want them staggered.
 
 ## Narration
 
 - Write narration as conversational spoken English with contractions and direct address. Not "Title. Definition."
-- For voiced renders, mention labels and values in the same order you want reveals to land.
+- Mention labels and values in the order you want reveals to land.
 - Let the explanation determine scene length.
 
 ## Continuity
 
-- Reuse the same `id` and `content` across consecutive scenes when a value carries forward. The engine morphs it into its new position.
-- When a concept repeats the same operation, show one concrete worked example, then generalize. Do not narrate every repetition.
-
-## Avoid
-
-- The same generic lane/panel structure in every scene
-- `absolute` layout
-- Walls of body text when narration is present
-- One long text stack standing in for the full diagram
-- Raw DSL invention before checking the pattern and example resources
+- Reuse the same `id` and `content` across consecutive scenes when a value carries forward. The engine morphs it into its new position automatically.
+- When a data structure spans scenes (array, graph, pipeline), keep the same object IDs. Recreating with new IDs each scene kills the smooth morph.
+- When a concept repeats the same operation, show one concrete worked example, then generalize.
 
 ## Workflow
 
-1. Call `start_animation` with a `pattern`, `beats`, and `pacing`.
-2. **Read the generated JSON and rewrite each scene's objects and animations** to be topic-specific.
-3. Call `check_animation` on the rewritten file.
-4. Call `preview_animation` to inspect timing and layout.
-5. Call `render_animation` when the shape is good.
-6. `quick_render` is for fast first drafts only — always rewrite scenes before the final version.
+1. `start_animation` → scaffold.
+2. Rewrite each scene's objects and animations to be topic-specific.
+3. `check_animation` → `preview_animation` → `render_animation`.
 """
 
 
@@ -158,27 +128,21 @@ def _pattern_catalog() -> str:
 
 ## `visual_explainer`
 
-Default choice for narrated concept explainers. The starter produces a generic scaffold with the same panel layout in every scene. **You must rewrite each scene's objects** to build topic-specific diagrams — boxes with real values or concrete examples, connectors showing actual relationships, tokens with meaningful labels. The scaffold is a starting point for file structure and pacing, not a finished animation.
+Default for narrated concept explainers. Rewrite the scaffold scenes with topic-specific diagrams.
 
 ## `algorithm_walkthrough`
 
-Use when the user wants a sequence with a clear active step and surrounding context, like compare/swap/progress beats. Still benefits from scene-specific customization but the previous/current/next structure is more natural here.
+Sequence with a clear active step and surrounding context (compare/swap/progress beats).
 
 ## `architecture_explainer`
 
-Use when the user wants a systems or pipeline explanation with a stronger sidebar/main-content structure and visible connections between stages.
+Systems or pipeline explanation with sidebar/main-content structure and visible connections between stages.
 
 ## `before_after_comparison`
 
-Use when the user is contrasting states, revisions, or outcomes. The MCP compares each beat to the previous one.
+Contrasting states, revisions, or outcomes.
 
-## General advice
-
-- All patterns produce starter scaffolds. Rewrite scene objects before shipping.
-- Keep beats short and concrete. Put one idea in each beat.
-- Prefer connectors, tokens, and persistent IDs when flow or causality matters.
-- If several scenes have the same object structure with only labels changed, you are shipping a scaffold. Rewrite them.
-- Each scene should have a unique visual composition: different boxes, different connector topology, different grouping — matching what that specific beat explains.
+All patterns produce starter scaffolds. Rewrite scene objects before shipping. Keep beats short — one idea per beat.
 """
 
 
@@ -346,10 +310,76 @@ Reuse the same `id` and `content` in consecutive scenes — the engine glides th
 }
 ```
 
-## Architecture Explainer
+## Complete Multi-Scene Explainer Structure
 
-- `two-column` scenes
-- Sidebar context + main explanation card
-- Connectors and tokens to show the system flow
-- Compact text stacks instead of long paragraphs
+Shows document-level carousel, continuity carry-over, fade-in reveals, and connector draws composed together.
+
+```json
+{
+  "version": "1.1",
+  "meta": {
+    "title": "Example Explainer",
+    "resolution": [1920, 1080], "fps": 30, "theme": "modern",
+    "pacing": "educational", "continuity": true, "continuity_duration": "1.2s"
+  },
+  "objects": [
+    {
+      "type": "group", "id": "chapters", "position": "bottom",
+      "children": [
+        { "type": "token", "id": "step_compute", "content": "1  Compute" },
+        { "type": "token", "id": "step_activate", "content": "2  Activate" }
+      ],
+      "layout": { "type": "carousel", "gap": "medium", "direction": "horizontal",
+                   "align": "center", "curve": 16.0, "active_scale": 1.16, "inactive_scale": 0.92 }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "compute", "duration": "18s", "template": "one-column", "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Each weight scales one input. We multiply, then add everything together.",
+      "objects": [
+        { "type": "text", "id": "compute_title", "content": "1. Weighted Sum", "style": "heading" },
+        { "type": "box", "id": "term_a", "content": "0.70 × 0.50 = 0.35" },
+        { "type": "box", "id": "result_val", "content": "sum = 0.47" },
+        { "type": "connector", "id": "a_to_sum", "from": "term_a", "to": "result_val" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "compute_title", "at": "0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "term_a", "at": "0.8s", "duration": "0.8s" },
+        { "action": "draw", "target": "a_to_sum", "at": "2s", "duration": "1s" },
+        { "action": "fade-in", "target": "result_val", "at": "2.5s", "duration": "0.8s" },
+        { "action": "highlight", "target": "result_val", "at": "3.5s", "duration": "2s", "color": "success" },
+        { "action": "highlight", "target": "step_compute", "at": "0s", "duration": "16s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_compute", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    },
+    {
+      "id": "activate", "duration": "18s", "template": "one-column", "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Now we feed that sum through ReLU. Positive values survive, negatives get clipped to zero.",
+      "objects": [
+        { "type": "text", "id": "activate_title", "content": "2. Apply ReLU", "style": "heading" },
+        { "type": "box", "id": "result_val", "content": "sum = 0.47" },
+        { "type": "box", "id": "relu_out", "content": "ReLU(0.47) = 0.47" },
+        { "type": "connector", "id": "sum_to_relu", "from": "result_val", "to": "relu_out" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "activate_title", "at": "0s", "duration": "0.8s" },
+        { "action": "draw", "target": "sum_to_relu", "at": "2s", "duration": "1s" },
+        { "action": "fade-in", "target": "relu_out", "at": "2.5s", "duration": "0.8s" },
+        { "action": "highlight", "target": "relu_out", "at": "3.5s", "duration": "2s", "color": "success" },
+        { "action": "highlight", "target": "step_activate", "at": "0s", "duration": "16s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_activate", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    }
+  ]
+}
+```
+
+Key patterns in this example:
+- **Carousel**: document-level group with `layout.type: "carousel"` — each scene highlights its step
+- **Continuity**: `result_val` has the same id and content in both scenes — the engine morphs it smoothly
+- **fade-in** for all reveals, **draw** for connectors — no bare `appear`
+- **template: "one-column"** and **auto_visible: false** on every scene
 """
