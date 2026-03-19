@@ -11,6 +11,7 @@ from typing import Any
 
 from kaivra.mcp.resources import list_resources, read_resource
 from kaivra.mcp.workspace import KaivraWorkspace
+from kaivra.version import CURRENT_DSL_VERSION
 
 SERVER_NAME = "kaivra-local-mcp"
 SERVER_VERSION = "0.1.0"
@@ -169,6 +170,7 @@ class KaivraMCPServer:
                 "resources": {"listChanged": False, "subscribe": False},
             },
             "instructions": (
+                f'Kaivra DSL schema version: {CURRENT_DSL_VERSION}. Always set "version": "{CURRENT_DSL_VERSION}" in generated documents. '
                 "start_animation and quick_render produce a scaffold — rewrite each scene's objects and animations before shipping. "
                 "Use fade-in for reveals, draw for connectors. Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "
                 "Add a carousel chapter tracker as a persistent document-level object and highlight the active step each scene. "
@@ -653,12 +655,15 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
     if name == "add_theme":
         return f"Theme saved at {result['file_path']}."
     if name == "check_animation":
-        warning_count = len(result.get("warnings") or [])
+        warnings = result.get("warnings") or []
+        warning_count = len(warnings)
+        version_warnings = [w for w in warnings if w.startswith("VERSION:")]
+        version_note = f" {version_warnings[0]}" if version_warnings else ""
         if result.get("valid") and warning_count:
-            return f"Animation validated with {warning_count} warnings to review."
+            return f"Animation validated with {warning_count} warnings to review.{version_note}"
         if result.get("valid"):
             return "Animation validated cleanly."
-        return "Animation check found blocking issues."
+        return f"Animation check found blocking issues.{version_note}"
     if name == "quick_render":
         if result.get("status") == "ok":
             return (

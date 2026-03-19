@@ -41,6 +41,7 @@ from kaivra.themes.registry import (
     theme_from_dict,
     write_theme_file,
 )
+from kaivra.version import version_drift_warning
 
 ProgressReporter = Callable[[float, str], None]
 _READ_TIME_WORDS_PER_MINUTE = 150
@@ -471,6 +472,10 @@ class KaivraWorkspace:
 
         blocking = [finding for finding in findings if finding.startswith("ERROR")]
         warnings = [finding for finding in findings if not finding.startswith("ERROR")]
+
+        drift = version_drift_warning(doc.version)
+        if drift:
+            warnings.insert(0, f"VERSION: {drift}")
 
         if write_back:
             if resolved_path is None:
