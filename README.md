@@ -55,6 +55,7 @@ kaivra doctor
 ```
 
 If `doctor` is green, you are ready to use Kaivra locally and connect it to an MCP client.
+`kaivra doctor` also prints the resolved `kaivra-mcp` command path plus the default local voice model name and install directory.
 
 ### 6. Render a first silent sample
 
@@ -67,6 +68,7 @@ That validates, audits, and renders a quick PNG into `artifacts/quick-renders/`.
 ### 7. Optional: render a first narrated sample
 
 ```bash
+kaivra doctor
 kaivra download-model
 KAIVRA_VOICE_PROVIDER=local \
 kaivra quick-render examples/explainers/agentic_debug_agent_explainer.json --voice
@@ -103,6 +105,9 @@ If your client asks for a command, point it at the virtualenv binary directly:
 ```
 
 That same shape works for Claude Code, Cursor, and most other local stdio MCP clients. The key detail is: use the full path to `.venv/bin/kaivra-mcp` so the client does not need a manually activated shell.
+
+After any `uv pip install -e` or other package update that changes Kaivra code, restart your MCP client so it reloads the server process and picks up the new modules.
+Use `kaivra doctor` if you want to confirm the exact resolved `kaivra-mcp` binary path your client should launch.
 
 ## Quick Smoke Test
 
@@ -167,7 +172,7 @@ More setup detail lives in `docs/LOCAL_MCP.md`.
 - `kaivra mcp-install` writes a local MCP config for Claude Code or Cursor.
 - `kaivra render` exports PNG, MP4, or web-backed output.
 - `kaivra preview` builds the browser preview player.
-- `kaivra audit` samples scenes for overlap and clipping issues.
+- `kaivra audit` runs the full validation + audit suite by default; use `kaivra audit --layout-only` for the older sampled overlap/clipping pass.
 - `kaivra schema` prints the JSON Schema for authoring.
 
 ## Themes
@@ -204,6 +209,7 @@ uv pip install --python .venv/bin/python -e "./packages/kaivra-voice[local]"
 For local Sherpa narration after `make install-voice-local`, download the default model bundle with:
 
 ```bash
+kaivra doctor
 kaivra download-model
 ```
 

@@ -57,7 +57,7 @@ kaivra download-model
 kaivra doctor
 ```
 
-If `doctor` is green, point your MCP client at `.venv/bin/kaivra-mcp`.
+If `doctor` is green, point your MCP client at `.venv/bin/kaivra-mcp`. The doctor report prints the exact resolved command path plus the default local voice model name and destination directory.
 
 ## MCP Client Setup
 
@@ -85,6 +85,9 @@ kaivra mcp-install --client auto
 
 Use that same command path pattern for Cursor or any other local stdio MCP client.
 
+After any editable install or package update that changes Kaivra code, restart the MCP client so it reloads the `kaivra-mcp` process instead of serving stale imports.
+Use `kaivra doctor` if you want to verify the exact binary path your MCP client should be launching.
+
 ## Workflow
 
 The MCP is intentionally small and opinionated:
@@ -96,11 +99,17 @@ The MCP is intentionally small and opinionated:
 5. `preview_animation` writes an HTML preview and a PNG still.
 6. `render_animation` writes the final PNG, MP4, or WebM artifact.
 
-The MCP is tuned for visual explainers: prefer diagrams built from boxes, connectors, groups, and tokens, use connector `draw` animations to show flow, and keep narrated scenes around 10-15 seconds unless the user asks for a faster style.
+The MCP is tuned for visual explainers: prefer `visual_explainer` for narrated flows, build scene-specific diagrams from boxes, connectors, groups, and tokens, and use connector `draw` animations to show flow. Reuse the same `id` and the same content when a value carries from one scene into the next so continuity can create a smooth carry-over. Prefer `fade-in` for smooth reveals, and use `appear` when you want an intentional instant snap-in. Revealing a group will also reveal descendants that do not have their own visibility animation.
 
 `add_theme` accepts a theme name, an optional `base_theme`, and an `overrides` object whose keys match the `ThemeSpec` fields, such as `accent`, `background_color`, `box_fill`, or `box_border`.
 
 If you edit JSON directly, use `meta.show_subtitles` when you want narration text rendered on screen. Older `meta.show_narration` files still load, but `show_subtitles` is the preferred field name now.
+
+For local narration, the recommended loop is:
+
+1. `kaivra doctor`
+2. `kaivra download-model`
+3. `KAIVRA_VOICE_PROVIDER=local kaivra quick-render <file> --voice`
 
 ## Patterns
 

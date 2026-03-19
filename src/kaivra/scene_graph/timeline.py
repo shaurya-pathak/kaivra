@@ -43,7 +43,16 @@ def apply_animations_at_time(
 
         match kf.action:
             case AnimAction.APPEAR:
-                if t >= kf.start_time:
+                if kf.duration > 0:
+                    if progress is not None:
+                        node.visible = True
+                        node.opacity = max(node.opacity, progress)
+                        node.draw_progress = 1.0
+                    elif t >= kf.start_time + kf.duration:
+                        node.visible = True
+                        node.opacity = 1.0
+                        node.draw_progress = 1.0
+                elif t >= kf.start_time:
                     node.visible = True
                     node.opacity = 1.0
                     node.draw_progress = 1.0
@@ -175,6 +184,24 @@ def apply_animations_at_time(
                                 min(1.0, (t - phase_start) / phase_dur) if phase_dur > 0 else 1.0
                             )
                             node.draw_progress = phase_progress
+
+            case AnimAction.REPLACE:
+                replacement = nodes.get(kf.with_id) if kf.with_id else None
+                if progress is not None:
+                    node.visible = True
+                    node.opacity = max(0.0, 1.0 - progress)
+                    node.draw_progress = 1.0
+                    if replacement is not None:
+                        replacement.visible = True
+                        replacement.opacity = max(replacement.opacity, progress)
+                        replacement.draw_progress = 1.0
+                elif t >= kf.start_time + kf.duration:
+                    node.visible = False
+                    node.opacity = 0.0
+                    if replacement is not None:
+                        replacement.visible = True
+                        replacement.opacity = 1.0
+                        replacement.draw_progress = 1.0
 
             case _:
                 # Default: make visible if animation has started

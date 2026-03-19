@@ -36,6 +36,13 @@ from kaivra.scene_graph.models import (
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.geometry import Rect
 
+_GROUP_VISIBILITY_ACTIONS = {
+    AnimAction.APPEAR,
+    AnimAction.DISAPPEAR,
+    AnimAction.FADE_IN,
+    AnimAction.FADE_OUT,
+}
+
 
 def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     """Convert a DocumentSpec into a fully resolved SceneGraph."""
@@ -219,6 +226,7 @@ def _build_scene(
         else _auto_duration(spec.model_copy(update={"animations": expanded_anims}))
     )
     timeline = _resolve_animations(expanded_anims, duration)
+    timeline = _propagate_group_visibility(timeline, nodes)
     timeline = _normalize_timeline(timeline, duration, glow_release_padding)
 
     # Camera
@@ -957,7 +965,7 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
     keyframes = []
     for anim in anims:
         start = parse_duration(anim.at) if anim.at else 0.0
-        duration = parse_duration(anim.duration)
+        duration = _resolve_animation_duration(anim)
         stagger = parse_duration(anim.stagger) if anim.stagger else 0.0
 
         targets = (
@@ -1012,11 +1020,93 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                 from_offset_x=anim.from_offset_x,
                 from_offset_y=anim.from_offset_y,
                 to_id=anim.to_id,
+                with_id=anim.with_id,
             )
             keyframes.append(kf)
 
     keyframes.sort(key=lambda k: k.start_time)
     return keyframes
+
+
+def _resolve_animation_duration(anim: AnimSpec) -> float:
+    if anim.action == AnimAction.APPEAR and "duration" not in anim.model_fields_set:
+        return 0.0
+    return parse_duration(anim.duration)
+
+
+def _propagate_group_visibility(
+    timeline: list[AnimationKeyframe],
+    nodes: list[SceneNode],
+) -> list[AnimationKeyframe]:
+    parent_map = _build_parent_map(nodes)
+    child_map: dict[str, list[str]] = {}
+    for child_id, parent_id in parent_map.items():
+        child_map.setdefault(parent_id, []).append(child_id)
+
+    own_visibility_ids = {kf.target_id for kf in timeline if kf.action in _GROUP_VISIBILITY_ACTIONS}
+    inherited: list[AnimationKeyframe] = []
+    seen: set[tuple[str, AnimAction, float, float, str]] = set()
+
+    for kf in timeline:
+        if kf.action not in _GROUP_VISIBILITY_ACTIONS:
+            continue
+        descendants = _descendant_ids(
+            kf.target_id,
+            child_map,
+            stop_ids=own_visibility_ids - {kf.target_id},
+        )
+        if not descendants:
+            continue
+        for descendant_id in descendants:
+            key = (descendant_id, kf.action, kf.start_time, kf.duration, kf.easing)
+            if key in seen:
+                continue
+            seen.add(key)
+            inherited.append(
+                AnimationKeyframe(
+                    target_id=descendant_id,
+                    action=kf.action,
+                    start_time=kf.start_time,
+                    duration=kf.duration,
+                    easing=kf.easing,
+                    targets=kf.targets,
+                    to_value=kf.to_value,
+                    from_value=kf.from_value,
+                    style=kf.style,
+                    color=kf.color,
+                    stagger=kf.stagger,
+                    phases=kf.phases,
+                    offset_x=kf.offset_x,
+                    offset_y=kf.offset_y,
+                    from_offset_x=kf.from_offset_x,
+                    from_offset_y=kf.from_offset_y,
+                    to_id=kf.to_id,
+                    with_id=kf.with_id,
+                )
+            )
+
+    combined = list(timeline)
+    combined.extend(inherited)
+    combined.sort(key=lambda k: k.start_time)
+    return combined
+
+
+def _descendant_ids(
+    node_id: str,
+    child_map: dict[str, list[str]],
+    *,
+    stop_ids: set[str] | None = None,
+) -> list[str]:
+    descendants: list[str] = []
+    stop_ids = stop_ids or set()
+    pending = list(child_map.get(node_id, []))
+    while pending:
+        current = pending.pop(0)
+        if current in stop_ids:
+            continue
+        descendants.append(current)
+        pending.extend(child_map.get(current, []))
+    return descendants
 
 
 def _clamp_to_canvas(
@@ -1044,6 +1134,7 @@ def _position_callouts(
     from kaivra.layout.strategies._sizing import estimate_object_size
 
     gap = theme.resolve_gap("medium")
+    object_specs = _object_specs_by_id(objects)
     for obj in objects:
         if obj.type != ObjectType.CALLOUT:
             continue
@@ -1060,35 +1151,98 @@ def _position_callouts(
         size = estimate_object_size(obj, theme)
         w, h = size.width, size.height
 
-        # Choose side
         side = obj.callout_side or obj.position
-        if side not in {"right", "left", "top", "bottom"}:
-            space_right = canvas.right - (target_rect.right + gap + w)
-            space_left = target_rect.x - gap - w - canvas.x
-            space_top = target_rect.y - gap - h - canvas.y
-            space_bottom = canvas.bottom - (target_rect.bottom + gap + h)
-            candidates = {
-                "right": space_right,
-                "left": space_left,
-                "top": space_top,
-                "bottom": space_bottom,
-            }
-            side = max(candidates, key=candidates.get)
+        if side in {"right", "left", "top", "bottom"}:
+            positions[obj_id] = _callout_rect_for_side(target_rect, side, gap, w, h)
+            continue
 
-        if side == "right":
-            x = target_rect.right + gap
-            y = target_rect.center.y - h / 2
-        elif side == "left":
-            x = target_rect.x - gap - w
-            y = target_rect.center.y - h / 2
-        elif side == "top":
-            x = target_rect.center.x - w / 2
-            y = target_rect.y - gap - h
-        else:  # bottom
-            x = target_rect.center.x - w / 2
-            y = target_rect.bottom + gap
+        candidate_sides = ["right", "left", "top", "bottom"]
+        other_rects = [
+            rect
+            for other_id, rect in positions.items()
+            if other_id != target_id
+            and other_id != obj_id
+            and _callout_overlap_candidate(object_specs.get(other_id))
+        ]
+        scored = []
+        for index, candidate_side in enumerate(candidate_sides):
+            candidate_rect = _callout_rect_for_side(target_rect, candidate_side, gap, w, h)
+            scored.append(
+                (
+                    _callout_score(
+                        candidate_rect, other_rects, canvas, target_rect, candidate_side
+                    ),
+                    index,
+                    candidate_rect,
+                )
+            )
+        scored.sort(key=lambda item: (item[0], item[1]))
+        positions[obj_id] = scored[0][2]
 
-        positions[obj_id] = Rect(x, y, w, h)
+
+def _object_specs_by_id(objects: list[ObjectSpec]) -> dict[str, ObjectSpec]:
+    object_specs: dict[str, ObjectSpec] = {}
+
+    def visit(items: list[ObjectSpec]) -> None:
+        for item in items:
+            if item.id:
+                object_specs[item.id] = item
+            if item.children:
+                visit(item.children)
+
+    visit(objects)
+    return object_specs
+
+
+def _callout_rect_for_side(
+    target_rect: Rect,
+    side: str,
+    gap: float,
+    width: float,
+    height: float,
+) -> Rect:
+    if side == "right":
+        return Rect(target_rect.right + gap, target_rect.center.y - height / 2, width, height)
+    if side == "left":
+        return Rect(target_rect.x - gap - width, target_rect.center.y - height / 2, width, height)
+    if side == "top":
+        return Rect(target_rect.center.x - width / 2, target_rect.y - gap - height, width, height)
+    return Rect(target_rect.center.x - width / 2, target_rect.bottom + gap, width, height)
+
+
+def _callout_overlap_candidate(spec: ObjectSpec | None) -> bool:
+    if spec is None:
+        return True
+    return spec.type not in {ObjectType.GROUP, ObjectType.CONNECTOR}
+
+
+def _callout_score(
+    candidate: Rect,
+    other_rects: list[Rect],
+    canvas: Rect,
+    target_rect: Rect,
+    side: str,
+) -> tuple[float, float, float]:
+    overlap_area = sum(
+        intersection.area
+        for rect in other_rects
+        if (intersection := candidate.intersection(rect)) is not None
+    )
+    overflow_area = candidate.area - (
+        candidate.intersection(canvas).area if candidate.intersects(canvas) else 0.0
+    )
+    free_space = _callout_free_space(target_rect, canvas, candidate, side)
+    return (overflow_area, overlap_area, -free_space)
+
+
+def _callout_free_space(target_rect: Rect, canvas: Rect, candidate: Rect, side: str) -> float:
+    if side == "right":
+        return canvas.right - candidate.right
+    if side == "left":
+        return candidate.x - canvas.x
+    if side == "top":
+        return candidate.y - canvas.y
+    return canvas.bottom - candidate.bottom
 
 
 def _compute_grid_positions(
@@ -1404,7 +1558,7 @@ def _auto_duration(spec: SceneSpec) -> float:
     max_end = 5.0  # default
     for anim in spec.animations:
         start = parse_duration(anim.at) if anim.at else 0.0
-        dur = parse_duration(anim.duration)
+        dur = _resolve_animation_duration(anim)
         stagger = parse_duration(anim.stagger) if anim.stagger else 0.0
         n_targets = len(anim.target) if isinstance(anim.target, list) else 1
         end = start + dur + stagger * (n_targets - 1)

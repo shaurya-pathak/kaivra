@@ -5,7 +5,7 @@ import types
 from pathlib import Path
 
 import pytest
-from kaivra_voice.local import LocalProvider, resolve_local_model_paths
+from kaivra_voice.local import LocalProvider, _audio_samples_to_wav_bytes, resolve_local_model_paths
 
 
 def test_local_provider_generate_autodiscovers_tokens_and_data_dir(tmp_path, monkeypatch):
@@ -28,10 +28,7 @@ def test_local_provider_generate_autodiscovers_tokens_and_data_dir(tmp_path, mon
 
     class FakeAudio:
         sample_rate = 22050
-
-        @staticmethod
-        def samples_as_bytes() -> bytes:
-            return b"\x00\x00"
+        samples = [0.0, 0.25, -0.25]
 
     class FakeOfflineTts:
         def __init__(self, _config: object) -> None:
@@ -59,6 +56,34 @@ def test_local_provider_generate_autodiscovers_tokens_and_data_dir(tmp_path, mon
     assert Path(captured["model"]) == bundle_dir / "voice.onnx"
     assert Path(captured["tokens"]) == bundle_dir / "tokens.txt"
     assert Path(captured["data_dir"]) == bundle_dir / "espeak-ng-data"
+
+
+def test_audio_samples_to_wav_bytes_clips_and_converts_float_samples() -> None:
+    class FakeAudio:
+        samples = [-1.5, -0.25, 0.0, 0.25, 1.5]
+
+    pcm = _audio_samples_to_wav_bytes(FakeAudio())
+
+    assert pcm == b"\x01\x80\x01\xe0\x00\x00\xff\x1f\xff\x7f"
+
+
+@pytest.mark.integration
+def test_local_provider_generate_with_real_sherpa_when_available() -> None:
+    pytest.importorskip("sherpa_onnx")
+
+    try:
+        resolved = resolve_local_model_paths(model_path=None, tokens_path=None, data_dir=None)
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+
+    result = LocalProvider(
+        model_path=resolved.model_path,
+        tokens_path=resolved.tokens_path,
+        data_dir=resolved.data_dir,
+    ).generate("integration", "Hello from Kaivra.")
+
+    assert result.duration_seconds > 0
+    assert Path(result.audio_path).exists()
 
 
 def test_resolve_local_model_paths_falls_back_to_default_download_root(tmp_path, monkeypatch):

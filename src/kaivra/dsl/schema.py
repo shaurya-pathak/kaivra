@@ -10,7 +10,7 @@ import re
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -56,6 +56,7 @@ class AnimAction(str, Enum):
     PULSE = "pulse"
     # Complex
     BUILD = "build"
+    REPLACE = "replace"
 
 
 class EasingType(str, Enum):
@@ -291,10 +292,16 @@ class AnimSpec(BaseModel):
     """Specification for an animation action."""
 
     action: AnimAction = Field(
-        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build"
+        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build, replace"
     )
     target: str | list[str] | None = Field(None, description="Object ID(s) to animate")
     to_id: str | None = Field(None, description="Destination object ID (for move-to)")
+    with_id: str | None = Field(
+        None,
+        validation_alias=AliasChoices("with", "with_id"),
+        serialization_alias="with",
+        description="Replacement object ID for replace animations",
+    )
 
     # Timing
     at: str | None = Field(None, description="Start time, e.g. '0.5s' or '200ms'")
@@ -341,6 +348,16 @@ class AnimSpec(BaseModel):
         if v is not None:
             parse_duration(v)  # validates format
         return v
+
+    @model_validator(mode="after")
+    def validate_replace_shape(self) -> "AnimSpec":
+        if self.action != AnimAction.REPLACE:
+            return self
+        if not isinstance(self.target, str) or not self.target.strip():
+            raise ValueError("Replace animations require a single string target ID.")
+        if not self.with_id:
+            raise ValueError("Replace animations require a `with` object ID.")
+        return self
 
 
 # ---------------------------------------------------------------------------

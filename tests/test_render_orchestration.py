@@ -38,7 +38,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
         Path(output_path).write_bytes(b"wav")
 
     def fake_build_render_graph(_doc, **_kwargs):
-        steps.append(("retime", _doc.meta.show_subtitles))
+        steps.append(("retime", _doc.meta.show_subtitles, [scene.id for scene in _doc.scenes]))
         return SimpleNamespace(total_duration=2.25), object()
 
     def fake_export_video(_graph, _theme, output_path: str, **kwargs) -> None:
@@ -76,11 +76,17 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
 
     assert result.artifact_path == str(tmp_path / "narrated.mp4")
     assert result.duration_seconds == 2.25
+    assert result.retimed_document_path == str(tmp_path / "narrated.retimed.json")
+    assert Path(result.retimed_document_path).exists()
     assert ("provider", "dummy") in steps
     assert ("generate", "intro", "voice-123") in steps
-    assert ("retime", False) in steps
+    assert (
+        "retime",
+        False,
+        ["__kaivra_video_intro__", "intro", "__kaivra_video_outro__"],
+    ) in steps
     assert ("normalize", ".mp3", ".wav") in steps
-    assert ("concat", [".wav"], ".wav") in steps
+    assert ("concat", [".wav", ".wav", ".wav"], ".wav") in steps
     assert ("mux", ".wav", ".mp4") in steps
     assert "Discovering voice provider: dummy." in progress_messages
     assert "Generating voice for scene intro." in progress_messages
@@ -88,6 +94,37 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     assert "Rendering a silent video." in progress_messages
     assert "Concatenating narration audio." in progress_messages
     assert "Muxing narration onto the rendered video." in progress_messages
+
+    retimed = json.loads(Path(result.retimed_document_path).read_text(encoding="utf-8"))
+    assert retimed["scenes"][0]["id"] == "__kaivra_video_intro__"
+    assert retimed["scenes"][1]["duration"] == "2.25s"
+    assert retimed["scenes"][-1]["id"] == "__kaivra_video_outro__"
+
+
+def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):
+    doc = _narrated_doc()
+    seen_scene_ids: list[list[str]] = []
+
+    def fake_build_render_graph(_doc, **_kwargs):
+        seen_scene_ids.append([scene.id for scene in _doc.scenes])
+        return SimpleNamespace(total_duration=4.6), object()
+
+    def fake_export_video(_graph, _theme, output_path: str, **kwargs) -> None:
+        callback = kwargs.get("progress_callback")
+        if callback is not None:
+            callback(1, 1)
+        Path(output_path).write_bytes(b"video")
+
+    monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
+    monkeypatch.setattr(orchestration, "export_video", fake_export_video)
+
+    result = orchestration.render_document_artifact(
+        doc,
+        output_path=tmp_path / "silent.mp4",
+    )
+
+    assert result.artifact_path == str(tmp_path / "silent.mp4")
+    assert seen_scene_ids == [["__kaivra_video_intro__", "intro", "__kaivra_video_outro__"]]
 
 
 def test_resolve_theme_search_roots_prefers_nearest_ancestor_theme_dir(tmp_path):

@@ -50,6 +50,42 @@ _NARRATION_OVERAGE_RATIO = 1.15
 _REDUNDANCY_WORD_THRESHOLD = 6
 _REDUNDANCY_TOKEN_OVERLAP = 0.72
 _REDUNDANCY_SEQUENCE_SIMILARITY = 0.78
+_EXPLANATION_MIN_WORDS = 12
+_EXPLANATION_MARKERS = (
+    "because",
+    "so that",
+    "so we can",
+    "this means",
+    "that means",
+    "which means",
+    "lets us",
+    "let's us",
+    "helps",
+    "matters",
+    "purpose",
+    "used to",
+    "turns",
+    "controls",
+    "keeps",
+    "convert",
+    "compress",
+    "pool",
+    "why",
+)
+_MECHANICAL_SCENE_MARKERS = (
+    "weight",
+    "weights",
+    "bias",
+    "relu",
+    "sigmoid",
+    "logit",
+    "activation",
+    "weighted sum",
+    "multiply",
+    "multiplied",
+    "probability",
+    "pre-activation",
+)
 
 DEFAULT_LOCAL_MODEL_NAME = "vits-piper-en_US-amy-low"
 DEFAULT_LOCAL_MODEL_DIR = Path.home() / ".kaivra" / "models" / DEFAULT_LOCAL_MODEL_NAME
@@ -150,6 +186,7 @@ class KaivraWorkspace:
         theme: str | None,
         audience: str | None,
         include_narration: bool,
+        show_subtitles: bool | None = None,
         pacing: str | None = None,
         slug: str | None = None,
     ) -> dict[str, Any]:
@@ -163,6 +200,7 @@ class KaivraWorkspace:
             theme=chosen_theme,
             audience=audience,
             include_narration=include_narration,
+            show_subtitles=show_subtitles,
             pacing=pacing,
         )
         chosen_slug = infer_slug(slug or title)
@@ -221,6 +259,7 @@ class KaivraWorkspace:
         file_path: str | None = None,
         dsl_json: str | None = None,
         write_back: bool = False,
+        voice: bool = False,
     ) -> dict[str, Any]:
         """Validate and audit a Kaivra document from disk or raw JSON."""
         if file_path is None and dsl_json is None:
@@ -246,6 +285,7 @@ class KaivraWorkspace:
             findings, recommended_edits = _audit_document_report(
                 doc,
                 theme_search_roots=theme_roots,
+                voice=voice,
             )
         except Exception as exc:
             return {
@@ -269,11 +309,7 @@ class KaivraWorkspace:
 
         return {
             "valid": not blocking,
-            "summary": (
-                "Kaivra validation and audit passed."
-                if not blocking and not warnings
-                else "Kaivra found issues to review before final rendering."
-            ),
+            "summary": _check_summary(blocking_count=len(blocking), warning_count=len(warnings)),
             "blocking_issues": blocking,
             "warnings": warnings,
             "audit_findings": findings,
@@ -291,10 +327,11 @@ class KaivraWorkspace:
         """Write a preview HTML file and first-frame PNG to the workspace."""
         doc, resolved_path = self._load_document(file_path=file_path)
         base_name = infer_slug(output_name or resolved_path.stem)
+        output_paths = self._workspace_paths_for_document(resolved_path)
 
-        self.paths.previews_dir.mkdir(parents=True, exist_ok=True)
-        html_path = self.paths.previews_dir / f"{base_name}.html"
-        png_path = self.paths.previews_dir / f"{base_name}.png"
+        output_paths.previews_dir.mkdir(parents=True, exist_ok=True)
+        html_path = output_paths.previews_dir / f"{base_name}.html"
+        png_path = output_paths.previews_dir / f"{base_name}.png"
         theme_roots = self._theme_roots_for_document(resolved_path)
 
         write_web_preview(doc, html_path, theme_search_roots=theme_roots)
@@ -335,9 +372,10 @@ class KaivraWorkspace:
         if voice and (audio_abs or audio_timings_abs):
             raise ValueError("voice cannot be combined with audio_path or audio_timings_path.")
 
-        self.paths.renders_dir.mkdir(parents=True, exist_ok=True)
+        output_paths = self._workspace_paths_for_document(resolved_path)
+        output_paths.renders_dir.mkdir(parents=True, exist_ok=True)
         base_name = infer_slug(output_name or resolved_path.stem)
-        artifact_path = self.paths.renders_dir / f"{base_name}.{chosen_format}"
+        artifact_path = output_paths.renders_dir / f"{base_name}.{chosen_format}"
         theme_roots = self._theme_roots_for_document(resolved_path)
         result = render_document_artifact(
             doc,
@@ -358,6 +396,7 @@ class KaivraWorkspace:
             "artifact_path": result.artifact_path,
             "duration_seconds": result.duration_seconds,
             "warnings": list(result.warnings),
+            "retimed_document_path": result.retimed_document_path,
             "source_file_path": str(resolved_path),
         }
 
@@ -371,6 +410,7 @@ class KaivraWorkspace:
         theme: str | None = None,
         audience: str | None = None,
         include_narration: bool = False,
+        show_subtitles: bool | None = None,
         pacing: str | None = None,
         slug: str | None = None,
         format: str | None = None,
@@ -396,6 +436,7 @@ class KaivraWorkspace:
                 theme=theme,
                 audience=audience,
                 include_narration=include_narration,
+                show_subtitles=show_subtitles,
                 pacing=pacing,
                 slug=slug,
             )
@@ -403,7 +444,7 @@ class KaivraWorkspace:
 
         if progress is not None:
             progress(0.15, "Validating and auditing the animation.")
-        checked = self.check_animation(file_path=source_file_path)
+        checked = self.check_animation(file_path=source_file_path, voice=voice)
         chosen_format = _default_quick_render_format(
             requested_format=format,
             include_narration=include_narration,
@@ -698,9 +739,19 @@ class KaivraWorkspace:
             "workspace_root": str(self.root),
             "checks": checks,
             "issues": issues,
+            "mcp_command": mcp_command,
+            "local_voice": {
+                "model_name": DEFAULT_LOCAL_MODEL_NAME,
+                "model_dir": str(DEFAULT_LOCAL_MODEL_DIR),
+                "download_command": f"kaivra download-model --model-name {DEFAULT_LOCAL_MODEL_NAME}",
+            },
             "next_steps": [
                 "Run `kaivra mcp-install --client auto` after the doctor is green.",
-                "Then run `kaivra quick-render examples/algorithms/bubble_sort.json` for a first render.",
+                (
+                    "For local narration, run `kaivra download-model`, then "
+                    "`KAIVRA_VOICE_PROVIDER=local kaivra quick-render "
+                    "examples/explainers/agentic_debug_agent_explainer.json --voice`."
+                ),
             ],
             "claude_code": {
                 "command": mcp_command,
@@ -763,6 +814,30 @@ class KaivraWorkspace:
             return [self.paths.themes_dir]
         return resolve_theme_search_roots(resolved_path, cwd=self.root)
 
+    def _workspace_paths_for_document(self, resolved_path: Path | None) -> WorkspacePaths:
+        root = self._workspace_root_for_document(resolved_path)
+        return WorkspacePaths(
+            root=root,
+            animations_dir=root / "animations",
+            themes_dir=root / "themes",
+            previews_dir=root / "artifacts" / "previews",
+            renders_dir=root / "artifacts" / "renders",
+        )
+
+    def _workspace_root_for_document(self, resolved_path: Path | None) -> Path:
+        if resolved_path is None:
+            return self.root
+        if self.root != Path("/") and resolved_path.is_relative_to(self.root):
+            return self.root
+
+        search_start = resolved_path if resolved_path.is_dir() else resolved_path.parent
+        for parent in (search_start, *search_start.parents):
+            if parent.name == "animations":
+                return parent.parent
+            if any((parent / name).is_dir() for name in ("animations", "themes", "artifacts")):
+                return parent
+        return search_start
+
     @staticmethod
     def _unique_path(path: Path) -> Path:
         if not path.exists():
@@ -801,10 +876,16 @@ def format_doctor_report(report: dict[str, Any]) -> str:
         [
             "",
             "MCP Config:",
+            f"- Resolved kaivra-mcp command: {report.get('mcp_command') or 'not found'}",
             f"- Claude Code config: {report['claude_code']['config_path']}",
             f"- Cursor config: {report['cursor']['config_path']}",
             "- Suggested Claude Code config:",
             report["claude_code"]["config_json"],
+            "",
+            "Local Voice:",
+            f"- Default model name: {report['local_voice']['model_name']}",
+            f"- Default model dir: {report['local_voice']['model_dir']}",
+            f"- Download command: {report['local_voice']['download_command']}",
         ]
     )
     return "\n".join(lines)
@@ -833,6 +914,7 @@ def _audit_document_report(
     doc: Any,
     *,
     theme_search_roots: list[Path] | None = None,
+    voice: bool = False,
 ) -> tuple[list[str], list[dict[str, str | int | float | bool | None]]]:
     graph, _theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
     findings: list[CheckFinding] = []
@@ -861,6 +943,14 @@ def _audit_document_report(
                 resolved_scene=resolved_scene,
                 show_subtitles=doc.meta.show_subtitles,
                 scene_refs=in_scope_refs,
+                voice=voice,
+            )
+        )
+        findings.extend(
+            _explanatory_narration_findings(
+                scene_spec=scene_spec,
+                resolved_scene=resolved_scene,
+                scene_refs=in_scope_refs,
             )
         )
         findings.extend(
@@ -868,8 +958,18 @@ def _audit_document_report(
                 scene_id=resolved_scene.id,
                 scene_spec=scene_spec,
                 scene_index=scene_index,
+                resolved_scene=resolved_scene,
                 object_refs=in_scope_refs,
                 available_ids=in_scope_ids,
+            )
+        )
+        findings.extend(
+            _scene_visibility_findings(
+                scene_id=resolved_scene.id,
+                scene_spec=scene_spec,
+                scene_index=scene_index,
+                resolved_scene=resolved_scene,
+                object_refs=scene_refs,
             )
         )
 
@@ -951,6 +1051,7 @@ def _narration_findings(
     resolved_scene: Any,
     show_subtitles: bool,
     scene_refs: list[ObjectRef],
+    voice: bool,
 ) -> list[CheckFinding]:
     narration = (scene_spec.narration or "").strip()
     if not narration:
@@ -969,8 +1070,14 @@ def _narration_findings(
                 scene_id=resolved_scene.id,
                 kind="narration",
                 message=(
-                    f"Narration needs about {read_time:.1f}s at {_READ_TIME_WORDS_PER_MINUTE} WPM, "
+                    ("Pre-retiming diagnostic: " if voice else "")
+                    + f"Narration needs about {read_time:.1f}s at {_READ_TIME_WORDS_PER_MINUTE} WPM, "
                     f"but the scene lasts {resolved_scene.duration:.1f}s."
+                    + (
+                        " Voice retiming will stretch the scene automatically during a voiced render."
+                        if voice
+                        else ""
+                    )
                 ),
                 recommended_edit=RecommendedEdit(
                     scene_id=resolved_scene.id,
@@ -978,7 +1085,11 @@ def _narration_findings(
                     object_id=None,
                     field="narration",
                     suggested_value=max_words,
-                    reason="Shorten the narration or lengthen the scene so the delivery does not feel rushed.",
+                    reason=(
+                        "Only shorten the narration if you want less retiming or plan a silent render."
+                        if voice
+                        else "Shorten the narration or lengthen the scene so the delivery does not feel rushed."
+                    ),
                 ),
             )
         )
@@ -1009,15 +1120,61 @@ def _narration_findings(
     return findings
 
 
+def _explanatory_narration_findings(
+    *,
+    scene_spec: Any,
+    resolved_scene: Any,
+    scene_refs: list[ObjectRef],
+) -> list[CheckFinding]:
+    narration = (scene_spec.narration or "").strip()
+    if not narration:
+        return []
+    if len(narration.split()) < _EXPLANATION_MIN_WORDS:
+        return []
+    if _has_explanatory_language(narration):
+        return []
+    if not _scene_needs_explanatory_narration(scene_refs, narration):
+        return []
+
+    return [
+        CheckFinding(
+            severity="warning",
+            scene_id=resolved_scene.id,
+            kind="explanatory_narration",
+            message=(
+                "Narration walks through the mechanics but never explains what this step "
+                "accomplishes or why it matters."
+            ),
+            recommended_edit=RecommendedEdit(
+                scene_id=resolved_scene.id,
+                action="expand_text",
+                object_id=None,
+                field="narration",
+                suggested_value=None,
+                reason=(
+                    "Add one plain-English clause about the purpose of the step so the scene "
+                    "teaches meaning, not just arithmetic."
+                ),
+            ),
+        )
+    ]
+
+
 def _scene_reference_findings(
     *,
     scene_id: str,
     scene_spec: Any,
     scene_index: int,
+    resolved_scene: Any,
     object_refs: list[ObjectRef],
     available_ids: set[str],
 ) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
+    scene_local_ids = {
+        ref.object_id
+        for ref in object_refs
+        if ref.object_id and ref.path.startswith(f"scenes[{scene_index}]")
+    }
     for object_ref in object_refs:
         if object_ref.spec.type == ObjectType.CONNECTOR:
             findings.extend(_connector_reference_findings(scene_id, object_ref, available_ids))
@@ -1066,6 +1223,26 @@ def _scene_reference_findings(
                 )
             )
 
+        if anim.action.value == "replace" and len(targets) != 1:
+            findings.append(
+                CheckFinding(
+                    severity="error",
+                    scene_id=scene_id,
+                    kind="reference",
+                    message=(
+                        f"Animation {animation_index} uses `replace` but targets {len(targets)} objects instead of exactly 1."
+                    ),
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="replace_target",
+                        object_id=None,
+                        field=target_path,
+                        suggested_value=None,
+                        reason="Replace animations need exactly one target ID plus one `with` ID.",
+                    ),
+                )
+            )
+
         for target_index, target_id in enumerate(targets):
             if target_id in available_ids:
                 continue
@@ -1091,6 +1268,90 @@ def _scene_reference_findings(
                 )
             )
 
+        if anim.with_id and anim.with_id not in available_ids:
+            findings.append(
+                CheckFinding(
+                    severity="error",
+                    scene_id=scene_id,
+                    kind="reference",
+                    message=f"Animation {animation_index} replaces with missing object `{anim.with_id}`.",
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="replace_target",
+                        object_id=None,
+                        field=f"scenes[{scene_index}].animations[{animation_index}].with",
+                        suggested_value=_closest_id_suggestion(anim.with_id, available_ids),
+                        reason="Replace animations need a valid replacement object ID.",
+                    ),
+                )
+            )
+        elif anim.action.value == "replace":
+            if not anim.with_id:
+                findings.append(
+                    CheckFinding(
+                        severity="error",
+                        scene_id=scene_id,
+                        kind="reference",
+                        message=f"Animation {animation_index} uses `replace` without a `with` object ID.",
+                        recommended_edit=RecommendedEdit(
+                            scene_id=scene_id,
+                            action="replace_target",
+                            object_id=None,
+                            field=f"scenes[{scene_index}].animations[{animation_index}].with",
+                            suggested_value=None,
+                            reason="Replace animations need a replacement object ID in the same scene.",
+                        ),
+                    )
+                )
+            elif anim.with_id not in scene_local_ids:
+                findings.append(
+                    CheckFinding(
+                        severity="error",
+                        scene_id=scene_id,
+                        kind="reference",
+                        message=(
+                            f"Animation {animation_index} replaces with `{anim.with_id}`, "
+                            "but the replacement object must be authored in the same scene."
+                        ),
+                        recommended_edit=RecommendedEdit(
+                            scene_id=scene_id,
+                            action="move_object_into_scene",
+                            object_id=anim.with_id,
+                            field=f"scenes[{scene_index}].objects",
+                            suggested_value=None,
+                            reason="Replace v1 only supports same-scene before/after swaps.",
+                        ),
+                    )
+                )
+            elif (
+                targets
+                and targets[0] in resolved_scene.node_map
+                and anim.with_id in resolved_scene.node_map
+            ):
+                target_rect = resolved_scene.node_map[targets[0]].rect
+                replacement_rect = resolved_scene.node_map[anim.with_id].rect
+                if not _rects_materially_aligned(target_rect, replacement_rect):
+                    findings.append(
+                        CheckFinding(
+                            severity="error",
+                            scene_id=scene_id,
+                            kind="reference",
+                            message=(
+                                f"Animation {animation_index} uses `replace` for `{targets[0]}` -> "
+                                f"`{anim.with_id}`, but the two objects do not share the same position. "
+                                "Align them first."
+                            ),
+                            recommended_edit=RecommendedEdit(
+                                scene_id=scene_id,
+                                action="align_replacement",
+                                object_id=anim.with_id,
+                                field=f"scenes[{scene_index}].objects",
+                                suggested_value=None,
+                                reason="Replace only cross-fades same-position objects in v1.",
+                            ),
+                        )
+                    )
+
         if anim.to_id and anim.to_id not in available_ids:
             findings.append(
                 CheckFinding(
@@ -1110,6 +1371,72 @@ def _scene_reference_findings(
             )
 
     return findings
+
+
+def _scene_visibility_findings(
+    *,
+    scene_id: str,
+    scene_spec: Any,
+    scene_index: int,
+    resolved_scene: Any,
+    object_refs: list[ObjectRef],
+) -> list[CheckFinding]:
+    findings: list[CheckFinding] = []
+    for object_ref in object_refs:
+        object_id = object_ref.object_id
+        if not object_id:
+            continue
+        node = resolved_scene.node_map.get(object_id)
+        if node is None or node.persistent:
+            continue
+        if getattr(object_ref.spec, "visible", None) is True or node.default_visible:
+            continue
+        if _has_effective_reveal_path(object_id, resolved_scene.timeline):
+            continue
+        findings.append(
+            CheckFinding(
+                severity="warning",
+                scene_id=scene_id,
+                kind="visibility",
+                message=(
+                    f"Object `{object_id}` has no visibility animation and will never appear "
+                    "while `auto_visible` is off."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="add_visibility_animation",
+                    object_id=object_id,
+                    field=f"scenes[{scene_index}].animations",
+                    suggested_value=None,
+                    reason="Add a `fade-in` or make the object visible by default so it can appear on screen.",
+                ),
+            )
+        )
+    return findings
+
+
+def _has_effective_reveal_path(object_id: str, timeline: list[Any]) -> bool:
+    visibility_actions = {
+        "appear",
+        "fade-in",
+        "build",
+        "draw",
+        "type",
+        "scale",
+        "move",
+        "move-to",
+        "swap",
+        "highlight",
+        "pulse",
+        "replace",
+    }
+    for keyframe in timeline:
+        action = getattr(keyframe.action, "value", keyframe.action)
+        if action not in visibility_actions:
+            continue
+        if keyframe.target_id == object_id or getattr(keyframe, "with_id", None) == object_id:
+            return True
+    return False
 
 
 def _connector_reference_findings(
@@ -1443,6 +1770,24 @@ def _format_duration_value(seconds: float) -> str:
     return f"{rounded:.1f}s"
 
 
+def _rects_materially_aligned(left: Any, right: Any) -> bool:
+    return (
+        abs(left.x - right.x) <= 8.0
+        and abs(left.y - right.y) <= 8.0
+        and abs(left.width - right.width) <= 8.0
+        and abs(left.height - right.height) <= 8.0
+    )
+
+
+def _check_summary(*, blocking_count: int, warning_count: int) -> str:
+    if blocking_count == 0 and warning_count == 0:
+        return "Kaivra validation and audit passed cleanly."
+    if blocking_count == 0:
+        suffix = "warning" if warning_count == 1 else "warnings"
+        return f"Kaivra validation passed with {warning_count} {suffix} to review."
+    return "Kaivra found blocking issues to review before final rendering."
+
+
 def _command_available(command: str) -> tuple[bool, str]:
     executable = shutil.which(command)
     if executable is None:
@@ -1601,3 +1946,26 @@ def _safe_resolve_mcp_server_command() -> str | None:
     if discovered:
         return discovered
     return None
+
+
+def _has_explanatory_language(narration: str) -> bool:
+    lowered = narration.lower()
+    return any(marker in lowered for marker in _EXPLANATION_MARKERS)
+
+
+def _scene_needs_explanatory_narration(scene_refs: list[ObjectRef], narration: str) -> bool:
+    scene_text = " ".join(filter(None, (_object_ref_text(ref) for ref in scene_refs)))
+    combined = f"{scene_text} {narration}".lower()
+    if re.search(r"\d", combined) and re.search(r"[=+*/-]", combined):
+        return True
+    return any(marker in combined for marker in _MECHANICAL_SCENE_MARKERS)
+
+
+def _object_ref_text(ref: ObjectRef) -> str:
+    spec = ref.spec
+    parts: list[str] = []
+    for field_name in ("content", "label"):
+        value = getattr(spec, field_name, None)
+        if isinstance(value, str) and value.strip():
+            parts.append(value.strip())
+    return " ".join(parts)

@@ -81,3 +81,43 @@ def test_resolve_meta_duration_uses_profile_defaults_only_when_field_missing() -
         )
         == "2.5s"
     )
+
+
+def test_educational_pacing_formula_stays_longer_than_quick_demo_for_same_beat() -> None:
+    beat = {
+        "title": "Weighted Sum",
+        "detail": (
+            "We multiply one incoming value by its weight, add the bias, and then pass the "
+            "result forward as the next stage's input."
+        ),
+    }
+    word_count = len(f"{beat['title']} {beat['detail']}".split())
+    educational_profile = get_pacing_profile("educational", include_narration=True)
+    quick_profile = get_pacing_profile("quick-demo", include_narration=True)
+
+    educational_doc = build_starter_document(
+        title="Forward Propagation",
+        pattern="visual_explainer",
+        beats=[beat],
+        theme="modern",
+        audience=None,
+        include_narration=True,
+        pacing="educational",
+    )
+    quick_doc = build_starter_document(
+        title="Forward Propagation",
+        pattern="visual_explainer",
+        beats=[beat],
+        theme="modern",
+        audience=None,
+        include_narration=True,
+        pacing="quick-demo",
+    )
+
+    assert educational_profile.scene_duration_seconds(word_count) == 14
+    assert quick_profile.scene_duration_seconds(word_count) == 8
+    assert parse_duration(educational_doc.scenes[0].duration) == 14.0
+    assert parse_duration(quick_doc.scenes[0].duration) == 8.0
+    assert parse_duration(educational_doc.scenes[0].duration) > parse_duration(
+        quick_doc.scenes[0].duration
+    )

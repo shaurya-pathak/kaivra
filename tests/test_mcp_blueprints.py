@@ -64,6 +64,23 @@ def test_narrated_starters_omit_body_copy_and_captions(pattern: str) -> None:
     assert "Built for new learners." not in contents
     assert beats[0]["detail"] not in contents
     assert not any("caption" in object_id for object_id in ids)
+    assert doc.meta.show_subtitles is False
+
+
+def test_narrated_starters_can_opt_into_subtitles_explicitly() -> None:
+    doc = build_starter_document(
+        title="Narrated Starter",
+        pattern="visual_explainer",
+        beats=[
+            {"title": "Input", "detail": "Set the context for the animation."},
+        ],
+        theme="modern",
+        audience=None,
+        include_narration=True,
+        show_subtitles=True,
+    )
+
+    assert doc.meta.show_subtitles is True
 
 
 def test_visual_explainer_uses_connectors_and_draw_animations() -> None:
@@ -91,6 +108,33 @@ def test_visual_explainer_uses_connectors_and_draw_animations() -> None:
     assert connector_ids
     assert draw_targets
     assert draw_targets <= connector_ids
+
+
+def test_narrated_starters_use_progressive_reveal_and_conversational_narration() -> None:
+    detail = "Now we zoom in on one weighted sum before we generalize the same pattern."
+    doc = build_starter_document(
+        title="Forward Propagation",
+        pattern="visual_explainer",
+        beats=[
+            {"title": "Weighted Sum", "detail": detail},
+        ],
+        theme="modern",
+        audience="engineers learning deep learning",
+        include_narration=True,
+    )
+
+    scene = doc.scenes[0]
+    fade_targets = {
+        anim.target
+        for anim in scene.animations
+        if anim.action == AnimAction.FADE_IN and isinstance(anim.target, str)
+    }
+
+    assert scene.auto_visible is False
+    assert fade_targets
+    assert scene.narration == detail
+    assert "engineers learning deep learning" not in scene.narration
+    assert not scene.narration.startswith("Weighted Sum.")
 
 
 def test_default_pattern_follows_narration_even_when_pacing_changes() -> None:

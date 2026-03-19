@@ -151,6 +151,53 @@ def test_duration_only_retime_scales_scene_local_emphasis_without_inferred_beats
     assert scene["focus_style"]["at"] == "6s"
 
 
+def test_audio_cues_align_reveals_to_narration_windows() -> None:
+    document = {
+        "version": "1.1",
+        "meta": {"title": "Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "10s",
+                "objects": [
+                    {"type": "box", "id": "input_card", "content": "Input"},
+                    {"type": "connector", "id": "flow", "from": "input_card", "to": "result_card"},
+                    {"type": "box", "id": "result_card", "content": "Result"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "input_card", "at": "0.4s", "duration": "0.5s"},
+                    {"action": "draw", "target": "flow", "at": "2s", "duration": "1s"},
+                    {"action": "appear", "target": "result_card", "at": "5s"},
+                ],
+            }
+        ],
+    }
+
+    timing_data = AudioTimingData(
+        scenes={
+            "intro": SceneAudioTiming(
+                id="intro",
+                duration_seconds=11.0,
+                cues=(
+                    AudioCue(start_seconds=1.0, duration_seconds=0.9, text="show the input"),
+                    AudioCue(start_seconds=3.5, duration_seconds=1.2, text="draw the flow"),
+                    AudioCue(start_seconds=6.2, duration_seconds=0.8, text="land on the result"),
+                ),
+            )
+        }
+    )
+
+    retimed = retime_document_to_audio_timings(document, timing_data)
+    scene = retimed["scenes"][0]
+
+    assert scene["animations"][0]["at"] == "1s"
+    assert scene["animations"][0]["duration"] == "0.648s"
+    assert scene["animations"][1]["at"] == "3.5s"
+    assert scene["animations"][1]["duration"] == "0.864s"
+    assert scene["animations"][2]["at"] == "6.2s"
+    assert "duration" not in scene["animations"][2]
+
+
 def test_retime_preserves_selected_pacing_baseline_when_meta_fields_are_missing():
     document = {
         "version": "1.1",

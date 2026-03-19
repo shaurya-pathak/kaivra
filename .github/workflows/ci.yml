@@ -49,7 +49,7 @@ jobs:
         run: .venv/bin/python -m compileall src tests packages/kaivra-voice/src
 
       - name: Run test suite
-        run: .venv/bin/pytest -q
+        run: .venv/bin/pytest -q -m "not integration"
 
       - name: Run doctor
         run: .venv/bin/kaivra doctor
@@ -64,3 +64,37 @@ jobs:
           name: ci-smoke-render
           path: artifacts/quick-renders/ci-smoke.png
           if-no-files-found: ignore
+
+  voice-enabled:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2-dev pkg-config ffmpeg
+
+      - name: Install project dependencies
+        run: uv sync --extra dev
+
+      - name: Install local voice providers with Sherpa extras
+        run: uv pip install --python .venv/bin/python -e "./packages/kaivra-voice[local]"
+
+      - name: Download local voice model
+        run: .venv/bin/kaivra download-model
+
+      - name: Run local voice integration tests
+        run: .venv/bin/pytest -q -m integration tests/test_local_voice.py

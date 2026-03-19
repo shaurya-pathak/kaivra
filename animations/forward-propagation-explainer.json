@@ -1,0 +1,457 @@
+{
+  "version": "1.1",
+  "meta": {
+    "title": "Forward Propagation",
+    "resolution": [1920, 1080],
+    "fps": 30,
+    "theme": "material",
+    "show_subtitles": false,
+    "pacing": "educational",
+    "continuity": true,
+    "continuity_duration": "1.1s",
+    "glow_release_padding": "1.2s"
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "chapters",
+      "position": "bottom",
+      "layout": {
+        "type": "carousel",
+        "gap": "medium",
+        "curve": 16,
+        "active_scale": 1.16,
+        "inactive_scale": 0.92
+      },
+      "children": [
+        { "type": "token", "id": "step_overview", "content": "1  Overview" },
+        { "type": "token", "id": "step_hidden_sum", "content": "2  Hidden sum" },
+        { "type": "token", "id": "step_bias", "content": "3  Add bias" },
+        { "type": "token", "id": "step_relu", "content": "4  ReLU" },
+        { "type": "token", "id": "step_output", "content": "5  Output logit" },
+        { "type": "token", "id": "step_predict", "content": "6  Prediction" }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "overview",
+      "duration": "16s",
+      "template": "one-column",
+      "auto_visible": false,
+      "narration": "Before we zoom into the arithmetic, let's anchor the purpose of forward propagation. At this point the network already has fixed weights and biases. Its job is to take one input example, transform those raw numbers into hidden evidence, and then turn that evidence into a prediction.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "overview_title",
+          "content": "Forward Propagation in One Pass",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "overview_stack",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "group",
+              "id": "pipeline_row",
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "input_vector", "content": "Input x = [0.70, -0.40]" },
+                { "type": "box", "id": "hidden_layer_summary", "content": "Hidden layer: z = W x + b, h = ReLU(z)" },
+                { "type": "box", "id": "prediction_summary", "content": "Output: y_hat = sigmoid(logit)" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "formula_row",
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "formula_sum", "content": "weights scale influence" },
+                { "type": "token", "id": "formula_bias", "content": "bias shifts baseline" },
+                { "type": "token", "id": "formula_relu", "content": "ReLU keeps positive signal" },
+                { "type": "token", "id": "formula_output", "content": "sigmoid makes a probability" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "overview_in_to_hidden", "from": "input_vector", "to": "hidden_layer_summary" },
+        { "type": "connector", "id": "overview_hidden_to_out", "from": "hidden_layer_summary", "to": "prediction_summary" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "overview_title", "at": "0s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "pipeline_row", "at": "0.8s", "duration": "1.0s" },
+        { "action": "fade-in", "target": "input_vector", "at": "1.2s", "duration": "0.8s" },
+        { "action": "draw", "target": "overview_in_to_hidden", "at": "2.8s", "duration": "1.0s" },
+        { "action": "fade-in", "target": "hidden_layer_summary", "at": "3.0s", "duration": "0.8s" },
+        { "action": "highlight", "target": "hidden_layer_summary", "at": "4.3s", "duration": "2.0s", "color": "accent", "style": "glow" },
+        { "action": "draw", "target": "overview_hidden_to_out", "at": "6.7s", "duration": "1.0s" },
+        { "action": "fade-in", "target": "prediction_summary", "at": "6.9s", "duration": "0.8s" },
+        { "action": "highlight", "target": "prediction_summary", "at": "8.2s", "duration": "2.0s", "color": "success", "style": "glow" },
+        { "action": "fade-in", "target": "formula_row", "at": "10.6s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "formula_sum", "at": "10.8s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "formula_bias", "at": "11.3s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "formula_relu", "at": "11.8s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "formula_output", "at": "12.3s", "duration": "0.6s" },
+        { "action": "highlight", "target": "step_overview", "at": "0s", "duration": "14.6s", "color": "accent", "style": "glow" },
+        { "action": "scale", "target": "step_overview", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    },
+    {
+      "id": "hidden_sum",
+      "duration": "18s",
+      "template": "one-column",
+      "auto_visible": false,
+      "narration": "Now let's slow down and look at why this weighted sum exists. Each weight tells the neuron how strongly to listen to one input. The multiplication scales that input's influence, and the sign tells us whether it supports or opposes the neuron firing. Then we add the contributions together because the neuron is pooling evidence from all of its incoming inputs.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "hidden_sum_title",
+          "content": "1. Compute One Hidden Weighted Sum",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "hidden_sum_stack",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "group",
+              "id": "term_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "term_1", "content": "0.70 x 0.50 = 0.35" },
+                { "type": "box", "id": "term_2", "content": "-0.40 x -0.30 = 0.12" }
+              ]
+            },
+            { "type": "box", "id": "partial_sum", "content": "0.35 + 0.12 = 0.47" },
+            {
+              "type": "group",
+              "id": "weight_note_row",
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "term_1_label", "content": "x1 contributes evidence to h1" },
+                { "type": "token", "id": "term_2_label", "content": "x2 contributes evidence to h1" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "term_1_to_sum", "from": "term_1", "to": "partial_sum" },
+        { "type": "connector", "id": "term_2_to_sum", "from": "term_2", "to": "partial_sum" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "hidden_sum_title", "at": "0s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "term_1", "at": "0.9s", "duration": "0.8s" },
+        { "action": "highlight", "target": "term_1", "at": "1.9s", "duration": "1.6s", "color": "accent", "style": "glow" },
+        { "action": "fade-in", "target": "term_2", "at": "4.3s", "duration": "0.8s" },
+        { "action": "highlight", "target": "term_2", "at": "5.3s", "duration": "1.6s", "color": "accent", "style": "glow" },
+        { "action": "fade-in", "target": "weight_note_row", "at": "7.6s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "term_1_label", "at": "7.8s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "term_2_label", "at": "8.3s", "duration": "0.6s" },
+        { "action": "draw", "target": "term_1_to_sum", "at": "10.2s", "duration": "0.9s" },
+        { "action": "draw", "target": "term_2_to_sum", "at": "10.7s", "duration": "0.9s" },
+        { "action": "fade-in", "target": "partial_sum", "at": "11.3s", "duration": "0.8s" },
+        { "action": "highlight", "target": "partial_sum", "at": "12.6s", "duration": "2.0s", "color": "success", "style": "glow" },
+        { "action": "highlight", "target": "step_hidden_sum", "at": "0s", "duration": "16.6s", "color": "accent", "style": "glow" },
+        { "action": "scale", "target": "step_hidden_sum", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    },
+    {
+      "id": "add_bias",
+      "duration": "18s",
+      "template": "one-column",
+      "auto_visible": false,
+      "narration": "The bias is not just a random extra number. It lets the neuron shift its baseline before the activation function sees the result, which means it controls how easy or hard it is for that neuron to turn on. Here the weighted evidence is zero point four seven, the bias nudges it upward by zero point one zero, and that moves the pre-activation to zero point five seven.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "bias_title",
+          "content": "2. Add the Bias Term",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "bias_stack",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "group",
+              "id": "bias_inputs_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "partial_sum", "content": "0.35 + 0.12 = 0.47" },
+                { "type": "box", "id": "bias_value", "content": "bias = +0.10" }
+              ]
+            },
+            { "type": "box", "id": "biased_total", "content": "0.47 + 0.10 = 0.57" },
+            { "type": "box", "id": "z1_value", "content": "z1 = 0.57" },
+            { "type": "token", "id": "bias_note", "content": "bias shifts the neuron's turn-on threshold" }
+          ]
+        },
+        { "type": "connector", "id": "sum_to_biased_total", "from": "partial_sum", "to": "biased_total" },
+        { "type": "connector", "id": "bias_to_biased_total", "from": "bias_value", "to": "biased_total" },
+        { "type": "connector", "id": "biased_total_to_z1", "from": "biased_total", "to": "z1_value" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "bias_title", "at": "0s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "partial_sum", "at": "0.9s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "bias_value", "at": "3.4s", "duration": "0.8s" },
+        { "action": "highlight", "target": "bias_value", "at": "4.5s", "duration": "1.5s", "color": "accent", "style": "glow" },
+        { "action": "draw", "target": "sum_to_biased_total", "at": "7.2s", "duration": "0.9s" },
+        { "action": "draw", "target": "bias_to_biased_total", "at": "7.7s", "duration": "0.9s" },
+        { "action": "fade-in", "target": "biased_total", "at": "8.3s", "duration": "0.8s" },
+        { "action": "highlight", "target": "biased_total", "at": "9.6s", "duration": "1.8s", "color": "accent", "style": "glow" },
+        { "action": "draw", "target": "biased_total_to_z1", "at": "12.0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "z1_value", "at": "12.4s", "duration": "0.8s" },
+        { "action": "highlight", "target": "z1_value", "at": "13.7s", "duration": "1.8s", "color": "success", "style": "glow" },
+        { "action": "fade-in", "target": "bias_note", "at": "15.0s", "duration": "0.7s" },
+        { "action": "highlight", "target": "step_bias", "at": "0s", "duration": "16.6s", "color": "accent", "style": "glow" },
+        { "action": "scale", "target": "step_bias", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    },
+    {
+      "id": "relu",
+      "duration": "19s",
+      "template": "one-column",
+      "auto_visible": false,
+      "narration": "ReLU matters because it is what keeps the whole network from collapsing into one big linear equation. Its rule is simple: keep positive evidence, and clip negative values to zero. That introduces nonlinearity, which is what lets deeper networks model more interesting patterns. In this example h one survives because it is positive, while h two gets shut off because its pre-activation is negative.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "relu_title",
+          "content": "3. Apply ReLU to Hidden Neurons",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "relu_row",
+          "visible": true,
+          "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "group",
+              "id": "positive_lane",
+              "visible": true,
+              "layout": { "type": "stack", "direction": "vertical", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "box", "id": "z1_value", "content": "z1 = 0.57" },
+                { "type": "box", "id": "relu_1", "content": "ReLU" },
+                { "type": "box", "id": "h1_act", "content": "h1 = 0.57" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "negative_lane",
+              "visible": true,
+              "layout": { "type": "stack", "direction": "vertical", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "box", "id": "z2_value", "content": "z2 = -0.56" },
+                { "type": "box", "id": "relu_2", "content": "ReLU" },
+                { "type": "box", "id": "h2_act", "content": "h2 = 0.00" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "relu_note_row",
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "relu_note_positive", "content": "positive values stay" },
+                { "type": "token", "id": "relu_note_negative", "content": "negative values become 0" },
+                { "type": "token", "id": "relu_note_nonlinear", "content": "this adds nonlinearity" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "z1_to_relu", "from": "z1_value", "to": "relu_1" },
+        { "type": "connector", "id": "relu_to_h1", "from": "relu_1", "to": "h1_act" },
+        { "type": "connector", "id": "z2_to_relu", "from": "z2_value", "to": "relu_2" },
+        { "type": "connector", "id": "relu_to_h2", "from": "relu_2", "to": "h2_act" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "relu_title", "at": "0s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "relu_1", "at": "1.6s", "duration": "0.8s" },
+        { "action": "draw", "target": "z1_to_relu", "at": "2.3s", "duration": "0.8s" },
+        { "action": "draw", "target": "relu_to_h1", "at": "3.3s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "h1_act", "at": "3.7s", "duration": "0.8s" },
+        { "action": "highlight", "target": "h1_act", "at": "4.8s", "duration": "1.8s", "color": "success", "style": "glow" },
+        { "action": "fade-in", "target": "z2_value", "at": "7.5s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "relu_2", "at": "8.6s", "duration": "0.8s" },
+        { "action": "draw", "target": "z2_to_relu", "at": "9.3s", "duration": "0.8s" },
+        { "action": "draw", "target": "relu_to_h2", "at": "10.3s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "h2_act", "at": "10.7s", "duration": "0.8s" },
+        { "action": "highlight", "target": "h2_act", "at": "11.8s", "duration": "1.8s", "color": "accent", "style": "glow" },
+        { "action": "fade-in", "target": "relu_note_row", "at": "14.3s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "relu_note_positive", "at": "14.5s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "relu_note_negative", "at": "15.0s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "relu_note_nonlinear", "at": "15.5s", "duration": "0.6s" },
+        { "action": "highlight", "target": "step_relu", "at": "0s", "duration": "17.6s", "color": "accent", "style": "glow" },
+        { "action": "scale", "target": "step_relu", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    },
+    {
+      "id": "output_logit_scene",
+      "duration": "20s",
+      "template": "one-column",
+      "auto_visible": false,
+      "narration": "Now the hidden layer hands its features to the output neuron. This is a different neuron, so it uses its own output weights and its own output bias. The purpose of this step is to compress everything the hidden layer discovered into one score for the positive class. H one contributes strongly here, h two contributes nothing because ReLU already shut it off, and then the output bias shifts that combined score into the logit we will convert into a probability.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "output_title",
+          "content": "4. Build the Output Logit",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "output_stack",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "group",
+              "id": "output_activation_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "h1_act", "content": "h1 = 0.57" },
+                { "type": "box", "id": "h2_act", "content": "h2 = 0.00" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "output_term_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "out_term_1", "content": "h1 x w_out1 = 0.57 x 1.20 = 0.684" },
+                { "type": "box", "id": "out_term_2", "content": "h2 x w_out2 = 0.00 x -0.70 = 0.000" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "output_result_row",
+              "visible": true,
+              "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "output_merge_row",
+                  "visible": true,
+                  "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+                  "children": [
+                    { "type": "box", "id": "output_partial", "content": "weighted sum = 0.684 + 0.000 = 0.684" },
+                    { "type": "box", "id": "output_bias", "content": "output bias b_out = +0.05" }
+                  ]
+                },
+                { "type": "box", "id": "output_total", "content": "logit = 0.684 + 0.05 = 0.734" },
+                { "type": "box", "id": "output_logit", "content": "logit = 0.734" },
+                { "type": "token", "id": "output_note", "content": "the output neuron has its own weights and bias" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "h1_to_out_term_1", "from": "h1_act", "to": "out_term_1" },
+        { "type": "connector", "id": "h2_to_out_term_2", "from": "h2_act", "to": "out_term_2" },
+        { "type": "connector", "id": "out_term_1_to_partial", "from": "out_term_1", "to": "output_partial" },
+        { "type": "connector", "id": "out_term_2_to_partial", "from": "out_term_2", "to": "output_partial" },
+        { "type": "connector", "id": "partial_to_output_total", "from": "output_partial", "to": "output_total" },
+        { "type": "connector", "id": "bias_to_output_total", "from": "output_bias", "to": "output_total" },
+        { "type": "connector", "id": "output_total_to_logit", "from": "output_total", "to": "output_logit" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "output_title", "at": "0s", "duration": "0.7s" },
+        { "action": "highlight", "target": "h1_act", "at": "1.0s", "duration": "1.6s", "color": "success", "style": "glow" },
+        { "action": "draw", "target": "h1_to_out_term_1", "at": "2.7s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "out_term_1", "at": "3.0s", "duration": "0.8s" },
+        { "action": "highlight", "target": "h2_act", "at": "5.0s", "duration": "1.6s", "color": "accent", "style": "glow" },
+        { "action": "draw", "target": "h2_to_out_term_2", "at": "6.7s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "out_term_2", "at": "7.0s", "duration": "0.8s" },
+        { "action": "draw", "target": "out_term_1_to_partial", "at": "9.0s", "duration": "0.9s" },
+        { "action": "draw", "target": "out_term_2_to_partial", "at": "9.5s", "duration": "0.9s" },
+        { "action": "fade-in", "target": "output_partial", "at": "10.1s", "duration": "0.8s" },
+        { "action": "highlight", "target": "output_partial", "at": "11.3s", "duration": "1.6s", "color": "accent", "style": "glow" },
+        { "action": "fade-in", "target": "output_bias", "at": "13.0s", "duration": "0.8s" },
+        { "action": "draw", "target": "partial_to_output_total", "at": "14.2s", "duration": "0.8s" },
+        { "action": "draw", "target": "bias_to_output_total", "at": "14.7s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "output_total", "at": "15.2s", "duration": "0.8s" },
+        { "action": "draw", "target": "output_total_to_logit", "at": "16.5s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "output_logit", "at": "16.9s", "duration": "0.8s" },
+        { "action": "highlight", "target": "output_logit", "at": "18.0s", "duration": "1.2s", "color": "success", "style": "glow" },
+        { "action": "fade-in", "target": "output_note", "at": "18.5s", "duration": "0.7s" },
+        { "action": "highlight", "target": "step_output", "at": "0s", "duration": "18.6s", "color": "accent", "style": "glow" },
+        { "action": "scale", "target": "step_output", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    },
+    {
+      "id": "prediction",
+      "duration": "16s",
+      "template": "one-column",
+      "auto_visible": false,
+      "narration": "A logit is useful for the model, but it is not yet a probability that we can interpret comfortably. The sigmoid fixes that by mapping any real-valued score onto the range from zero to one. A bigger positive logit would push us closer to one, a negative logit would push us toward zero, and this particular score lands at about zero point six seven six. So the network is leaning toward the positive class with moderate confidence.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "prediction_title",
+          "content": "5. Turn the Logit into a Prediction",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "prediction_stack",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "group",
+              "id": "activation_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "output_logit", "content": "logit = 0.734" },
+                { "type": "box", "id": "sigmoid_box", "content": "sigmoid(0.734)" },
+                { "type": "box", "id": "prediction_box", "content": "y_hat = 0.676" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "recap_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "recap_input", "content": "x = [0.70, -0.40]" },
+                { "type": "token", "id": "recap_h1", "content": "h1 = 0.57" },
+                { "type": "token", "id": "recap_h2", "content": "h2 = 0.00" },
+                { "type": "token", "id": "recap_y", "content": "y_hat = 0.676" }
+              ]
+            },
+            { "type": "token", "id": "prediction_note", "content": "sigmoid maps an unbounded score into 0 to 1" }
+          ]
+        },
+        { "type": "connector", "id": "logit_to_sigmoid", "from": "output_logit", "to": "sigmoid_box" },
+        { "type": "connector", "id": "sigmoid_to_prediction", "from": "sigmoid_box", "to": "prediction_box" }
+      ],
+      "animations": [
+        { "action": "fade-in", "target": "prediction_title", "at": "0s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "output_logit", "at": "1.0s", "duration": "0.8s" },
+        { "action": "draw", "target": "logit_to_sigmoid", "at": "3.2s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "sigmoid_box", "at": "3.5s", "duration": "0.8s" },
+        { "action": "draw", "target": "sigmoid_to_prediction", "at": "6.0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "prediction_box", "at": "6.4s", "duration": "0.8s" },
+        { "action": "highlight", "target": "prediction_box", "at": "7.7s", "duration": "2.0s", "color": "success", "style": "glow" },
+        { "action": "fade-in", "target": "prediction_note", "at": "10.0s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "recap_input", "at": "11.6s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "recap_h1", "at": "12.1s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "recap_h2", "at": "12.6s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "recap_y", "at": "13.1s", "duration": "0.6s" },
+        { "action": "highlight", "target": "recap_y", "at": "13.8s", "duration": "1.6s", "color": "accent", "style": "glow" },
+        { "action": "highlight", "target": "step_predict", "at": "0s", "duration": "14.6s", "color": "accent", "style": "glow" },
+        { "action": "scale", "target": "step_predict", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 }
+      ]
+    }
+  ]
+}

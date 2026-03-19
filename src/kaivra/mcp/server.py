@@ -169,10 +169,12 @@ class KaivraMCPServer:
                 "resources": {"listChanged": False, "subscribe": False},
             },
             "instructions": (
-                "Create animations that explain concepts slowly and visually. "
-                "Prefer diagrams built from boxes, connectors, groups, and tokens. "
-                "Use draw on connectors to show flow and causality. "
-                "Keep narrated scenes around 10-15 seconds unless the user asks for a faster style. "
+                "Create animations that explain concepts slowly and visually, not as repeated slide templates. "
+                "Build scene-specific diagrams from boxes, connectors, groups, and tokens, and show real values or computations when the topic is technical. "
+                "Reuse the same object id and content across consecutive scenes when a value carries forward so continuity creates a smooth carry-over transition. "
+                "Start scene objects hidden and reveal them as narration introduces them, usually with fade-in rather than instant appear. "
+                "Write narration as conversational spoken English with contractions and direct address, not title-plus-definition prose. "
+                "For explainers, keep adding reveals and emphasis until the visuals track the explanation. Use draw on connectors to show flow and causality. "
                 "Avoid walls of body text when narration is present. "
                 "Use start_animation first, then check_animation, then preview_animation or render_animation. "
                 "Use quick_render for the fastest first-run starter artifact. "
@@ -226,7 +228,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="doctor_kaivra",
             title="Doctor Kaivra",
-            description="Check local Kaivra dependencies, workspace access, and the Claude Code setup path.",
+            description="Check local Kaivra dependencies, workspace access, the resolved kaivra-mcp command path, and local voice model defaults.",
             input_schema={
                 "type": "object",
                 "properties": {},
@@ -270,7 +272,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="start_animation",
             title="Start Animation",
-            description="Create a starter Kaivra animation from a title, pattern, and beat list.",
+            description="Create a starter Kaivra animation from a title, pattern, and beat list. `visual_explainer` is the recommended starting pattern for narrated flows.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -304,6 +306,7 @@ def _build_tools() -> list[ToolDefinition]:
                     "theme": {"type": "string"},
                     "audience": {"type": "string"},
                     "include_narration": {"type": "boolean"},
+                    "show_subtitles": {"type": "boolean"},
                     "pacing": {
                         "type": "string",
                         "enum": ["quick-demo", "balanced", "educational"],
@@ -325,7 +328,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="quick_render",
             title="Quick Render",
-            description="Create, validate, and render a starter animation in one first-run flow.",
+            description="Create, validate, and render a starter animation in one first-run flow. Use `visual_explainer` for most narrated explainers.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -360,6 +363,7 @@ def _build_tools() -> list[ToolDefinition]:
                     "theme": {"type": "string"},
                     "audience": {"type": "string"},
                     "include_narration": {"type": "boolean"},
+                    "show_subtitles": {"type": "boolean"},
                     "pacing": {
                         "type": "string",
                         "enum": ["quick-demo", "balanced", "educational"],
@@ -390,13 +394,14 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="check_animation",
             title="Check Animation",
-            description="Validate and audit a Kaivra JSON file or raw JSON string, with optional normalization write-back.",
+            description="Validate and audit a Kaivra JSON file or raw JSON string, with optional normalization write-back and voice-aware narration pacing notes.",
             input_schema={
                 "type": "object",
                 "properties": {
                     "file_path": {"type": "string"},
                     "dsl_json": {"type": "string"},
                     "write_back": {"type": "boolean"},
+                    "voice": {"type": "boolean"},
                 },
                 "additionalProperties": False,
             },
@@ -479,6 +484,7 @@ def _start_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, An
         theme=arguments.get("theme"),
         audience=arguments.get("audience"),
         include_narration=bool(arguments.get("include_narration", False)),
+        show_subtitles=arguments.get("show_subtitles"),
         pacing=arguments.get("pacing"),
         slug=arguments.get("slug"),
     )
@@ -503,6 +509,7 @@ def _check_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, An
         file_path=arguments.get("file_path"),
         dsl_json=arguments.get("dsl_json"),
         write_back=bool(arguments.get("write_back", False)),
+        voice=bool(arguments.get("voice", False)),
     )
     context.emit_progress(1.0, "Validation and audit complete.")
     return result
@@ -518,6 +525,7 @@ def _quick_render_tool(arguments: dict[str, Any], context: ToolContext) -> dict[
         theme=arguments.get("theme"),
         audience=arguments.get("audience"),
         include_narration=bool(arguments.get("include_narration", False)),
+        show_subtitles=arguments.get("show_subtitles"),
         pacing=arguments.get("pacing"),
         slug=arguments.get("slug"),
         format=arguments.get("format"),
@@ -616,6 +624,9 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
     if name == "add_theme":
         return f"Theme saved at {result['file_path']}."
     if name == "check_animation":
+        warning_count = len(result.get("warnings") or [])
+        if result.get("valid") and warning_count:
+            return f"Animation validated with {warning_count} warnings to review."
         if result.get("valid"):
             return "Animation validated cleanly."
         return "Animation check found blocking issues."

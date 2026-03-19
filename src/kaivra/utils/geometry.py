@@ -119,3 +119,30 @@ class Rect:
             rects.append(Rect(x, self.y, w, self.height))
             x += w + gap
         return rects
+
+
+def connector_endpoints(from_rect: Rect, to_rect: Rect) -> tuple[Point, Point]:
+    """Choose connector anchors that follow stacked or side-by-side layout naturally."""
+    horizontal_overlap = min(from_rect.right, to_rect.right) - max(from_rect.x, to_rect.x)
+    vertical_overlap = min(from_rect.bottom, to_rect.bottom) - max(from_rect.y, to_rect.y)
+    center_dx = to_rect.center.x - from_rect.center.x
+    center_dy = to_rect.center.y - from_rect.center.y
+
+    if horizontal_overlap > 0 and abs(center_dy) > 1e-6:
+        if center_dy > 0:
+            return from_rect.bottom_center, to_rect.top_center
+        return from_rect.top_center, to_rect.bottom_center
+
+    if vertical_overlap > 0 and abs(center_dx) > 1e-6:
+        if center_dx > 0:
+            return from_rect.right_center, to_rect.left_center
+        return from_rect.left_center, to_rect.right_center
+
+    if abs(center_dy) > abs(center_dx):
+        if center_dy > 0:
+            return from_rect.bottom_center, to_rect.top_center
+        return from_rect.top_center, to_rect.bottom_center
+
+    if center_dx > 0:
+        return from_rect.right_center, to_rect.left_center
+    return from_rect.left_center, to_rect.right_center

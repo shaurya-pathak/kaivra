@@ -16,6 +16,7 @@ from kaivra.scene_graph.models import CameraState, ResolvedScene, SceneGraph, Sc
 from kaivra.scene_graph.timeline import apply_animations_at_time, compute_camera_at_time
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.color import hex_to_rgba
+from kaivra.utils.geometry import connector_endpoints
 
 
 class CairoRenderer:
@@ -395,25 +396,7 @@ class CairoRenderer:
         if not from_node or not to_node:
             return
 
-        # Auto-detect direction based on relative positions
-        dx = abs(to_node.rect.center.x - from_node.rect.center.x)
-        dy = abs(to_node.rect.center.y - from_node.rect.center.y)
-        if dy > dx:
-            # Vertical: connect bottom→top
-            if to_node.rect.center.y > from_node.rect.center.y:
-                start = from_node.rect.bottom_center
-                end = to_node.rect.top_center
-            else:
-                start = from_node.rect.top_center
-                end = to_node.rect.bottom_center
-        else:
-            # Horizontal: connect right→left
-            if to_node.rect.center.x > from_node.rect.center.x:
-                start = from_node.rect.right_center
-                end = to_node.rect.left_center
-            else:
-                start = from_node.rect.left_center
-                end = to_node.rect.right_center
+        start, end = connector_endpoints(from_node.rect, to_node.rect)
 
         cr, cg, cb, _ = hex_to_rgba(self.theme.connector_color)
         ctx.set_source_rgba(cr, cg, cb, node.opacity)

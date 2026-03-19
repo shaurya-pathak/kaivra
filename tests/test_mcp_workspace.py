@@ -161,6 +161,234 @@ def test_check_animation_warns_when_body_text_duplicates_narration(tmp_path: Pat
     )
 
 
+def test_check_animation_annotates_narration_pacing_when_voice_retiming_is_enabled(
+    tmp_path: Path,
+) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = workspace.check_animation(
+        dsl_json=json.dumps(
+            {
+                "meta": {"theme": "modern", "show_narration": True},
+                "scenes": [
+                    {
+                        "id": "voice_scene",
+                        "duration": "4s",
+                        "layout": "center",
+                        "narration": (
+                            "Now we walk through one concrete example, and then we generalize the same "
+                            "pattern across every other connection in the layer."
+                        ),
+                        "objects": [
+                            {"id": "voice_card", "type": "text", "content": "Worked example"},
+                        ],
+                        "animations": [
+                            {"action": "appear", "target": "voice_card", "at": "0s"},
+                        ],
+                    }
+                ],
+            }
+        ),
+        voice=True,
+    )
+
+    assert checked["valid"] is True
+    assert checked["summary"] == "Kaivra validation passed with 1 warning to review."
+    assert any("Pre-retiming diagnostic:" in warning for warning in checked["warnings"])
+    assert any(
+        "Voice retiming will stretch the scene automatically" in warning
+        for warning in checked["warnings"]
+    )
+    assert any(
+        edit["scene_id"] == "voice_scene"
+        and edit["field"] == "narration"
+        and "less retiming" in edit["reason"]
+        for edit in checked["recommended_edits"]
+    )
+
+
+def test_check_animation_warns_when_technical_narration_never_explains_purpose(
+    tmp_path: Path,
+) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_subtitles": False},
+            "scenes": [
+                {
+                    "id": "bias_step",
+                    "duration": "8s",
+                    "layout": "center",
+                    "narration": (
+                        "Now add the bias. The weighted total is 0.47, the bias is 0.10, "
+                        "and the pre-activation becomes 0.57."
+                    ),
+                    "objects": [
+                        {"id": "sum_box", "type": "box", "content": "0.47 + 0.10 = 0.57"},
+                    ],
+                    "animations": [
+                        {"action": "fade-in", "target": "sum_box", "at": "0s", "duration": "0.5s"},
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any("explanatory_narration" in warning for warning in checked["warnings"])
+    assert any(
+        edit["scene_id"] == "bias_step"
+        and edit["field"] == "narration"
+        and edit["action"] == "expand_text"
+        for edit in checked["recommended_edits"]
+    )
+
+
+def test_check_animation_skips_explanatory_warning_when_scene_explains_why(
+    tmp_path: Path,
+) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_subtitles": False},
+            "scenes": [
+                {
+                    "id": "bias_step",
+                    "duration": "8s",
+                    "layout": "center",
+                    "narration": (
+                        "Now add the bias because it shifts the neuron's baseline, which means "
+                        "the model can control how easily this feature turns on."
+                    ),
+                    "objects": [
+                        {"id": "sum_box", "type": "box", "content": "0.47 + 0.10 = 0.57"},
+                    ],
+                    "animations": [
+                        {"action": "fade-in", "target": "sum_box", "at": "0s", "duration": "0.5s"},
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert not any("explanatory_narration" in warning for warning in checked["warnings"])
+
+
+def test_check_animation_warns_when_hidden_object_has_no_reveal_animation(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "missing_reveal",
+                    "duration": "6s",
+                    "auto_visible": False,
+                    "layout": "center",
+                    "objects": [
+                        {"id": "title", "type": "text", "content": "Hidden forever"},
+                    ],
+                    "animations": [],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any(
+        "has no visibility animation and will never appear" in warning
+        for warning in checked["warnings"]
+    )
+    assert any(
+        edit["scene_id"] == "missing_reveal"
+        and edit["object_id"] == "title"
+        and edit["action"] == "add_visibility_animation"
+        for edit in checked["recommended_edits"]
+    )
+
+
+def test_check_animation_respects_group_inherited_reveal_for_hidden_children(
+    tmp_path: Path,
+) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "group_reveal",
+                    "duration": "6s",
+                    "auto_visible": False,
+                    "layout": "center",
+                    "objects": [
+                        {
+                            "id": "cluster",
+                            "type": "group",
+                            "layout": "flow",
+                            "children": [
+                                {"id": "child_a", "type": "box", "content": "A"},
+                                {"id": "child_b", "type": "box", "content": "B"},
+                            ],
+                        }
+                    ],
+                    "animations": [
+                        {"action": "fade-in", "target": "cluster", "at": "0s", "duration": "0.6s"},
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert not any("child_a" in warning for warning in checked["warnings"])
+    assert not any("child_b" in warning for warning in checked["warnings"])
+
+
+def test_check_animation_blocks_replace_when_objects_are_not_aligned(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "replace_misaligned",
+                    "duration": "6s",
+                    "layout": {
+                        "type": "grid",
+                        "columns": 2,
+                        "rows": 1,
+                    },
+                    "objects": [
+                        {"id": "old_val", "type": "box", "content": "2 + 2", "grid": {"col": 1}},
+                        {"id": "new_val", "type": "box", "content": "4", "grid": {"col": 2}},
+                    ],
+                    "animations": [
+                        {
+                            "action": "replace",
+                            "target": "old_val",
+                            "with": "new_val",
+                            "at": "1s",
+                            "duration": "0.8s",
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is False
+    assert any("Align them first." in issue for issue in checked["blocking_issues"])
+    assert any(
+        edit["action"] == "align_replacement" and edit["object_id"] == "new_val"
+        for edit in checked["recommended_edits"]
+    )
+
+
 def test_check_animation_blocks_invalid_connectors_and_animation_targets(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     checked = _check_animation(
@@ -255,6 +483,7 @@ def test_workspace_quick_render_passes_pacing_to_start_animation(tmp_path: Path)
     assert created.exists()
     parsed = json.loads(created.read_text(encoding="utf-8"))
     assert parsed["meta"]["pacing"] == "educational"
+    assert parsed["meta"]["show_subtitles"] is False
 
 
 def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_docs(
@@ -292,6 +521,37 @@ def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_do
     assert checked["valid"] is True
     assert Path(previewed["html_path"]).exists()
     assert Path(rendered["artifact_path"]).exists()
+
+
+def test_preview_and_render_use_document_workspace_when_server_root_is_elsewhere(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    (project_root / "animations").mkdir(parents=True)
+    source_path = project_root / "animations" / "demo.json"
+    source_path.write_text(
+        json.dumps(
+            {
+                "version": "1.1",
+                "meta": {"title": "Doc Workspace", "theme": "modern"},
+                "scenes": [
+                    {
+                        "id": "intro",
+                        "duration": "1s",
+                        "objects": [{"type": "text", "content": "Hello"}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    workspace = KaivraWorkspace(tmp_path / "wrong-root")
+    previewed = workspace.preview_animation(file_path=str(source_path))
+    rendered = workspace.render_animation(file_path=str(source_path), format="png")
+
+    assert Path(previewed["html_path"]).parent == project_root / "artifacts" / "previews"
+    assert Path(rendered["artifact_path"]).parent == project_root / "artifacts" / "renders"
 
 
 def test_download_model_smoke_installs_and_reuses_local_archive(tmp_path: Path) -> None:

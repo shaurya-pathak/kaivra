@@ -41,6 +41,9 @@ packages = ["src/kaivra"]
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
 testpaths = ["tests"]
+markers = [
+    "integration: requires optional local voice extras and a downloaded local model bundle",
+]
 
 [tool.ruff]
 line-length = 100

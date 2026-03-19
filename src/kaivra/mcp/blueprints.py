@@ -46,6 +46,7 @@ def build_starter_document(
     theme: str | None,
     audience: str | None,
     include_narration: bool,
+    show_subtitles: bool | None = None,
     pacing: str | PacingPreset | None = None,
 ) -> DocumentSpec:
     """Build a valid Kaivra starter document for the requested pattern."""
@@ -60,6 +61,7 @@ def build_starter_document(
 
     parsed_beats = _coerce_beats(beats, title=title)
     pacing_profile = get_pacing_profile(pacing, include_narration=include_narration)
+    subtitle_visibility = bool(show_subtitles) if show_subtitles is not None else False
 
     raw = {
         "version": "1.1",
@@ -68,7 +70,7 @@ def build_starter_document(
             "resolution": [1920, 1080],
             "fps": 30,
             "theme": chosen_theme,
-            "show_subtitles": include_narration,
+            "show_subtitles": subtitle_visibility,
             "pacing": pacing_profile.preset.value,
             "continuity": True,
             "continuity_duration": pacing_profile.continuity_duration,
@@ -375,9 +377,10 @@ def _build_process_scene(
             target_id=focus_id,
             pacing_profile=pacing_profile,
             step_target_id=_step_target_id(beats, beat),
+            reveal_target_ids=_reveal_object_ids(objects) if include_narration else None,
             extra_animations=extra_animations,
         ),
-        "auto_visible": True,
+        "auto_visible": not include_narration,
     }
 
 
@@ -524,9 +527,10 @@ def _build_visual_scene(
             target_id=focus_id,
             pacing_profile=pacing_profile,
             step_target_id=_step_target_id(beats, beat),
+            reveal_target_ids=_reveal_object_ids(objects) if include_narration else None,
             extra_animations=extra_animations,
         ),
-        "auto_visible": True,
+        "auto_visible": not include_narration,
     }
 
 
@@ -646,9 +650,10 @@ def _build_algorithm_scene(
             target_id=current_card_id,
             pacing_profile=pacing_profile,
             step_target_id=_step_target_id(beats, beat),
+            reveal_target_ids=_reveal_object_ids(objects) if include_narration else None,
             extra_animations=extra_animations,
         ),
-        "auto_visible": True,
+        "auto_visible": not include_narration,
     }
 
 
@@ -802,9 +807,10 @@ def _build_architecture_scene(
             target_id=focus_id,
             pacing_profile=pacing_profile,
             step_target_id=_step_target_id(beats, beat),
+            reveal_target_ids=_reveal_object_ids(objects) if include_narration else None,
             extra_animations=extra_animations,
         ),
-        "auto_visible": True,
+        "auto_visible": not include_narration,
     }
 
 
@@ -987,9 +993,10 @@ def _build_comparison_scene(
             pacing_profile=pacing_profile,
             step_target_id=step_target_id,
             highlight_color="success",
+            reveal_target_ids=_reveal_object_ids(objects) if include_narration else None,
             extra_animations=extra_animations,
         ),
-        "auto_visible": True,
+        "auto_visible": not include_narration,
     }
 
 
@@ -1001,12 +1008,27 @@ def _step_animations(
     pacing_profile: PacingProfile,
     step_target_id: str | None = None,
     highlight_color: str = "accent",
+    reveal_target_ids: list[str] | None = None,
     extra_animations: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     scene_seconds = max(0.0, float(duration.removesuffix("s")))
     active_duration = max(pacing_profile.highlight_seconds, scene_seconds - 0.4)
 
-    animations = [
+    animations: list[dict[str, Any]] = []
+    if reveal_target_ids:
+        reveal_window = min(max(scene_seconds * 0.35, 0.6), 1.2)
+        reveal_gap = reveal_window / max(1, len(reveal_target_ids))
+        for index, reveal_target_id in enumerate(reveal_target_ids):
+            animations.append(
+                {
+                    "action": "fade-in",
+                    "target": reveal_target_id,
+                    "at": format_duration(index * reveal_gap),
+                    "duration": pacing_profile.scale_duration,
+                }
+            )
+
+    animations.append(
         {
             "action": "highlight",
             "target": target_id,
@@ -1015,7 +1037,7 @@ def _step_animations(
             "style": "glow",
             "color": highlight_color,
         }
-    ]
+    )
     if step_target_id is not None:
         animations.extend(
             [
@@ -1148,6 +1170,24 @@ def _text_stack(
     }
 
 
+def _reveal_object_ids(objects: list[dict[str, Any]]) -> list[str]:
+    ordered_ids: list[str] = []
+    seen: set[str] = set()
+
+    def visit(items: list[dict[str, Any]]) -> None:
+        for item in items:
+            object_id = item.get("id")
+            if object_id and item.get("type") != "connector" and object_id not in seen:
+                seen.add(object_id)
+                ordered_ids.append(object_id)
+            children = item.get("children") or []
+            if children:
+                visit(children)
+
+    visit(objects)
+    return ordered_ids
+
+
 def _wrap_lines(text: str, *, width: int, max_lines: int) -> list[str]:
     cleaned = _clean_text(text)
     lines = textwrap.wrap(
@@ -1196,9 +1236,10 @@ def _scene_narration(
 ) -> str | None:
     if not include_narration:
         return None
-    if audience:
-        return f"{beat.title}. {beat.detail} This version is tuned for {audience}."
-    return f"{animation_title}: {beat.title}. {beat.detail}"
+    detail = _clean_text(beat.detail) or _clean_text(beat.title) or _clean_text(animation_title)
+    if detail and detail[-1] not in ".!?":
+        detail += "."
+    return detail
 
 
 def _audience_caption(audience: str | None) -> str:

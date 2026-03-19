@@ -1,0 +1,1330 @@
+{
+  "version": "1.1",
+  "meta": {
+    "title": "Forward Propagation Explained",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern",
+    "show_subtitles": true,
+    "pacing": "educational",
+    "continuity": true,
+    "continuity_duration": "1.3s",
+    "glow_release_padding": "1.4s"
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "steps",
+      "position": "bottom",
+      "children": [
+        {
+          "type": "token",
+          "id": "step_1",
+          "content": "1  Inputs"
+        },
+        {
+          "type": "token",
+          "id": "step_2",
+          "content": "2  Weighted sum"
+        },
+        {
+          "type": "token",
+          "id": "step_3",
+          "content": "3  Activation"
+        },
+        {
+          "type": "token",
+          "id": "step_4",
+          "content": "4  Output layer"
+        },
+        {
+          "type": "token",
+          "id": "step_5",
+          "content": "5  Prediction"
+        }
+      ],
+      "layout": {
+        "type": "carousel",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center",
+        "curve": 12.0
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "beat_01",
+      "duration": "11s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Start with one concrete input vector: x1 equals 2.0 and x2 equals 1.0. These numbers are the raw signal entering the network.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "visual_heading",
+          "content": "Inputs",
+          "style": "heading"
+        },
+        {
+          "type": "connector",
+          "id": "visual_source_link",
+          "from": "visual_source_token",
+          "to": "visual_focus_card"
+        },
+        {
+          "type": "connector",
+          "id": "visual_result_link",
+          "from": "visual_focus_card",
+          "to": "visual_result_token"
+        },
+        {
+          "type": "group",
+          "id": "visual_panel",
+          "children": [
+            {
+              "type": "token",
+              "id": "visual_stage_badge",
+              "content": "Beat 1"
+            },
+            {
+              "type": "group",
+              "id": "visual_lane",
+              "children": [
+                {
+                  "type": "group",
+                  "id": "visual_source_group",
+                  "label": "Signal In",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_source_token",
+                      "content": "x = [2.0, 1.0]"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_focus_group",
+                  "label": "Active Idea",
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "visual_focus_card",
+                      "content": "Input vector",
+                      "style": "accent"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_result_group",
+                  "label": "Result",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_result_token",
+                      "content": "Hidden sums next"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "visual_heading",
+          "at": "0s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_panel",
+          "at": "0.12s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_stage_badge",
+          "at": "0.24s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_lane",
+          "at": "0.36s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_group",
+          "at": "0.48s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_token",
+          "at": "0.6s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_group",
+          "at": "0.72s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_card",
+          "at": "0.84s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_group",
+          "at": "0.96s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_token",
+          "at": "1.08s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "visual_focus_card",
+          "at": "0.4s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "step_1",
+          "at": "0s",
+          "duration": "10.6s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_1",
+          "at": "0.1s",
+          "duration": "1.2s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.14
+        },
+        {
+          "action": "draw",
+          "target": "visual_source_link",
+          "at": "0.2s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "visual_result_link",
+          "at": "0.65s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_source_token",
+          "at": "0.2s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "accent"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_result_token",
+          "at": "2.1s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "success"
+        }
+      ],
+      "auto_visible": false,
+      "focus": "visual_focus_card",
+      "focus_style": {
+        "at": "0.45s",
+        "duration": "1.4s",
+        "scale": 1.1,
+        "color": "accent",
+        "style": "glow"
+      },
+      "camera_animations": []
+    },
+    {
+      "id": "beat_02",
+      "duration": "11s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Each hidden neuron now computes a weighted sum. For one neuron, 2 times 0.8 plus 1 times negative 0.4 plus a bias of 0.1 gives z1 equals 1.3.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "visual_heading",
+          "content": "Weighted sum",
+          "style": "heading"
+        },
+        {
+          "type": "connector",
+          "id": "visual_source_link",
+          "from": "visual_source_token",
+          "to": "visual_focus_card"
+        },
+        {
+          "type": "connector",
+          "id": "visual_result_link",
+          "from": "visual_focus_card",
+          "to": "visual_result_token"
+        },
+        {
+          "type": "group",
+          "id": "visual_panel",
+          "children": [
+            {
+              "type": "token",
+              "id": "visual_stage_badge",
+              "content": "Beat 2"
+            },
+            {
+              "type": "group",
+              "id": "visual_lane",
+              "children": [
+                {
+                  "type": "group",
+                  "id": "visual_source_group",
+                  "label": "Signal In",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_source_token",
+                      "content": "x*w + b"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_focus_group",
+                  "label": "Active Idea",
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "visual_focus_card",
+                      "content": "z1 = 2(0.8)+1(-0.4)+0.1",
+                      "style": "accent"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_result_group",
+                  "label": "Result",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_result_token",
+                      "content": "z1 = 1.3"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "visual_heading",
+          "at": "0s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_panel",
+          "at": "0.12s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_stage_badge",
+          "at": "0.24s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_lane",
+          "at": "0.36s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_group",
+          "at": "0.48s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_token",
+          "at": "0.6s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_group",
+          "at": "0.72s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_card",
+          "at": "0.84s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_group",
+          "at": "0.96s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_token",
+          "at": "1.08s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "visual_focus_card",
+          "at": "0.4s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "step_2",
+          "at": "0s",
+          "duration": "10.6s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_2",
+          "at": "0.1s",
+          "duration": "1.2s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.14
+        },
+        {
+          "action": "draw",
+          "target": "visual_source_link",
+          "at": "0.2s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "visual_result_link",
+          "at": "0.65s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_source_token",
+          "at": "0.2s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "accent"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_result_token",
+          "at": "2.1s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "success"
+        }
+      ],
+      "auto_visible": false,
+      "focus": "visual_focus_card",
+      "focus_style": {
+        "at": "0.45s",
+        "duration": "1.4s",
+        "scale": 1.1,
+        "color": "accent",
+        "style": "glow"
+      },
+      "camera_animations": []
+    },
+    {
+      "id": "beat_03",
+      "duration": "10s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Now apply ReLU. Positive values stay the same, so 1.3 survives, while a negative value like negative 0.2 gets clipped down to zero.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "visual_heading",
+          "content": "Activation",
+          "style": "heading"
+        },
+        {
+          "type": "connector",
+          "id": "visual_source_link",
+          "from": "visual_source_token",
+          "to": "visual_focus_card"
+        },
+        {
+          "type": "connector",
+          "id": "visual_result_link",
+          "from": "visual_focus_card",
+          "to": "visual_result_token"
+        },
+        {
+          "type": "group",
+          "id": "visual_panel",
+          "children": [
+            {
+              "type": "token",
+              "id": "visual_stage_badge",
+              "content": "Beat 3"
+            },
+            {
+              "type": "group",
+              "id": "visual_lane",
+              "children": [
+                {
+                  "type": "group",
+                  "id": "visual_source_group",
+                  "label": "Signal In",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_source_token",
+                      "content": "z = [1.3, -0.2]"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_focus_group",
+                  "label": "Active Idea",
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "visual_focus_card",
+                      "content": "ReLU(z) = max(0, z)",
+                      "style": "accent"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_result_group",
+                  "label": "Result",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_result_token",
+                      "content": "a = [1.3, 0.0]"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "visual_heading",
+          "at": "0s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_panel",
+          "at": "0.12s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_stage_badge",
+          "at": "0.24s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_lane",
+          "at": "0.36s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_group",
+          "at": "0.48s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_token",
+          "at": "0.6s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_group",
+          "at": "0.72s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_card",
+          "at": "0.84s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_group",
+          "at": "0.96s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_token",
+          "at": "1.08s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "visual_focus_card",
+          "at": "0.4s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "step_3",
+          "at": "0s",
+          "duration": "9.6s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_3",
+          "at": "0.1s",
+          "duration": "1.2s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.14
+        },
+        {
+          "action": "draw",
+          "target": "visual_source_link",
+          "at": "0.2s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "visual_result_link",
+          "at": "0.65s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_source_token",
+          "at": "0.2s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "accent"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_result_token",
+          "at": "2.1s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "success"
+        }
+      ],
+      "auto_visible": false,
+      "focus": "visual_focus_card",
+      "focus_style": {
+        "at": "0.45s",
+        "duration": "1.4s",
+        "scale": 1.1,
+        "color": "accent",
+        "style": "glow"
+      },
+      "camera_animations": []
+    },
+    {
+      "id": "beat_04",
+      "duration": "10s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Those hidden activations move forward into the output layer. Another weighted sum turns them into class scores, like 2.4 for class A and 1.1 for class B.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "visual_heading",
+          "content": "Output layer",
+          "style": "heading"
+        },
+        {
+          "type": "connector",
+          "id": "visual_source_link",
+          "from": "visual_source_token",
+          "to": "visual_focus_card"
+        },
+        {
+          "type": "connector",
+          "id": "visual_result_link",
+          "from": "visual_focus_card",
+          "to": "visual_result_token"
+        },
+        {
+          "type": "group",
+          "id": "visual_panel",
+          "children": [
+            {
+              "type": "token",
+              "id": "visual_stage_badge",
+              "content": "Beat 4"
+            },
+            {
+              "type": "group",
+              "id": "visual_lane",
+              "children": [
+                {
+                  "type": "group",
+                  "id": "visual_source_group",
+                  "label": "Signal In",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_source_token",
+                      "content": "a = [1.3, 0.0]"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_focus_group",
+                  "label": "Active Idea",
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "visual_focus_card",
+                      "content": "scores = aW + b",
+                      "style": "accent"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_result_group",
+                  "label": "Result",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_result_token",
+                      "content": "scores = [2.4, 1.1]"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "visual_heading",
+          "at": "0s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_panel",
+          "at": "0.12s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_stage_badge",
+          "at": "0.24s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_lane",
+          "at": "0.36s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_group",
+          "at": "0.48s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_token",
+          "at": "0.6s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_group",
+          "at": "0.72s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_card",
+          "at": "0.84s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_group",
+          "at": "0.96s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_token",
+          "at": "1.08s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "visual_focus_card",
+          "at": "0.4s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "step_4",
+          "at": "0s",
+          "duration": "9.6s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_4",
+          "at": "0.1s",
+          "duration": "1.2s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.14
+        },
+        {
+          "action": "draw",
+          "target": "visual_source_link",
+          "at": "0.2s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "visual_result_link",
+          "at": "0.65s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_source_token",
+          "at": "0.2s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "accent"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_result_token",
+          "at": "2.1s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "success"
+        }
+      ],
+      "auto_visible": false,
+      "focus": "visual_focus_card",
+      "focus_style": {
+        "at": "0.45s",
+        "duration": "1.4s",
+        "scale": 1.1,
+        "color": "accent",
+        "style": "glow"
+      },
+      "camera_animations": []
+    },
+    {
+      "id": "beat_05",
+      "duration": "11s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Softmax converts the scores into probabilities. Here class A gets about 79 percent and class B gets 21 percent, so the model predicts class A.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "visual_heading",
+          "content": "Prediction",
+          "style": "heading"
+        },
+        {
+          "type": "connector",
+          "id": "visual_source_link",
+          "from": "visual_source_token",
+          "to": "visual_focus_card"
+        },
+        {
+          "type": "connector",
+          "id": "visual_result_link",
+          "from": "visual_focus_card",
+          "to": "visual_result_token"
+        },
+        {
+          "type": "group",
+          "id": "visual_panel",
+          "children": [
+            {
+              "type": "token",
+              "id": "visual_stage_badge",
+              "content": "Beat 5"
+            },
+            {
+              "type": "group",
+              "id": "visual_lane",
+              "children": [
+                {
+                  "type": "group",
+                  "id": "visual_source_group",
+                  "label": "Signal In",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_source_token",
+                      "content": "scores = [2.4, 1.1]"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_focus_group",
+                  "label": "Active Idea",
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "visual_focus_card",
+                      "content": "Softmax probabilities",
+                      "style": "accent"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "group",
+                  "id": "visual_result_group",
+                  "label": "Result",
+                  "children": [
+                    {
+                      "type": "token",
+                      "id": "visual_result_token",
+                      "content": "A: 79%, B: 21%"
+                    }
+                  ],
+                  "layout": {
+                    "type": "stack",
+                    "gap": "small",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "visual_heading",
+          "at": "0s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_panel",
+          "at": "0.12s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_stage_badge",
+          "at": "0.24s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_lane",
+          "at": "0.36s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_group",
+          "at": "0.48s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_source_token",
+          "at": "0.6s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_group",
+          "at": "0.72s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_focus_card",
+          "at": "0.84s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_group",
+          "at": "0.96s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "visual_result_token",
+          "at": "1.08s",
+          "duration": "1.2s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "visual_focus_card",
+          "at": "0.4s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "step_5",
+          "at": "0s",
+          "duration": "10.6s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_5",
+          "at": "0.1s",
+          "duration": "1.2s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.14
+        },
+        {
+          "action": "draw",
+          "target": "visual_source_link",
+          "at": "0.2s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "visual_result_link",
+          "at": "0.65s",
+          "duration": "1.3s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_source_token",
+          "at": "0.2s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "accent"
+        },
+        {
+          "action": "pulse",
+          "target": "visual_result_token",
+          "at": "2.1s",
+          "duration": "2.8s",
+          "easing": "ease-in-out",
+          "color": "success"
+        }
+      ],
+      "auto_visible": false,
+      "focus": "visual_focus_card",
+      "focus_style": {
+        "at": "0.45s",
+        "duration": "1.4s",
+        "scale": 1.1,
+        "color": "accent",
+        "style": "glow"
+      },
+      "camera_animations": []
+    }
+  ]
+}

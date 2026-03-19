@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import wave
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,12 +20,15 @@ from kaivra.audio.mux import (
 from kaivra.audio.timings import AudioTimingData, SceneAudioTiming, load_audio_timing_data
 from kaivra.dsl.parser import parse_string
 from kaivra.dsl.retime import retime_document_to_audio_timings
+from kaivra.dsl.schema import parse_duration
 from kaivra.render.cairo_renderer import CairoRenderer
 from kaivra.render.video.exporter import export_video
 from kaivra.scene_graph.builder import build_scene_graph
 from kaivra.themes.registry import get_theme
 
 ProgressReporter = Callable[[float, str], None]
+_VIDEO_INTRO_SCENE_ID = "__kaivra_video_intro__"
+_VIDEO_OUTRO_SCENE_ID = "__kaivra_video_outro__"
 
 
 @dataclass(frozen=True)
@@ -34,6 +38,7 @@ class RenderArtifact:
     artifact_path: str
     duration_seconds: float
     warnings: tuple[str, ...] = ()
+    retimed_document_path: str | None = None
 
 
 def render_document_artifact(
@@ -74,6 +79,8 @@ def render_document_artifact(
             artifact_path=str(artifact_path),
             duration_seconds=0.0,
         )
+
+    doc = _apply_video_bookends(doc)
 
     if voice:
         doc = _apply_voice_subtitle_defaults(doc)
@@ -137,10 +144,19 @@ def render_document_artifact(
     if audio_timings_abs is not None and audio_abs is None:
         warnings.append("Applied audio timings for pacing, but no audio track was attached.")
 
+    retimed_document_path = None
+    if audio_timings_abs is not None:
+        retimed_document_path = _write_retimed_sidecar(
+            doc,
+            artifact_path,
+            audio_timings_path=audio_timings_abs,
+        )
+
     return RenderArtifact(
         artifact_path=str(artifact_path),
         duration_seconds=round(graph.total_duration, 2),
         warnings=tuple(warnings),
+        retimed_document_path=retimed_document_path,
     )
 
 
@@ -159,9 +175,7 @@ def build_render_graph(
         audio_timing_data = load_audio_timing_data(audio_timings_path)
 
     if audio_timing_data is not None:
-        raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
-        retimed = retime_document_to_audio_timings(raw_doc, audio_timing_data)
-        doc = parse_string(json.dumps(retimed), format="json")
+        doc = _retime_document(doc, audio_timing_data)
 
     theme = get_theme(doc.meta.theme, search_roots=theme_search_roots)
     graph = build_scene_graph(doc, theme)
@@ -201,6 +215,197 @@ def _apply_voice_subtitle_defaults(doc: Any) -> Any:
     )
 
 
+def _retime_document(doc: Any, audio_timing_data: AudioTimingData) -> Any:
+    raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
+    retimed = retime_document_to_audio_timings(raw_doc, audio_timing_data)
+    return parse_string(json.dumps(retimed), format="json")
+
+
+def _write_retimed_sidecar(
+    doc: Any,
+    output_path: Path,
+    *,
+    audio_timing_data: AudioTimingData | None = None,
+    audio_timings_path: str | Path | None = None,
+) -> str | None:
+    if audio_timing_data is None and audio_timings_path is None:
+        return None
+    if audio_timing_data is None:
+        audio_timing_data = load_audio_timing_data(audio_timings_path)
+
+    retimed_doc = _retime_document(doc, audio_timing_data)
+    sidecar_path = output_path.with_name(f"{output_path.stem}.retimed.json")
+    sidecar_path.write_text(
+        json.dumps(
+            retimed_doc.model_dump(mode="json", by_alias=True, exclude_none=True),
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return str(sidecar_path)
+
+
+def _apply_video_bookends(doc: Any) -> Any:
+    scene_ids = [scene.id for scene in getattr(doc, "scenes", []) if getattr(scene, "id", None)]
+    if not getattr(doc, "scenes", None):
+        return doc
+    if _VIDEO_INTRO_SCENE_ID in scene_ids or _VIDEO_OUTRO_SCENE_ID in scene_ids:
+        return doc
+
+    raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
+    if not doc.meta.subtitles_were_explicitly_set():
+        raw_doc.get("meta", {}).pop("show_subtitles", None)
+    raw_doc["scenes"] = [
+        _intro_scene(raw_doc.get("meta", {}).get("title")),
+        *raw_doc.get("scenes", []),
+        _outro_scene(raw_doc.get("meta", {}).get("title")),
+    ]
+    return parse_string(json.dumps(raw_doc), format="json")
+
+
+def _intro_scene(title: str | None) -> dict[str, Any]:
+    resolved_title = (title or "Untitled Animation").strip() or "Untitled Animation"
+    return {
+        "id": _VIDEO_INTRO_SCENE_ID,
+        "duration": "1.8s",
+        "layout": "center",
+        "auto_visible": False,
+        "continuity": False,
+        "transition": {"type": "fade", "duration": "0.45s"},
+        "objects": [
+            {
+                "type": "group",
+                "id": "__kaivra_intro_stack",
+                "layout": {
+                    "type": "stack",
+                    "direction": "vertical",
+                    "gap": "medium",
+                    "align": "center",
+                },
+                "children": [
+                    {"type": "token", "id": "__kaivra_intro_token", "content": "Walkthrough"},
+                    {
+                        "type": "text",
+                        "id": "__kaivra_intro_title",
+                        "content": resolved_title,
+                        "style": "heading",
+                    },
+                    {
+                        "type": "text",
+                        "id": "__kaivra_intro_caption",
+                        "content": "Let's get oriented before we dive in.",
+                        "style": "caption",
+                    },
+                ],
+            }
+        ],
+        "animations": [
+            {
+                "action": "fade-in",
+                "target": "__kaivra_intro_token",
+                "at": "0.1s",
+                "duration": "0.45s",
+            },
+            {
+                "action": "fade-in",
+                "target": "__kaivra_intro_title",
+                "at": "0.3s",
+                "duration": "0.65s",
+            },
+            {
+                "action": "fade-in",
+                "target": "__kaivra_intro_caption",
+                "at": "0.85s",
+                "duration": "0.45s",
+            },
+        ],
+    }
+
+
+def _outro_scene(title: str | None) -> dict[str, Any]:
+    resolved_title = (title or "Untitled Animation").strip() or "Untitled Animation"
+    return {
+        "id": _VIDEO_OUTRO_SCENE_ID,
+        "duration": "1.8s",
+        "layout": "center",
+        "auto_visible": False,
+        "continuity": False,
+        "objects": [
+            {
+                "type": "group",
+                "id": "__kaivra_outro_stack",
+                "layout": {
+                    "type": "stack",
+                    "direction": "vertical",
+                    "gap": "medium",
+                    "align": "center",
+                },
+                "children": [
+                    {"type": "token", "id": "__kaivra_outro_token", "content": "Complete"},
+                    {
+                        "type": "text",
+                        "id": "__kaivra_outro_title",
+                        "content": resolved_title,
+                        "style": "heading",
+                    },
+                    {
+                        "type": "text",
+                        "id": "__kaivra_outro_caption",
+                        "content": "You've reached the end of the walkthrough.",
+                        "style": "caption",
+                    },
+                ],
+            }
+        ],
+        "animations": [
+            {
+                "action": "fade-in",
+                "target": "__kaivra_outro_token",
+                "at": "0.1s",
+                "duration": "0.45s",
+            },
+            {
+                "action": "fade-in",
+                "target": "__kaivra_outro_title",
+                "at": "0.3s",
+                "duration": "0.65s",
+            },
+            {
+                "action": "fade-in",
+                "target": "__kaivra_outro_caption",
+                "at": "0.85s",
+                "duration": "0.45s",
+            },
+        ],
+    }
+
+
+def _bookend_durations(doc: Any) -> tuple[float, float]:
+    scenes = list(getattr(doc, "scenes", []))
+    intro = (
+        parse_duration(scenes[0].duration)
+        if scenes and scenes[0].id == _VIDEO_INTRO_SCENE_ID
+        else 0.0
+    )
+    outro = (
+        parse_duration(scenes[-1].duration)
+        if scenes and scenes[-1].id == _VIDEO_OUTRO_SCENE_ID
+        else 0.0
+    )
+    return intro, outro
+
+
+def _write_silence_wav(path: Path, duration_seconds: float) -> None:
+    sample_rate = 44100
+    frame_count = max(0, int(round(duration_seconds * sample_rate)))
+    with wave.open(str(path), "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(b"\x00\x00" * frame_count)
+
+
 def _render_with_voice(
     doc: Any,
     *,
@@ -226,6 +431,7 @@ def _render_with_voice(
     generated_paths: list[Path] = []
     normalized_paths: list[Path] = []
     scene_timings: dict[str, SceneAudioTiming] = {}
+    intro_duration, outro_duration = _bookend_durations(doc)
 
     with tempfile.NamedTemporaryFile(
         prefix=f"{output_path.stem}_silent_",
@@ -236,8 +442,14 @@ def _render_with_voice(
         silent_path = Path(tmp.name)
 
     concat_path = output_path.with_suffix(".concat.wav")
+    retimed_document_path: str | None = None
 
     try:
+        if intro_duration > 0:
+            intro_silence = output_path.with_name(f"{output_path.stem}_intro_silence.wav")
+            _write_silence_wav(intro_silence, intro_duration)
+            normalized_paths.append(intro_silence)
+
         for index, scene in enumerate(narrated_scenes, start=1):
             progress_value = 0.1 + (index / len(narrated_scenes)) * 0.25
             _emit_progress(progress, progress_value, f"Generating voice for scene {scene.id}.")
@@ -258,8 +470,18 @@ def _render_with_voice(
                 duration_seconds=measure_audio_duration(str(normalized_path)),
             )
 
+        if outro_duration > 0:
+            outro_silence = output_path.with_name(f"{output_path.stem}_outro_silence.wav")
+            _write_silence_wav(outro_silence, outro_duration)
+            normalized_paths.append(outro_silence)
+
         timing_data = AudioTimingData(scenes=scene_timings)
         _emit_progress(progress, 0.58, "Retiming the animation to narration.")
+        retimed_document_path = _write_retimed_sidecar(
+            doc,
+            output_path,
+            audio_timing_data=timing_data,
+        )
         graph, theme = build_render_graph(
             doc,
             audio_timing_data=timing_data,
@@ -293,6 +515,7 @@ def _render_with_voice(
     return RenderArtifact(
         artifact_path=str(output_path),
         duration_seconds=round(graph.total_duration, 2),
+        retimed_document_path=retimed_document_path,
     )
 
 

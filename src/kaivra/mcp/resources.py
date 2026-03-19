@@ -83,14 +83,25 @@ Use these defaults unless the user clearly needs something else:
 - Prefer `visual_explainer` for narrated concept explainers. Use the other patterns when the user clearly wants a walkthrough, comparison, or sidebar-heavy architecture shape.
 - Choose `pacing: educational` for narrated explainers, `balanced` for normal silent demos, and `quick-demo` only when the user explicitly wants a faster, denser result.
 - Prefer `modern` for polished UI-style explainers and `whiteboard` for sketch-style teaching moments.
+- Build scene-specific object graphs from each beat's content. Do not reuse the same abstract lane or slide template across every scene.
 - Build scenes from `box`, `group`, `connector`, `token`, and short `text` headings. Treat body copy as support, not the main event.
+- For technical topics, show actual values, computations, and before/after transformations. Use `box` and `token` for values, `connector` + `draw` for flow, and staggered highlights for sequential emphasis.
 - Use `one-column` or `two-column` templates instead of custom grids whenever possible.
 - Use `draw` on connectors to reveal flow, dependency, and causality.
-- Keep narrated scenes around 10-15 seconds and let narration carry the longer prose.
+- Prefer `fade-in` for smooth reveals. `appear` is an instant visibility toggle and is best reserved for deliberate snap-ins.
+- Write narration as conversational spoken English, not written prose. Use contractions, direct address, and casual transitions. Do not open every scene with `Title. Definition.`
+- Let the explanation determine scene length. When voice retiming is active, the pipeline can stretch scene timing automatically to match the narration.
+- Sparse animation is the common failure mode. Every element that becomes relevant during the scene should have a corresponding reveal or emphasis so the visual keeps pace with the explanation.
+- Start most scene objects hidden and reveal them progressively with `fade-in`, `draw`, `highlight`, `scale`, or light `pulse`. Reserve `auto_visible: true` for persistent document-level context.
 - Use `meta.show_subtitles` only when narration text should stay on screen. Subtitle visibility is separate from whether a scene has narration or voice.
 - Silent quick demos can use shorter scenes and compact text stacks when that helps the point land faster.
+- Reuse the same `id` and the same `content` across consecutive scenes when a value, node, or result carries forward. The engine will morph it into its new position automatically.
 - Reuse stable IDs for nodes and connectors that persist across scenes so follow-up animations and audits stay reliable.
-- Prefer `highlight`, `scale`, `appear`, light `pulse`, and connector `draw` over busy multi-effect motion.
+- When a concept repeats the same operation, show one concrete worked example with real values and then generalize. Do not narrate every repetition one by one.
+- Revealing a group ID will also reveal descendants that do not have their own visibility animation. Give a child its own `fade-in` only when you want custom timing.
+- Treat the starter blueprint as a scaffold. Hand-edit it to add scene-specific visual depth before the final render.
+- Document-level `flow` groups inside `one-column` scenes have limited horizontal space. Keep persistent bars compact, with short labels and tight spacing.
+- Prefer `highlight`, `scale`, `fade-in`, light `pulse`, and connector `draw` over busy multi-effect motion.
 
 Avoid these in the starter workflow:
 
@@ -204,6 +215,72 @@ Use these as shape references for scene structure and pacing, not as templates t
 - Persistent bottom carousel for progress
 - `modern` theme
 - Focused highlight on the active step
+
+## Good Narrated Scene
+
+- Persistent top context bar plus a scene-specific computation breakdown
+- Real values, staged reveals, and connector draws
+- Progression from one worked example to a generalized takeaway
+
+```json
+{
+  "template": "one-column",
+  "auto_visible": false,
+  "objects": [
+    {
+      "type": "group",
+      "id": "network_bar",
+      "layout": { "type": "flow", "gap": "small" },
+      "children": [
+        { "type": "token", "id": "stage_in", "content": "Input" },
+        { "type": "token", "id": "stage_hidden", "content": "Hidden" },
+        { "type": "token", "id": "stage_out", "content": "Output" }
+      ]
+    },
+    {
+      "type": "group",
+      "id": "worked_example",
+      "layout": { "type": "flow", "gap": "medium" },
+      "children": [
+        { "type": "box", "id": "x1_value", "content": "x1 = 0.72" },
+        { "type": "box", "id": "weight_step", "content": "0.5 x 0.72" },
+        { "type": "box", "id": "relu_step", "content": "ReLU -> 0.36" }
+      ]
+    },
+    { "type": "connector", "id": "x1_to_weight", "from": "x1_value", "to": "weight_step" },
+    { "type": "connector", "id": "weight_to_relu", "from": "weight_step", "to": "relu_step" }
+  ],
+  "animations": [
+    { "action": "fade-in", "target": "network_bar", "at": "0s", "duration": "0.6s" },
+    { "action": "fade-in", "target": "x1_value", "at": "0.3s", "duration": "0.6s" },
+    { "action": "draw", "target": "x1_to_weight", "at": "0.6s", "duration": "0.9s" },
+    { "action": "fade-in", "target": "weight_step", "at": "0.7s", "duration": "0.6s" },
+    { "action": "highlight", "target": "weight_step", "at": "1.1s", "duration": "1.4s", "color": "accent" },
+    { "action": "draw", "target": "weight_to_relu", "at": "1.8s", "duration": "0.9s" },
+    { "action": "fade-in", "target": "relu_step", "at": "1.9s", "duration": "0.6s" }
+  ]
+}
+```
+
+## Continuity Carry-Over
+
+- Reuse the same object `id` and the same `content` in consecutive scenes
+- The engine glides the object into its new position instead of hard-cutting it
+
+```json
+{
+  "scenes": [
+    {
+      "id": "weighted_sum",
+      "objects": [{ "type": "box", "id": "result_val", "content": "0.36" }]
+    },
+    {
+      "id": "activation",
+      "objects": [{ "type": "box", "id": "result_val", "content": "0.36" }]
+    }
+  ]
+}
+```
 
 ## Architecture Explainer
 

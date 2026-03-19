@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import click
+from click.core import ParameterSource
 
 
 @click.group()
@@ -45,19 +46,19 @@ def doctor(as_json: bool):
     "--model-name",
     default="vits-piper-en_US-amy-low",
     show_default=True,
-    help="Sherpa local TTS model bundle to install.",
+    help="Sherpa local TTS model bundle to install for `--voice` local narration.",
 )
 @click.option(
     "--target-dir",
     type=click.Path(path_type=Path),
     default=None,
-    help="Destination directory for the downloaded model bundle.",
+    help="Destination directory for the model bundle. Defaults to ~/.kaivra/models/<model-name>.",
 )
 @click.option(
     "--force", is_flag=True, help="Redownload and replace an existing local model directory."
 )
 def download_model(model_name: str, target_dir: Path | None, force: bool):
-    """Download the default local TTS model bundle into ~/.kaivra/models."""
+    """Download a local Sherpa TTS model bundle into ~/.kaivra/models/<model-name>."""
     from kaivra.mcp.workspace import KaivraWorkspace
 
     workspace = KaivraWorkspace()
@@ -85,6 +86,7 @@ def download_model(model_name: str, target_dir: Path | None, force: bool):
     click.echo(f"Model path: {result['model_path']}")
     click.echo(f"Tokens path: {result['tokens_path']}")
     click.echo(f"Data dir: {result['data_dir']}")
+    click.echo("Next step: KAIVRA_VOICE_PROVIDER=local kaivra quick-render <file> --voice")
 
 
 @main.command("mcp-install")
@@ -257,7 +259,7 @@ def quick_render(
 
     input_path = Path(input_file).expanduser().resolve()
     workspace = KaivraWorkspace(input_path.parent)
-    check = workspace.check_animation(file_path=str(input_path))
+    check = workspace.check_animation(file_path=str(input_path), voice=voice)
 
     if check["warnings"]:
         for warning in check["warnings"]:
@@ -325,21 +327,52 @@ def sample(input_file: str, outdir: str, count: int, seed: int | None):
 
 
 @main.command()
+@click.pass_context
 @click.argument("input_file", type=click.Path(exists=True))
-@click.option("-n", "--samples", default=5, show_default=True, help="Sample count per scene")
-def audit(input_file: str, samples: int):
-    """Audit an animation for overlap and clipping issues."""
+@click.option(
+    "--layout-only",
+    is_flag=True,
+    help="Run only the sampled layout audit instead of the full validation and audit suite.",
+)
+@click.option(
+    "-n",
+    "--samples",
+    default=None,
+    type=int,
+    help="Sample count per scene for `--layout-only` mode.",
+)
+def audit(ctx: click.Context, input_file: str, layout_only: bool, samples: int | None):
+    """Audit an animation with the full check suite by default."""
     from kaivra.dsl.parser import parse_file
+    from kaivra.mcp.workspace import KaivraWorkspace
     from kaivra.qa.audit import audit_scene_graph
     from kaivra.render.orchestration import build_render_graph, resolve_theme_search_roots
+
+    if not layout_only and ctx.get_parameter_source("samples") != ParameterSource.DEFAULT:
+        raise click.ClickException("`--samples` is only supported together with `--layout-only`.")
+
+    if not layout_only:
+        checked = KaivraWorkspace().check_animation(file_path=str(Path(input_file).resolve()))
+        if checked["valid"] and not checked["audit_findings"]:
+            click.echo("Audit passed: no issues found.")
+            return
+
+        for issue in checked["blocking_issues"]:
+            click.echo(issue)
+        for warning in checked["warnings"]:
+            click.echo(warning)
+
+        if not checked["valid"]:
+            raise click.ClickException("Audit found blocking issues.")
+        return
 
     doc = parse_file(input_file)
     theme_roots = resolve_theme_search_roots(input_file)
     graph, _theme = build_render_graph(doc, theme_search_roots=theme_roots)
-    findings = audit_scene_graph(graph, samples_per_scene=samples)
+    findings = audit_scene_graph(graph, samples_per_scene=samples or 5)
 
     if not findings:
-        click.echo("Audit passed: no overlap or clipping issues found.")
+        click.echo("Audit passed: no sampled layout issues found.")
         return
 
     for finding in findings:
@@ -439,7 +472,7 @@ def _render_to_output(
     theme_roots = resolve_theme_search_roots(input_file)
     progress = _CliProgressPrinter() if voice else None
     try:
-        render_document_artifact(
+        result = render_document_artifact(
             doc,
             output_path=output,
             fps=fps,
@@ -461,6 +494,9 @@ def _render_to_output(
         click.echo(f"Rendered video with voice to {output}")
     else:
         click.echo(f"Rendered video to {output}")
+
+    if result.retimed_document_path:
+        click.echo(f"Retimed document: {result.retimed_document_path}")
 
 
 def _resolve_quick_render_output(

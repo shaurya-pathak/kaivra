@@ -124,7 +124,7 @@ def concat_audio(audio_paths: list[str], output_path: str) -> None:
         mode="w", suffix=".txt", delete=False, prefix="kaivra_concat_"
     ) as f:
         for path in audio_paths:
-            f.write(f"file '{path}'\n")
+            f.write(f"file '{Path(path).resolve()}'\n")
         list_path = f.name
 
     try:

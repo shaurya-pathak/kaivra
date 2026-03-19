@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from kaivra.mcp.resources import read_resource
-from kaivra.mcp.server import KaivraMCPServer
+from kaivra.mcp.server import KaivraMCPServer, _summarize_tool_result
 
 
 def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
@@ -21,7 +21,8 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     instructions = init_response["result"]["instructions"]
     assert "explain concepts slowly and visually" in instructions
     assert "Use draw on connectors" in instructions
-    assert "10-15 seconds" in instructions
+    assert "Reuse the same object id and content" in instructions
+    assert "conversational spoken English" in instructions
     assert "Use start_animation first, then check_animation" in instructions
 
     assert (
@@ -99,12 +100,101 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     examples = read_resource("kaivra://example-catalog")["contents"][0]["text"]
 
     assert "Choose `pacing: educational` for narrated explainers" in authoring
+    assert "scene-specific object graphs" in authoring
+    assert "same `id` and the same `content`" in authoring
+    assert "show one concrete worked example" in authoring
+    assert "Sparse animation is the common failure mode" in authoring
+    assert "Aim for 3-5 distinct animations per scene" not in authoring
+    assert "Prefer `fade-in` for smooth reveals" in authoring
+    assert "will also reveal descendants" in authoring
     assert "Use `draw` on connectors" in authoring
     assert "walls of body text when narration is present" in authoring
     assert "Default choice for narrated concept explainers" in pattern_catalog
     assert "Treat examples as shape references" in pattern_catalog
     assert "persistent IDs" in pattern_catalog
     assert "not as templates to copy verbatim" in examples
+    assert "Good Narrated Scene" in examples
+    assert "Continuity Carry-Over" in examples
+
+
+def test_check_animation_summary_mentions_warning_count() -> None:
+    assert (
+        _summarize_tool_result(
+            "check_animation",
+            {"valid": True, "warnings": ["warning one", "warning two"]},
+        )
+        == "Animation validated with 2 warnings to review."
+    )
+
+
+def test_start_animation_tool_description_steers_narrated_flows_toward_visual_explainer(
+    tmp_path: Path,
+) -> None:
+    server = KaivraMCPServer(workspace_root=str(tmp_path))
+    server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18"},
+        }
+    )
+    server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {},
+        }
+    )
+    tools_response = server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {},
+        }
+    )[0]
+
+    start_tool = next(
+        tool for tool in tools_response["result"]["tools"] if tool["name"] == "start_animation"
+    )
+
+    assert "visual_explainer" in start_tool["description"]
+
+
+def test_quick_render_tool_description_steers_narrated_flows_toward_visual_explainer(
+    tmp_path: Path,
+) -> None:
+    server = KaivraMCPServer(workspace_root=str(tmp_path))
+    server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18"},
+        }
+    )
+    server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {},
+        }
+    )
+    tools_response = server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {},
+        }
+    )[0]
+
+    quick_render_tool = next(
+        tool for tool in tools_response["result"]["tools"] if tool["name"] == "quick_render"
+    )
+
+    assert "visual_explainer" in quick_render_tool["description"]
 
 
 def test_quick_render_tool_creates_artifact(tmp_path: Path) -> None:

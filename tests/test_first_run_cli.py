@@ -24,6 +24,14 @@ def test_download_model_help() -> None:
     result = runner.invoke(main, ["download-model", "--help"])
     assert result.exit_code == 0
     assert "--model-name" in result.output
+    assert "~/.kaivra/models/<model-name>" in result.output
+
+
+def test_audit_help_mentions_layout_only_flag() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["audit", "--help"])
+    assert result.exit_code == 0
+    assert "--layout-only" in result.output
 
 
 def test_mcp_install_help() -> None:
@@ -158,3 +166,57 @@ def test_quick_render_accepts_repo_relative_input_path(monkeypatch) -> None:
     assert result.exit_code == 0
     assert Path(captured["input_file"]).is_absolute()
     assert captured["output"].endswith("artifacts/quick-renders/bubble_sort.png")
+
+
+def test_audit_defaults_to_check_animation_output(tmp_path: Path, monkeypatch) -> None:
+    input_file = tmp_path / "demo.json"
+    input_file.write_text(
+        Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        "kaivra.mcp.workspace.KaivraWorkspace.check_animation",
+        lambda *args, **kwargs: {
+            "valid": True,
+            "audit_findings": ["WARNING demo narration: needs review"],
+            "blocking_issues": [],
+            "warnings": ["WARNING demo narration: needs review"],
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["audit", str(input_file)])
+
+    assert result.exit_code == 0, result.output
+    assert "WARNING demo narration: needs review" in result.output
+
+
+def test_audit_layout_only_uses_sampled_layout_path(tmp_path: Path, monkeypatch) -> None:
+    input_file = tmp_path / "demo.json"
+    input_file.write_text(
+        Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        "kaivra.qa.audit.audit_scene_graph",
+        lambda *_args, **_kwargs: [],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["audit", str(input_file), "--layout-only", "--samples", "2"])
+
+    assert result.exit_code == 0, result.output
+    assert "no sampled layout issues found" in result.output
+
+
+def test_audit_rejects_samples_without_layout_only(tmp_path: Path) -> None:
+    input_file = tmp_path / "demo.json"
+    input_file.write_text(
+        Path("examples/algorithms/bubble_sort.json").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["audit", str(input_file), "--samples", "2"])
+
+    assert result.exit_code != 0
+    assert "--samples" in result.output

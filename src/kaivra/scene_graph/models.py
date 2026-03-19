@@ -80,6 +80,7 @@ class AnimationKeyframe:
     from_offset_x: float | None = None  # for move (start)
     from_offset_y: float | None = None  # for move (start)
     to_id: str | None = None  # for move-to
+    with_id: str | None = None  # for replace
 
 
 @dataclass

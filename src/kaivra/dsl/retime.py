@@ -22,9 +22,12 @@ from kaivra.dsl.pacing import (
 from kaivra.dsl.schema import parse_duration
 
 EMPHASIS_ACTIONS = {"highlight", "pulse"}
+REVEAL_ACTIONS = {"appear", "fade-in", "draw", "type", "replace"}
 MIN_CUE_DURATION_SECONDS = 0.45
 MIN_EMPHASIS_DURATION_SECONDS = 0.28
+MIN_REVEAL_DURATION_SECONDS = 0.24
 BROAD_EMPHASIS_FRACTION = 0.45
+REVEAL_CUE_FRACTION = 0.72
 
 
 def format_duration(seconds: float) -> str:
@@ -76,7 +79,7 @@ def retime_document_to_audio_timings(
 
         _retime_scene(scene, scale)
         if align_audio_cues and timing.cues:
-            _align_scene_emphasis_to_cues(
+            _align_scene_events_to_cues(
                 scene,
                 list(timing.cues),
                 persistent_ids,
@@ -265,14 +268,14 @@ def _parse_time(value: Any, default: float) -> float:
     raise TypeError(f"Unsupported time value: {value!r}")
 
 
-def _align_scene_emphasis_to_cues(
+def _align_scene_events_to_cues(
     scene: dict[str, Any],
     cues: list[AudioCue],
     persistent_ids: set[str],
     *,
     scene_duration: float,
 ) -> None:
-    events = _collect_emphasis_events(scene, persistent_ids, scene_duration)
+    events = _collect_cue_aligned_events(scene, persistent_ids, scene_duration)
     if not events:
         return
 
@@ -280,11 +283,13 @@ def _align_scene_emphasis_to_cues(
     for event, cue in zip(events, matched_cues):
         if event.kind == "focus":
             _align_focus_style_to_cue(event.ref, cue)
+        elif event.kind == "reveal":
+            _align_reveal_to_cue(event.ref, cue)
         else:
             _align_animation_to_cue(event.ref, cue)
 
 
-def _collect_emphasis_events(
+def _collect_cue_aligned_events(
     scene: Mapping[str, Any],
     persistent_ids: set[str],
     scene_duration: float,
@@ -294,21 +299,28 @@ def _collect_emphasis_events(
         if not isinstance(anim, dict):
             continue
         action = anim.get("action")
-        if action not in EMPHASIS_ACTIONS:
-            continue
         targets = _normalize_targets(anim.get("target"))
-        if not targets:
-            continue
-
-        duration = _parse_time(anim.get("duration"), 0.5)
-        if scene_duration > 0 and duration >= scene_duration * BROAD_EMPHASIS_FRACTION:
-            continue
-        if all(target in persistent_ids for target in targets):
+        if action in EMPHASIS_ACTIONS:
+            if not targets:
+                continue
+            duration = _parse_time(anim.get("duration"), 0.5)
+            if scene_duration > 0 and duration >= scene_duration * BROAD_EMPHASIS_FRACTION:
+                continue
+            if all(target in persistent_ids for target in targets):
+                continue
+            event_kind = "animation"
+        elif action in REVEAL_ACTIONS:
+            if not targets:
+                continue
+            if all(target in persistent_ids for target in targets):
+                continue
+            event_kind = "reveal"
+        else:
             continue
 
         events.append(
             _EmphasisEvent(
-                kind="animation",
+                kind=event_kind,
                 ref=anim,
                 start=_parse_time(anim.get("at"), 0.0),
                 scene_order=idx,
@@ -393,6 +405,32 @@ def _align_animation_to_cue(anim: dict[str, Any], cue: AudioCue) -> None:
     anim["duration"] = format_duration(
         max(MIN_EMPHASIS_DURATION_SECONDS, original_duration * scale)
     )
+    if "stagger" in anim or original_stagger > 0:
+        anim["stagger"] = format_duration(max(0.0, original_stagger * scale))
+
+
+def _align_reveal_to_cue(anim: dict[str, Any], cue: AudioCue) -> None:
+    start = max(0.0, cue.start_seconds)
+    anim["at"] = format_duration(start)
+
+    action = anim.get("action")
+    original_duration = _parse_time(anim.get("duration"), 0.0)
+    if action == "appear" and original_duration <= 0:
+        return
+
+    targets = _normalize_targets(anim.get("target"))
+    target_count = max(1, len(targets))
+    original_stagger = _parse_time(anim.get("stagger"), 0.0)
+    original_total = original_duration + original_stagger * max(0, target_count - 1)
+    target_total = max(MIN_REVEAL_DURATION_SECONDS, cue.duration_seconds * REVEAL_CUE_FRACTION)
+
+    scale = target_total / original_total if original_total > 0 else 1.0
+    scaled_duration = original_duration * scale
+    if original_duration <= 0 and action in {"fade-in", "draw", "type", "replace"}:
+        scaled_duration = target_total
+
+    if scaled_duration > 0:
+        anim["duration"] = format_duration(max(MIN_REVEAL_DURATION_SECONDS, scaled_duration))
     if "stagger" in anim or original_stagger > 0:
         anim["stagger"] = format_duration(max(0.0, original_stagger * scale))
 

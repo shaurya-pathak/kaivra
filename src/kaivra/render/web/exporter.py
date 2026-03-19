@@ -47,6 +47,7 @@ def build_web_preview_html(
                     "offset_y": kf.offset_y,
                     "from_offset_x": kf.from_offset_x,
                     "from_offset_y": kf.from_offset_y,
+                    "with_id": kf.with_id,
                 }
             )
 
@@ -319,7 +320,10 @@ function applyAnimations(nodeMap, keyframes, t) {{
 
     switch(kf.action) {{
       case 'appear':
-        if (t >= kf.start_time) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
+        if (kf.duration > 0) {{
+          if (p !== null) {{ node._visible = true; node._opacity = Math.max(node._opacity, p); node._drawProgress = 1; }}
+          else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
+        }} else if (t >= kf.start_time) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
         break;
       case 'disappear':
         if (t < kf.start_time) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
@@ -371,6 +375,28 @@ function applyAnimations(nodeMap, keyframes, t) {{
           }}
         }}
         break;
+      case 'replace': {{
+        const replacement = kf.with_id ? nodeMap[kf.with_id] : null;
+        if (p !== null) {{
+          node._visible = true;
+          node._opacity = Math.max(0, 1 - p);
+          node._drawProgress = 1;
+          if (replacement) {{
+            replacement._visible = true;
+            replacement._opacity = Math.max(replacement._opacity || 0, p);
+            replacement._drawProgress = 1;
+          }}
+        }} else if (done) {{
+          node._visible = false;
+          node._opacity = 0;
+          if (replacement) {{
+            replacement._visible = true;
+            replacement._opacity = 1;
+            replacement._drawProgress = 1;
+          }}
+        }}
+        break;
+      }}
       default:
         if (p !== null) {{ node._visible = true; node._opacity = p; node._drawProgress = p; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
@@ -557,8 +583,57 @@ function drawConnector(ctx, node, nodeMap) {{
   if (!node.fromId || !node.toId) return;
   const from = nodeMap[node.fromId], to = nodeMap[node.toId];
   if (!from || !to) return;
-  const sx = from.rect.x + from.rect.w, sy = from.rect.y + from.rect.h / 2;
-  const ex = to.rect.x, ey = to.rect.y + to.rect.h / 2;
+  const horizontalOverlap = Math.min(from.rect.x + from.rect.w, to.rect.x + to.rect.w) - Math.max(from.rect.x, to.rect.x);
+  const verticalOverlap = Math.min(from.rect.y + from.rect.h, to.rect.y + to.rect.h) - Math.max(from.rect.y, to.rect.y);
+  const fromCx = from.rect.x + from.rect.w / 2;
+  const fromCy = from.rect.y + from.rect.h / 2;
+  const toCx = to.rect.x + to.rect.w / 2;
+  const toCy = to.rect.y + to.rect.h / 2;
+  const dx = toCx - fromCx;
+  const dy = toCy - fromCy;
+
+  let sx, sy, ex, ey;
+  if (horizontalOverlap > 0 && Math.abs(dy) > 1e-6) {{
+    sx = fromCx;
+    ex = toCx;
+    if (dy > 0) {{
+      sy = from.rect.y + from.rect.h;
+      ey = to.rect.y;
+    }} else {{
+      sy = from.rect.y;
+      ey = to.rect.y + to.rect.h;
+    }}
+  }} else if (verticalOverlap > 0 && Math.abs(dx) > 1e-6) {{
+    sy = fromCy;
+    ey = toCy;
+    if (dx > 0) {{
+      sx = from.rect.x + from.rect.w;
+      ex = to.rect.x;
+    }} else {{
+      sx = from.rect.x;
+      ex = to.rect.x + to.rect.w;
+    }}
+  }} else if (Math.abs(dy) > Math.abs(dx)) {{
+    sx = fromCx;
+    ex = toCx;
+    if (dy > 0) {{
+      sy = from.rect.y + from.rect.h;
+      ey = to.rect.y;
+    }} else {{
+      sy = from.rect.y;
+      ey = to.rect.y + to.rect.h;
+    }}
+  }} else {{
+    sy = fromCy;
+    ey = toCy;
+    if (dx > 0) {{
+      sx = from.rect.x + from.rect.w;
+      ex = to.rect.x;
+    }} else {{
+      sx = from.rect.x;
+      ex = to.rect.x + to.rect.w;
+    }}
+  }}
   ctx.strokeStyle = hexToRgba(THEME.connectorColor, node._opacity);
   ctx.lineWidth = THEME.connectorWidth;
   ctx.beginPath();

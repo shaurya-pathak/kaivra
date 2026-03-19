@@ -27,6 +27,30 @@ def test_concat_audio_writes_wav_with_pcm_codec(tmp_path: Path, monkeypatch) -> 
     assert commands[0][-1].endswith("joined.wav")
 
 
+def test_concat_audio_writes_absolute_paths_into_concat_manifest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    audio_a = tmp_path / "a.wav"
+    audio_b = tmp_path / "b.wav"
+    audio_a.write_bytes(b"a")
+    audio_b.write_bytes(b"b")
+    manifests: list[str] = []
+
+    def fake_run(cmd, **_kwargs):
+        manifest_path = Path(cmd[7])
+        manifests.append(manifest_path.read_text(encoding="utf-8"))
+        Path(cmd[-1]).write_bytes(b"concat")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(mux.subprocess, "run", fake_run)
+
+    mux.concat_audio([str(audio_a), str(audio_b)], str(tmp_path / "joined.wav"))
+
+    assert manifests
+    assert f"file '{audio_a.resolve()}'" in manifests[0]
+    assert f"file '{audio_b.resolve()}'" in manifests[0]
+
+
 def test_concat_audio_copies_single_file_without_ffmpeg(tmp_path: Path, monkeypatch) -> None:
     source = tmp_path / "single.wav"
     source.write_bytes(b"one")

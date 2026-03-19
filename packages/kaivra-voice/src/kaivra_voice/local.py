@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+from array import array
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -67,7 +68,7 @@ class LocalProvider(VoiceProvider):
             wf.setnchannels(1)
             wf.setsampwidth(2)
             wf.setframerate(audio.sample_rate)
-            wf.writeframes(audio.samples_as_bytes())
+            wf.writeframes(_audio_samples_to_wav_bytes(audio))
 
         duration = _measure_duration(output_path)
         return AudioResult(
@@ -209,3 +210,16 @@ def _measure_duration(path: str) -> float:
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {proc.stderr}")
     return float(proc.stdout.strip())
+
+
+def _audio_samples_to_wav_bytes(audio: object) -> bytes:
+    """Convert Sherpa float samples into 16-bit PCM bytes."""
+    samples = getattr(audio, "samples", None)
+    if samples is None:
+        raise RuntimeError("Local Sherpa audio result did not expose a samples array.")
+
+    pcm = array("h")
+    for sample in samples:
+        clipped = max(-1.0, min(1.0, float(sample)))
+        pcm.append(int(clipped * 32767))
+    return pcm.tobytes()
