@@ -1,5 +1,6 @@
 """Tests for the ElevenLabs voice provider."""
 
+import base64
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -40,7 +41,39 @@ def test_custom_voice_id():
 def test_generate_calls_elevenlabs_api(tmp_path):
     mock_client_cls = MagicMock()
     mock_client = mock_client_cls.return_value
-    mock_client.text_to_speech.convert.return_value = [b"\x00" * 100]
+    mock_client.text_to_speech.convert_with_timestamps.return_value = MagicMock(
+        audio_base_64=base64.b64encode(b"\x00" * 100).decode("ascii"),
+        normalized_alignment=MagicMock(
+            characters=list("Hello world"),
+            character_start_times_seconds=[
+                0.0,
+                0.1,
+                0.2,
+                0.3,
+                0.4,
+                0.5,
+                0.6,
+                0.7,
+                0.8,
+                0.9,
+                1.0,
+            ],
+            character_end_times_seconds=[
+                0.1,
+                0.2,
+                0.3,
+                0.4,
+                0.5,
+                0.6,
+                0.7,
+                0.8,
+                0.9,
+                1.0,
+                1.1,
+            ],
+        ),
+        alignment=None,
+    )
 
     mock_elevenlabs = MagicMock()
     mock_elevenlabs.client.ElevenLabs = mock_client_cls
@@ -60,7 +93,8 @@ def test_generate_calls_elevenlabs_api(tmp_path):
     assert isinstance(result, AudioResult)
     assert result.scene_id == "scene_01"
     assert result.duration_seconds == 5.2
-    mock_client.text_to_speech.convert.assert_called_once_with(
+    assert [cue.text for cue in result.cues] == ["Hello", "world"]
+    mock_client.text_to_speech.convert_with_timestamps.assert_called_once_with(
         text="Hello world",
         voice_id="rachel",
         output_format="mp3_44100_128",

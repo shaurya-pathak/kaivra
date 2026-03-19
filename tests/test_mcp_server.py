@@ -23,6 +23,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "Use draw on connectors" in instructions
     assert "Reuse the same object id and content" in instructions
     assert "conversational spoken English" in instructions
+    assert "same order you want highlights and reveals to land" in instructions
     assert "Use start_animation first, then check_animation" in instructions
 
     assert (
@@ -106,6 +107,7 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     assert "Sparse animation is the common failure mode" in authoring
     assert "Aim for 3-5 distinct animations per scene" not in authoring
     assert "Prefer `fade-in` for smooth reveals" in authoring
+    assert "same order you want them revealed or highlighted" in authoring
     assert "will also reveal descendants" in authoring
     assert "Use `draw` on connectors" in authoring
     assert "walls of body text when narration is present" in authoring

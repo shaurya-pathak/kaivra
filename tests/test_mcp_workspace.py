@@ -348,6 +348,92 @@ def test_check_animation_respects_group_inherited_reveal_for_hidden_children(
     assert not any("child_b" in warning for warning in checked["warnings"])
 
 
+def test_check_animation_warns_when_scene_crossfade_and_object_reveal_stack(
+    tmp_path: Path,
+) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "setup",
+                    "duration": "4s",
+                    "layout": "center",
+                    "objects": [{"id": "setup_box", "type": "box", "content": "Setup"}],
+                    "animations": [{"action": "appear", "target": "setup_box", "at": "0s"}],
+                    "transition": {"type": "fade", "duration": "1s"},
+                },
+                {
+                    "id": "reveal_scene",
+                    "duration": "4s",
+                    "auto_visible": False,
+                    "layout": "center",
+                    "objects": [{"id": "value_box", "type": "box", "content": "Value"}],
+                    "animations": [
+                        {
+                            "action": "fade-in",
+                            "target": "value_box",
+                            "at": "0.2s",
+                            "duration": "0.6s",
+                        }
+                    ],
+                },
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any(
+        "look like it appears twice" in warning and "value_box" in warning
+        for warning in checked["warnings"]
+    )
+
+
+def test_check_animation_warns_when_group_and_child_reveal_overlap(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "nested_reveal",
+                    "duration": "5s",
+                    "auto_visible": False,
+                    "layout": "center",
+                    "objects": [
+                        {
+                            "id": "cluster",
+                            "type": "group",
+                            "layout": "flow",
+                            "children": [
+                                {"id": "child_box", "type": "box", "content": "Child"},
+                            ],
+                        }
+                    ],
+                    "animations": [
+                        {"action": "fade-in", "target": "cluster", "at": "0s", "duration": "0.8s"},
+                        {
+                            "action": "fade-in",
+                            "target": "child_box",
+                            "at": "0.1s",
+                            "duration": "0.6s",
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any(
+        "Group `cluster` and child `child_box` both reveal during the same window" in warning
+        for warning in checked["warnings"]
+    )
+
+
 def test_check_animation_blocks_replace_when_objects_are_not_aligned(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     checked = _check_animation(

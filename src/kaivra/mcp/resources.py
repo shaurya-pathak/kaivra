@@ -90,6 +90,7 @@ Use these defaults unless the user clearly needs something else:
 - Use `draw` on connectors to reveal flow, dependency, and causality.
 - Prefer `fade-in` for smooth reveals. `appear` is an instant visibility toggle and is best reserved for deliberate snap-ins.
 - Write narration as conversational spoken English, not written prose. Use contractions, direct address, and casual transitions. Do not open every scene with `Title. Definition.`
+- For voiced renders, especially ElevenLabs, mention labels, values, and steps in the same order you want them revealed or highlighted. The renderer can use exact speech timings, so narration should clearly call out the thing that needs to light up.
 - Let the explanation determine scene length. When voice retiming is active, the pipeline can stretch scene timing automatically to match the narration.
 - Sparse animation is the common failure mode. Every element that becomes relevant during the scene should have a corresponding reveal or emphasis so the visual keeps pace with the explanation.
 - Start most scene objects hidden and reveal them progressively with `fade-in`, `draw`, `highlight`, `scale`, or light `pulse`. Reserve `auto_visible: true` for persistent document-level context.

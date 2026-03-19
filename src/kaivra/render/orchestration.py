@@ -451,6 +451,7 @@ def _render_with_voice(
             scene_timings[scene.id] = SceneAudioTiming(
                 id=scene.id,
                 duration_seconds=_voice_scene_duration(scene.id, measured_duration),
+                cues=result.cues,
             )
 
         timing_data = AudioTimingData(scenes=scene_timings)

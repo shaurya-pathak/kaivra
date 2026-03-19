@@ -174,6 +174,7 @@ class KaivraMCPServer:
                 "Reuse the same object id and content across consecutive scenes when a value carries forward so continuity creates a smooth carry-over transition. "
                 "Start scene objects hidden and reveal them as narration introduces them, usually with fade-in rather than instant appear. "
                 "Write narration as conversational spoken English with contractions and direct address, not title-plus-definition prose. "
+                "When voice timing is available, especially with ElevenLabs, mention labels and values in the same order you want highlights and reveals to land so the animation can sync to the spoken cue. "
                 "For explainers, keep adding reveals and emphasis until the visuals track the explanation. Use draw on connectors to show flow and causality. "
                 "Avoid walls of body text when narration is present. "
                 "Use start_animation first, then check_animation, then preview_animation or render_animation. "

@@ -44,3 +44,6 @@ SKILL.md
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Env File
+.env

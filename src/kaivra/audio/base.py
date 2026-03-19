@@ -7,6 +7,8 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from kaivra.audio.timings import AudioCue
+
 
 @dataclass(frozen=True)
 class AudioResult:
@@ -15,6 +17,7 @@ class AudioResult:
     audio_path: str
     duration_seconds: float
     scene_id: str
+    cues: tuple[AudioCue, ...] = ()
 
 
 class VoiceProvider(ABC):

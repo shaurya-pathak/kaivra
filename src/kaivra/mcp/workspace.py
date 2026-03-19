@@ -13,6 +13,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher, get_close_matches
@@ -20,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from kaivra.dsl.parser import parse_file, parse_string
-from kaivra.dsl.schema import ObjectType
+from kaivra.dsl.schema import ObjectType, parse_duration
 from kaivra.mcp.blueprints import (
     build_starter_document,
     dump_document_json,
@@ -51,6 +52,8 @@ _REDUNDANCY_WORD_THRESHOLD = 6
 _REDUNDANCY_TOKEN_OVERLAP = 0.72
 _REDUNDANCY_SEQUENCE_SIMILARITY = 0.78
 _EXPLANATION_MIN_WORDS = 12
+_DOUBLE_REVEAL_OVERLAP_SECONDS = 0.12
+_DOUBLE_REVEAL_HOLD_WINDOW_SECONDS = 0.15
 _EXPLANATION_MARKERS = (
     "because",
     "so that",
@@ -144,6 +147,19 @@ class ObjectRef:
     object_id: str | None
     path: str
     spec: Any
+
+
+@dataclass(frozen=True)
+class RevealEvent:
+    object_id: str
+    action: str
+    start_seconds: float
+    duration_seconds: float
+    animation_index: int
+
+    @property
+    def end_seconds(self) -> float:
+        return self.start_seconds + max(self.duration_seconds, 0.001)
 
 
 @dataclass(frozen=True)
@@ -928,6 +944,7 @@ def _audit_document_report(
         resolved_scene = scene_map.get(scene_id)
         if resolved_scene is None:
             continue
+        previous_scene_spec = doc.scenes[scene_index - 1] if scene_index > 0 else None
 
         scene_refs = _collect_object_refs(
             scene_spec.objects,
@@ -970,6 +987,14 @@ def _audit_document_report(
                 scene_index=scene_index,
                 resolved_scene=resolved_scene,
                 object_refs=scene_refs,
+            )
+        )
+        findings.extend(
+            _scene_double_reveal_findings(
+                scene_id=resolved_scene.id,
+                scene_spec=scene_spec,
+                previous_scene_spec=previous_scene_spec,
+                scene_index=scene_index,
             )
         )
 
@@ -1415,6 +1440,100 @@ def _scene_visibility_findings(
     return findings
 
 
+def _scene_double_reveal_findings(
+    *,
+    scene_id: str,
+    scene_spec: Any,
+    previous_scene_spec: Any | None,
+    scene_index: int,
+) -> list[CheckFinding]:
+    reveal_events = _collect_reveal_events(scene_spec)
+    if not reveal_events:
+        return []
+
+    findings: list[CheckFinding] = []
+    incoming_fade_duration = _incoming_scene_fade_duration(previous_scene_spec)
+    if incoming_fade_duration > 0:
+        early_reveals = sorted(
+            {
+                event.object_id
+                for event in reveal_events
+                if event.start_seconds < incoming_fade_duration - _DOUBLE_REVEAL_HOLD_WINDOW_SECONDS
+            }
+        )
+        if early_reveals:
+            object_list = ", ".join(f"`{object_id}`" for object_id in early_reveals[:3])
+            if len(early_reveals) > 3:
+                object_list += f", and {len(early_reveals) - 3} more"
+            findings.append(
+                CheckFinding(
+                    severity="warning",
+                    scene_id=scene_id,
+                    kind="double_reveal",
+                    message=(
+                        f"The previous scene fades into this one over {incoming_fade_duration:.1f}s, "
+                        f"but {object_list} also start revealing immediately. That can make the content "
+                        "look like it appears twice."
+                    ),
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_id,
+                        action="retime_visibility",
+                        object_id=early_reveals[0] if len(early_reveals) == 1 else None,
+                        field=f"scenes[{scene_index}].animations",
+                        suggested_value=None,
+                        reason=(
+                            "Delay object reveals until the incoming scene fade is done, or make the "
+                            "object instant if the scene transition already introduces it."
+                        ),
+                    ),
+                )
+            )
+
+    parent_map = _object_parent_map(scene_spec.objects)
+    events_by_object: dict[str, list[RevealEvent]] = defaultdict(list)
+    for event in reveal_events:
+        events_by_object[event.object_id].append(event)
+
+    warned_pairs: set[tuple[str, str]] = set()
+    for child_id, parent_id in parent_map.items():
+        ancestor_id = parent_id
+        while ancestor_id is not None:
+            if ancestor_id in events_by_object and child_id in events_by_object:
+                if any(
+                    _gradual_reveal_overlap(ancestor_event, child_event)
+                    for ancestor_event in events_by_object[ancestor_id]
+                    for child_event in events_by_object[child_id]
+                ):
+                    pair = (ancestor_id, child_id)
+                    if pair not in warned_pairs:
+                        warned_pairs.add(pair)
+                        findings.append(
+                            CheckFinding(
+                                severity="warning",
+                                scene_id=scene_id,
+                                kind="double_reveal",
+                                message=(
+                                    f"Group `{ancestor_id}` and child `{child_id}` both reveal during "
+                                    "the same window, so the child may look like it fades in twice."
+                                ),
+                                recommended_edit=RecommendedEdit(
+                                    scene_id=scene_id,
+                                    action="simplify_reveal",
+                                    object_id=child_id,
+                                    field=f"scenes[{scene_index}].animations",
+                                    suggested_value=None,
+                                    reason=(
+                                        "Let either the group or the child control the reveal timing, "
+                                        "not both at once."
+                                    ),
+                                ),
+                            )
+                        )
+            ancestor_id = parent_map.get(ancestor_id)
+
+    return findings
+
+
 def _has_effective_reveal_path(object_id: str, timeline: list[Any]) -> bool:
     visibility_actions = {
         "appear",
@@ -1437,6 +1556,70 @@ def _has_effective_reveal_path(object_id: str, timeline: list[Any]) -> bool:
         if keyframe.target_id == object_id or getattr(keyframe, "with_id", None) == object_id:
             return True
     return False
+
+
+def _collect_reveal_events(scene_spec: Any) -> list[RevealEvent]:
+    events: list[RevealEvent] = []
+    for animation_index, anim in enumerate(getattr(scene_spec, "animations", []) or []):
+        action = getattr(getattr(anim, "action", None), "value", getattr(anim, "action", None))
+        if action not in {"appear", "fade-in", "draw", "type", "replace"}:
+            continue
+        start_seconds = parse_duration(getattr(anim, "at", None) or "0s")
+        duration_seconds = parse_duration(getattr(anim, "duration", None) or "0s")
+        target = getattr(anim, "target", None)
+        target_ids = [target] if isinstance(target, str) else list(target or [])
+        if action == "replace":
+            with_id = getattr(anim, "with_id", None)
+            if with_id:
+                target_ids.append(with_id)
+        for object_id in target_ids:
+            if not object_id:
+                continue
+            events.append(
+                RevealEvent(
+                    object_id=object_id,
+                    action=action,
+                    start_seconds=start_seconds,
+                    duration_seconds=duration_seconds,
+                    animation_index=animation_index,
+                )
+            )
+    return events
+
+
+def _incoming_scene_fade_duration(previous_scene_spec: Any | None) -> float:
+    if previous_scene_spec is None or getattr(previous_scene_spec, "transition", None) is None:
+        return 0.0
+    return parse_duration(getattr(previous_scene_spec.transition, "duration", "0s"))
+
+
+def _object_parent_map(objects: list[Any]) -> dict[str, str | None]:
+    parent_map: dict[str, str | None] = {}
+
+    def walk(nodes: list[Any], parent_id: str | None) -> None:
+        for node in nodes:
+            node_id = getattr(node, "id", None)
+            if node_id:
+                parent_map[node_id] = parent_id
+            walk(getattr(node, "children", None) or [], node_id)
+
+    walk(objects, None)
+    return parent_map
+
+
+def _gradual_reveal_overlap(left: RevealEvent, right: RevealEvent) -> bool:
+    if not (_is_gradual_reveal(left) or _is_gradual_reveal(right)):
+        return False
+    overlap_seconds = min(left.end_seconds, right.end_seconds) - max(
+        left.start_seconds, right.start_seconds
+    )
+    if overlap_seconds >= _DOUBLE_REVEAL_OVERLAP_SECONDS:
+        return True
+    return abs(left.start_seconds - right.start_seconds) <= _DOUBLE_REVEAL_HOLD_WINDOW_SECONDS
+
+
+def _is_gradual_reveal(event: RevealEvent) -> bool:
+    return event.action != "appear" or event.duration_seconds > 0
 
 
 def _connector_reference_findings(

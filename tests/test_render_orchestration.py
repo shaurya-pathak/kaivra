@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from kaivra.audio.base import AudioResult
+from kaivra.audio.timings import AudioCue
 from kaivra.dsl.parser import parse_string
 from kaivra.render import orchestration
 
@@ -23,6 +24,14 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
                 audio_path=str(raw_audio),
                 duration_seconds=1.0,
                 scene_id=scene_id,
+                cues=(
+                    AudioCue(
+                        start_seconds=0.2,
+                        duration_seconds=0.4,
+                        text="Hello",
+                        kind="word",
+                    ),
+                ),
             )
 
     class DummyRegistry:
@@ -39,6 +48,17 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
 
     def fake_build_render_graph(_doc, **_kwargs):
         steps.append(("retime", _doc.meta.show_subtitles, [scene.id for scene in _doc.scenes]))
+        timing_data = _kwargs.get("audio_timing_data")
+        if timing_data is not None:
+            steps.append(
+                (
+                    "cues",
+                    len(timing_data.scenes["intro"].cues),
+                    timing_data.scenes["intro"].cues[0].text
+                    if timing_data.scenes["intro"].cues
+                    else None,
+                )
+            )
         return SimpleNamespace(total_duration=2.25), object()
 
     def fake_export_video(_graph, _theme, output_path: str, **kwargs) -> None:
@@ -88,6 +108,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
         ["__kaivra_video_intro__", "intro", "__kaivra_video_outro__"],
     ) in steps
     assert ("normalize", ".mp3", ".wav") in steps
+    assert ("cues", 1, "Hello") in steps
     assert ("concat", [".wav", ".wav", ".wav"], ".wav") in steps
     assert ("mux", ".wav", ".mp4") in steps
     assert "Discovering voice provider: dummy." in progress_messages
