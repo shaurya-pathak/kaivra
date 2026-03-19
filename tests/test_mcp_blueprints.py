@@ -167,7 +167,8 @@ def test_default_pattern_follows_narration_even_when_pacing_changes() -> None:
 
     assert "visual_focus_card" in narrated_ids
     assert "visual_source_link" in narrated_ids
-    assert "process_focus_card" in silent_ids
+    assert "algorithm_current_card" in silent_ids
+    assert "algorithm_prev_link" in silent_ids
     assert "body" in silent_styles
 
 
@@ -244,7 +245,7 @@ def test_connector_targets_stay_valid_for_visual_patterns(pattern: str) -> None:
         assert draw_targets <= connector_ids
 
 
-def test_non_narrated_captions_stack_above_carousel() -> None:
+def test_legacy_process_explainer_alias_maps_to_non_narrated_default() -> None:
     doc = build_starter_document(
         title="Captioned Starter",
         pattern="process_explainer",
@@ -258,9 +259,12 @@ def test_non_narrated_captions_stack_above_carousel() -> None:
         include_narration=False,
     )
 
+    object_ids = {obj.id for obj in _walk_objects(doc.scenes[0].objects) if obj.id}
     graph = build_scene_graph(doc, get_theme(doc.meta.theme))
     findings = audit_scene_graph(graph, samples_per_scene=4)
 
+    assert "algorithm_panel" in object_ids
+    assert "process_panel" not in object_ids
     assert all(finding.severity != "error" for finding in findings)
     first_scene = graph.scenes[0]
     caption = first_scene.node_map["beat_01_caption"]

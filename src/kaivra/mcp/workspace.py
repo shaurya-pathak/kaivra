@@ -236,7 +236,12 @@ class KaivraWorkspace:
                 "pacing": doc.meta.pacing.value,
                 "continuity": doc.meta.continuity,
             },
-            "next_step": "Run check_animation on the created file before previewing or rendering.",
+            "next_step": (
+                "IMPORTANT: The generated file is a generic scaffold. "
+                "Rewrite each scene's objects and animations arrays with topic-specific "
+                "diagrams (real values, concrete examples, unique layouts per scene) "
+                "before calling check_animation. Do not ship the scaffold as-is."
+            ),
         }
 
     def add_theme(
@@ -711,7 +716,7 @@ class KaivraWorkspace:
             try:
                 smoke_doc = build_starter_document(
                     title="Doctor Smoke Test",
-                    pattern="process_explainer",
+                    pattern="algorithm_walkthrough",
                     beats=["Goal: Verify the local Kaivra install."],
                     theme="modern",
                     audience=None,
@@ -997,6 +1002,8 @@ def _audit_document_report(
                 scene_index=scene_index,
             )
         )
+
+    findings.extend(_repetitive_scaffold_findings(doc.scenes))
 
     serialized_findings = _serialize_findings(findings)
     recommended_edits = _recommended_edits_from_findings(findings)
@@ -1440,6 +1447,59 @@ def _scene_visibility_findings(
     return findings
 
 
+def _repetitive_scaffold_findings(scene_specs: list[Any]) -> list[CheckFinding]:
+    narrated_runs: list[tuple[str, tuple[str, ...]]] = []
+    for index, scene_spec in enumerate(scene_specs):
+        narration = (getattr(scene_spec, "narration", None) or "").strip()
+        if not narration:
+            continue
+        object_ids = tuple(
+            sorted(_collect_scene_object_ids(getattr(scene_spec, "objects", []) or []))
+        )
+        if len(object_ids) < 4:
+            continue
+        scene_id = getattr(scene_spec, "id", None) or f"scene_{index}"
+        narrated_runs.append((scene_id, object_ids))
+
+    findings: list[CheckFinding] = []
+    run_start = 0
+    while run_start < len(narrated_runs):
+        run_end = run_start + 1
+        while (
+            run_end < len(narrated_runs)
+            and narrated_runs[run_end][1] == narrated_runs[run_start][1]
+        ):
+            run_end += 1
+        if run_end - run_start >= 3:
+            scene_ids = [scene_id for scene_id, _ in narrated_runs[run_start:run_end]]
+            repeated_ids = narrated_runs[run_start][1][:4]
+            findings.append(
+                CheckFinding(
+                    severity="warning",
+                    scene_id=scene_ids[0],
+                    kind="starter_scaffold",
+                    message=(
+                        f"Scenes {', '.join(scene_ids)} reuse the same local object scaffold "
+                        f"({', '.join(f'`{object_id}`' for object_id in repeated_ids)}...) with mostly swapped text. "
+                        "That still reads like a starter template rather than a scene-specific explainer."
+                    ),
+                    recommended_edit=RecommendedEdit(
+                        scene_id=scene_ids[0],
+                        action="customize_scene_structure",
+                        object_id=None,
+                        field="scenes",
+                        suggested_value=None,
+                        reason=(
+                            "Replace repeated scaffold cards with topic-specific values, states, and connectors "
+                            "so each beat has its own visual structure."
+                        ),
+                    ),
+                )
+            )
+        run_start = run_end
+    return findings
+
+
 def _scene_double_reveal_findings(
     *,
     scene_id: str,
@@ -1585,6 +1645,16 @@ def _collect_reveal_events(scene_spec: Any) -> list[RevealEvent]:
                 )
             )
     return events
+
+
+def _collect_scene_object_ids(objects: list[Any]) -> set[str]:
+    object_ids: set[str] = set()
+    for obj in objects:
+        object_id = getattr(obj, "id", None)
+        if object_id:
+            object_ids.add(object_id)
+        object_ids.update(_collect_scene_object_ids(getattr(obj, "children", None) or []))
+    return object_ids
 
 
 def _incoming_scene_fade_duration(previous_scene_spec: Any | None) -> float:

@@ -38,7 +38,7 @@ def test_workspace_guided_flow_writes_files(tmp_path: Path) -> None:
 
     started = workspace.start_animation(
         title="Queue Basics",
-        pattern="process_explainer",
+        pattern="algorithm_walkthrough",
         beats=[
             {"title": "Enqueue", "detail": "Add a new item to the back of the queue."},
             {"title": "Dequeue", "detail": "Remove the oldest item from the front."},
@@ -434,6 +434,63 @@ def test_check_animation_warns_when_group_and_child_reveal_overlap(tmp_path: Pat
     )
 
 
+def test_check_animation_warns_when_narrated_scenes_repeat_same_scaffold(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    shared_objects = [
+        {"id": "process_heading", "type": "text", "content": "Heading"},
+        {
+            "id": "process_panel",
+            "type": "group",
+            "layout": "stack",
+            "children": [
+                {"id": "process_stage_badge", "type": "token", "content": "Step"},
+                {
+                    "id": "process_lane",
+                    "type": "group",
+                    "layout": "flow",
+                    "children": [
+                        {"id": "process_context_token", "type": "token", "content": "Context"},
+                        {"id": "process_focus_card", "type": "box", "content": "Focus"},
+                        {"id": "process_outcome_token", "type": "token", "content": "Outcome"},
+                    ],
+                },
+            ],
+        },
+    ]
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "beat_1",
+                    "duration": "6s",
+                    "layout": "center",
+                    "narration": "First narrated beat with a scaffold.",
+                    "objects": shared_objects,
+                },
+                {
+                    "id": "beat_2",
+                    "duration": "6s",
+                    "layout": "center",
+                    "narration": "Second narrated beat with the same scaffold.",
+                    "objects": shared_objects,
+                },
+                {
+                    "id": "beat_3",
+                    "duration": "6s",
+                    "layout": "center",
+                    "narration": "Third narrated beat with the same scaffold.",
+                    "objects": shared_objects,
+                },
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any("reuse the same local object scaffold" in warning for warning in checked["warnings"])
+
+
 def test_check_animation_blocks_replace_when_objects_are_not_aligned(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     checked = _check_animation(
@@ -540,7 +597,7 @@ def test_workspace_quick_render_creates_artifact(tmp_path: Path) -> None:
 
     result = workspace.quick_render(
         title="Stack Basics",
-        pattern="process_explainer",
+        pattern="algorithm_walkthrough",
         beats=[
             "Push adds a value to the top.",
             "Pop removes the top value.",
@@ -687,7 +744,7 @@ def test_start_animation_resolves_theme_from_nearest_ancestor_workspace(tmp_path
     workspace = KaivraWorkspace(nested_root)
     started = workspace.start_animation(
         title="Ancestor Theme",
-        pattern="process_explainer",
+        pattern="algorithm_walkthrough",
         beats=["Show the inherited workspace theme."],
         theme="ancestor",
         audience=None,

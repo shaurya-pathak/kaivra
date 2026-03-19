@@ -12,11 +12,10 @@ from kaivra.dsl.pacing import PacingProfile, format_duration, get_pacing_profile
 from kaivra.dsl.parser import parse_string
 from kaivra.dsl.schema import DocumentSpec, PacingPreset
 
-DEFAULT_PATTERN = "process_explainer"
+DEFAULT_PATTERN = "algorithm_walkthrough"
 DEFAULT_NARRATED_PATTERN = "visual_explainer"
 SUPPORTED_PATTERNS = (
     "algorithm_walkthrough",
-    "process_explainer",
     "architecture_explainer",
     "before_after_comparison",
     "visual_explainer",
@@ -50,7 +49,9 @@ def build_starter_document(
     pacing: str | PacingPreset | None = None,
 ) -> DocumentSpec:
     """Build a valid Kaivra starter document for the requested pattern."""
-    chosen_pattern = (pattern or _default_pattern(include_narration)).strip()
+    chosen_pattern = _normalize_pattern(
+        pattern or _default_pattern(include_narration), include_narration
+    )
     if chosen_pattern not in SUPPORTED_PATTERNS:
         supported = ", ".join(SUPPORTED_PATTERNS)
         raise ValueError(f"Unsupported pattern {chosen_pattern!r}. Choose one of: {supported}.")
@@ -105,6 +106,13 @@ def infer_slug(title: str) -> str:
 
 def _default_pattern(include_narration: bool) -> str:
     return DEFAULT_NARRATED_PATTERN if include_narration else DEFAULT_PATTERN
+
+
+def _normalize_pattern(pattern: str, include_narration: bool) -> str:
+    chosen_pattern = pattern.strip()
+    if chosen_pattern == "process_explainer":
+        return DEFAULT_NARRATED_PATTERN if include_narration else DEFAULT_PATTERN
+    return chosen_pattern
 
 
 def _coerce_beats(raw_beats: list[Any] | None, *, title: str) -> list[Beat]:
@@ -240,17 +248,7 @@ def _build_scenes(
             )
             for beat in beats
         ]
-    return [
-        _build_process_scene(
-            animation_title=title,
-            beat=beat,
-            beats=beats,
-            audience=audience,
-            include_narration=include_narration,
-            pacing_profile=pacing_profile,
-        )
-        for beat in beats
-    ]
+    raise ValueError(f"Unsupported pattern {pattern!r}.")
 
 
 def _build_process_scene(

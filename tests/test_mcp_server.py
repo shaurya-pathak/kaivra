@@ -19,12 +19,12 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     )[0]
     assert init_response["result"]["serverInfo"]["name"] == "kaivra-local-mcp"
     instructions = init_response["result"]["instructions"]
-    assert "explain concepts slowly and visually" in instructions
+    assert "SCAFFOLD" in instructions
+    assert "rewrite each scene" in instructions
     assert "Use draw on connectors" in instructions
     assert "Reuse the same object id and content" in instructions
     assert "conversational spoken English" in instructions
     assert "same order you want highlights and reveals to land" in instructions
-    assert "Use start_animation first, then check_animation" in instructions
 
     assert (
         server.handle_message(
@@ -54,6 +54,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
         tool for tool in tools_response["result"]["tools"] if tool["name"] == "start_animation"
     )
     assert "visual_explainer" in start_tool["inputSchema"]["properties"]["pattern"]["enum"]
+    assert "process_explainer" not in start_tool["inputSchema"]["properties"]["pattern"]["enum"]
     assert start_tool["inputSchema"]["properties"]["pacing"]["enum"] == [
         "quick-demo",
         "balanced",
@@ -100,22 +101,22 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     pattern_catalog = read_resource("kaivra://pattern-catalog")["contents"][0]["text"]
     examples = read_resource("kaivra://example-catalog")["contents"][0]["text"]
 
+    assert "SCAFFOLD" in authoring
+    assert "rewrite each scene" in authoring
     assert "Choose `pacing: educational` for narrated explainers" in authoring
-    assert "scene-specific object graphs" in authoring
-    assert "same `id` and the same `content`" in authoring
-    assert "show one concrete worked example" in authoring
+    assert "Do not describe MCP setup" in authoring
+    assert "same `id` and `content`" in authoring
     assert "Sparse animation is the common failure mode" in authoring
-    assert "Aim for 3-5 distinct animations per scene" not in authoring
-    assert "Prefer `fade-in` for smooth reveals" in authoring
-    assert "same order you want them revealed or highlighted" in authoring
-    assert "will also reveal descendants" in authoring
     assert "Use `draw` on connectors" in authoring
-    assert "walls of body text when narration is present" in authoring
+    assert "Walls of body text when narration is present" in authoring
+    assert "What a bad scene looks like" in authoring
+    assert "What a good scene looks like" in authoring
     assert "Default choice for narrated concept explainers" in pattern_catalog
-    assert "Treat examples as shape references" in pattern_catalog
+    assert "algorithm_walkthrough" in pattern_catalog
     assert "persistent IDs" in pattern_catalog
-    assert "not as templates to copy verbatim" in examples
-    assert "Good Narrated Scene" in examples
+    assert "Rewrite scene objects before shipping" in pattern_catalog
+    assert "BAD: Scaffold scene" in examples
+    assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
 
 
@@ -162,6 +163,7 @@ def test_start_animation_tool_description_steers_narrated_flows_toward_visual_ex
     )
 
     assert "visual_explainer" in start_tool["description"]
+    assert "algorithm_walkthrough" in start_tool["description"]
 
 
 def test_quick_render_tool_description_steers_narrated_flows_toward_visual_explainer(
@@ -197,6 +199,7 @@ def test_quick_render_tool_description_steers_narrated_flows_toward_visual_expla
     )
 
     assert "visual_explainer" in quick_render_tool["description"]
+    assert "algorithm_walkthrough" in quick_render_tool["description"]
 
 
 def test_quick_render_tool_creates_artifact(tmp_path: Path) -> None:
@@ -226,7 +229,7 @@ def test_quick_render_tool_creates_artifact(tmp_path: Path) -> None:
                 "name": "quick_render",
                 "arguments": {
                     "title": "Queue Basics",
-                    "pattern": "process_explainer",
+                    "pattern": "algorithm_walkthrough",
                     "beats": [
                         "Enqueue adds to the back.",
                         "Dequeue removes from the front.",
@@ -279,6 +282,9 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
         tool for tool in tools_response["result"]["tools"] if tool["name"] == "render_animation"
     )
     assert "visual_explainer" in quick_render_tool["inputSchema"]["properties"]["pattern"]["enum"]
+    assert (
+        "process_explainer" not in quick_render_tool["inputSchema"]["properties"]["pattern"]["enum"]
+    )
     assert quick_render_tool["inputSchema"]["properties"]["pacing"]["enum"] == [
         "quick-demo",
         "balanced",

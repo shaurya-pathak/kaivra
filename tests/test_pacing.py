@@ -8,7 +8,7 @@ from kaivra.mcp.blueprints import build_starter_document
 def test_narrated_starter_defaults_to_educational_pacing() -> None:
     doc = build_starter_document(
         title="Queues",
-        pattern="process_explainer",
+        pattern="algorithm_walkthrough",
         beats=[
             {
                 "title": "Observe",
@@ -30,7 +30,7 @@ def test_narrated_starter_defaults_to_educational_pacing() -> None:
 def test_silent_starter_defaults_to_balanced_pacing() -> None:
     doc = build_starter_document(
         title="Queues",
-        pattern="process_explainer",
+        pattern="algorithm_walkthrough",
         beats=[{"title": "Observe", "detail": "A queue removes the oldest item first."}],
         theme="modern",
         audience=None,
@@ -45,7 +45,7 @@ def test_silent_starter_defaults_to_balanced_pacing() -> None:
 def test_explicit_quick_demo_pacing_overrides_narration_default() -> None:
     doc = build_starter_document(
         title="Queues",
-        pattern="process_explainer",
+        pattern="algorithm_walkthrough",
         beats=[{"title": "Observe", "detail": "A queue removes the oldest item first."}],
         theme="modern",
         audience=None,

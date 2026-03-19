@@ -169,16 +169,29 @@ class KaivraMCPServer:
                 "resources": {"listChanged": False, "subscribe": False},
             },
             "instructions": (
-                "Create animations that explain concepts slowly and visually, not as repeated slide templates. "
-                "Build scene-specific diagrams from boxes, connectors, groups, and tokens, and show real values or computations when the topic is technical. "
+                "CRITICAL WORKFLOW: start_animation and quick_render produce a generic SCAFFOLD, not a finished animation. "
+                "The scaffold repeats the same layout template in every scene with only labels changed. "
+                "You MUST rewrite each scene's objects array with topic-specific visual elements before the result is presentable. "
+                "A good scene has unique boxes showing actual values or computations, connectors showing real relationships, "
+                "tokens with concrete labels, and groups with layouts that match what the scene is explaining. "
+                "A bad scene reuses the same abstract Source→Focus→Result lane with swapped titles — that is a slideshow, not an explainer. "
+                "\n\n"
+                "After calling start_animation: read the generated JSON, then rewrite each scene's objects and animations "
+                "to build a scene-specific diagram. Show real values, worked examples, before/after transformations, or "
+                "domain-specific relationships — not generic placeholder lanes. "
+                "Each scene should look structurally different from the others because each beat explains something different. "
+                "\n\n"
+                "Build scene-specific diagrams from boxes, connectors, groups, and tokens. "
                 "Reuse the same object id and content across consecutive scenes when a value carries forward so continuity creates a smooth carry-over transition. "
-                "Start scene objects hidden and reveal them as narration introduces them, usually with fade-in rather than instant appear. "
+                "Start scene objects hidden and reveal them with staggered fade-in timings that track the narration flow. "
                 "Write narration as conversational spoken English with contractions and direct address, not title-plus-definition prose. "
-                "When voice timing is available, especially with ElevenLabs, mention labels and values in the same order you want highlights and reveals to land so the animation can sync to the spoken cue. "
-                "For explainers, keep adding reveals and emphasis until the visuals track the explanation. Use draw on connectors to show flow and causality. "
+                "Never narrate internal MCP setup, workspace roots, packaged tool paths, or authoring-tool logistics in the user-facing result. "
+                "When voice timing is available, mention labels and values in the same order you want highlights and reveals to land. "
+                "Use draw on connectors to show flow and causality. "
                 "Avoid walls of body text when narration is present. "
-                "Use start_animation first, then check_animation, then preview_animation or render_animation. "
-                "Use quick_render for the fastest first-run starter artifact. "
+                "\n\n"
+                "Workflow: start_animation → rewrite scenes → check_animation → preview_animation → render_animation. "
+                "Use quick_render only for a fast first draft, then rewrite scenes and re-render. "
                 "Read the authoring and pattern resources before inventing raw DSL shapes."
             ),
         }
@@ -273,7 +286,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="start_animation",
             title="Start Animation",
-            description="Create a starter Kaivra animation from a title, pattern, and beat list. `visual_explainer` is the recommended starting pattern for narrated flows.",
+            description="Create a starter SCAFFOLD from a title, pattern, and beat list. The scaffold uses a generic repeating layout — you must rewrite each scene's objects with topic-specific diagrams before it is presentable. Use `visual_explainer` for narrated explainers and `algorithm_walkthrough` for compact silent quick demos.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -282,7 +295,6 @@ def _build_tools() -> list[ToolDefinition]:
                         "type": "string",
                         "enum": [
                             "algorithm_walkthrough",
-                            "process_explainer",
                             "architecture_explainer",
                             "before_after_comparison",
                             "visual_explainer",
@@ -329,7 +341,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="quick_render",
             title="Quick Render",
-            description="Create, validate, and render a starter animation in one first-run flow. Use `visual_explainer` for most narrated explainers.",
+            description="Create, validate, and render a starter scaffold in one first-run flow. The output is a draft with a generic repeating layout — rewrite scene objects with topic-specific diagrams and re-render for a polished result. Use `visual_explainer` for narrated explainers and `algorithm_walkthrough` for compact silent quick demos.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -339,7 +351,6 @@ def _build_tools() -> list[ToolDefinition]:
                         "type": "string",
                         "enum": [
                             "algorithm_walkthrough",
-                            "process_explainer",
                             "architecture_explainer",
                             "before_after_comparison",
                             "visual_explainer",
@@ -621,7 +632,11 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             else "Kaivra doctor found local setup issues."
         )
     if name == "start_animation":
-        return f"Starter animation created at {result['file_path']}."
+        return (
+            f"Starter SCAFFOLD created at {result['file_path']}. "
+            "NEXT: Read the file and rewrite each scene's objects with topic-specific diagrams "
+            "(real values, concrete examples, unique layouts). Do not ship the generic scaffold."
+        )
     if name == "add_theme":
         return f"Theme saved at {result['file_path']}."
     if name == "check_animation":
@@ -633,7 +648,11 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
         return "Animation check found blocking issues."
     if name == "quick_render":
         if result.get("status") == "ok":
-            return f"Quick render written to {result['artifact_path']}."
+            return (
+                f"Quick render draft written to {result['artifact_path']}. "
+                "This used the generic scaffold. For a polished result, rewrite each scene's "
+                "objects with topic-specific diagrams and re-render."
+            )
         return "Quick render stopped because validation found blocking issues."
     if name == "preview_animation":
         return f"Preview HTML written to {result['html_path']}."
