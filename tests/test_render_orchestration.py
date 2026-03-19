@@ -79,7 +79,9 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     assert result.retimed_document_path == str(tmp_path / "narrated.retimed.json")
     assert Path(result.retimed_document_path).exists()
     assert ("provider", "dummy") in steps
+    assert ("generate", "__kaivra_video_intro__", "voice-123") in steps
     assert ("generate", "intro", "voice-123") in steps
+    assert ("generate", "__kaivra_video_outro__", "voice-123") in steps
     assert (
         "retime",
         False,
@@ -97,8 +99,10 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
 
     retimed = json.loads(Path(result.retimed_document_path).read_text(encoding="utf-8"))
     assert retimed["scenes"][0]["id"] == "__kaivra_video_intro__"
-    assert retimed["scenes"][1]["duration"] == "2.25s"
+    assert retimed["scenes"][0]["duration"] == "3.05s"
+    assert retimed["scenes"][1]["duration"] == "2.8s"
     assert retimed["scenes"][-1]["id"] == "__kaivra_video_outro__"
+    assert retimed["scenes"][-1]["duration"] == "3.05s"
 
 
 def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):
@@ -125,6 +129,38 @@ def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):
 
     assert result.artifact_path == str(tmp_path / "silent.mp4")
     assert seen_scene_ids == [["__kaivra_video_intro__", "intro", "__kaivra_video_outro__"]]
+
+
+def test_video_bookends_include_narration(tmp_path, monkeypatch):
+    doc = _narrated_doc()
+    captured_narration: list[tuple[str, str | None]] = []
+
+    def fake_build_render_graph(_doc, **_kwargs):
+        captured_narration.extend((scene.id, scene.narration) for scene in _doc.scenes)
+        return SimpleNamespace(total_duration=4.6), object()
+
+    def fake_export_video(_graph, _theme, output_path: str, **kwargs) -> None:
+        callback = kwargs.get("progress_callback")
+        if callback is not None:
+            callback(1, 1)
+        Path(output_path).write_bytes(b"video")
+
+    monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
+    monkeypatch.setattr(orchestration, "export_video", fake_export_video)
+
+    orchestration.render_document_artifact(
+        doc,
+        output_path=tmp_path / "silent.mp4",
+    )
+
+    assert captured_narration[0] == (
+        "__kaivra_video_intro__",
+        "Welcome. In this video, we'll walk through Narrated step by step.",
+    )
+    assert captured_narration[-1] == (
+        "__kaivra_video_outro__",
+        "That's the full walkthrough of Narrated. Thanks for watching.",
+    )
 
 
 def test_video_render_can_disable_bookends_via_meta(tmp_path, monkeypatch):

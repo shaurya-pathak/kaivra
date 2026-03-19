@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import tempfile
-import wave
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +19,6 @@ from kaivra.audio.mux import (
 from kaivra.audio.timings import AudioTimingData, SceneAudioTiming, load_audio_timing_data
 from kaivra.dsl.parser import parse_string
 from kaivra.dsl.retime import retime_document_to_audio_timings
-from kaivra.dsl.schema import parse_duration
 from kaivra.render.cairo_renderer import CairoRenderer
 from kaivra.render.video.exporter import export_video
 from kaivra.scene_graph.builder import build_scene_graph
@@ -29,6 +27,8 @@ from kaivra.themes.registry import get_theme
 ProgressReporter = Callable[[float, str], None]
 _VIDEO_INTRO_SCENE_ID = "__kaivra_video_intro__"
 _VIDEO_OUTRO_SCENE_ID = "__kaivra_video_outro__"
+_VOICE_SCENE_HOLD_SECONDS = 0.55
+_VOICE_BOOKEND_HOLD_SECONDS = 0.8
 
 
 @dataclass(frozen=True)
@@ -274,6 +274,7 @@ def _intro_scene(title: str | None) -> dict[str, Any]:
     return {
         "id": _VIDEO_INTRO_SCENE_ID,
         "duration": "3.8s",
+        "narration": (f"Welcome. In this video, we'll walk through {resolved_title} step by step."),
         "layout": "center",
         "auto_visible": False,
         "continuity": False,
@@ -332,6 +333,7 @@ def _outro_scene(title: str | None) -> dict[str, Any]:
     return {
         "id": _VIDEO_OUTRO_SCENE_ID,
         "duration": "3.4s",
+        "narration": (f"That's the full walkthrough of {resolved_title}. Thanks for watching."),
         "layout": "center",
         "auto_visible": False,
         "continuity": False,
@@ -384,29 +386,13 @@ def _outro_scene(title: str | None) -> dict[str, Any]:
     }
 
 
-def _bookend_durations(doc: Any) -> tuple[float, float]:
-    scenes = list(getattr(doc, "scenes", []))
-    intro = (
-        parse_duration(scenes[0].duration)
-        if scenes and scenes[0].id == _VIDEO_INTRO_SCENE_ID
-        else 0.0
+def _voice_scene_duration(scene_id: str, audio_duration_seconds: float) -> float:
+    hold_seconds = (
+        _VOICE_BOOKEND_HOLD_SECONDS
+        if scene_id in {_VIDEO_INTRO_SCENE_ID, _VIDEO_OUTRO_SCENE_ID}
+        else _VOICE_SCENE_HOLD_SECONDS
     )
-    outro = (
-        parse_duration(scenes[-1].duration)
-        if scenes and scenes[-1].id == _VIDEO_OUTRO_SCENE_ID
-        else 0.0
-    )
-    return intro, outro
-
-
-def _write_silence_wav(path: Path, duration_seconds: float) -> None:
-    sample_rate = 44100
-    frame_count = max(0, int(round(duration_seconds * sample_rate)))
-    with wave.open(str(path), "wb") as wav_file:
-        wav_file.setnchannels(1)
-        wav_file.setsampwidth(2)
-        wav_file.setframerate(sample_rate)
-        wav_file.writeframes(b"\x00\x00" * frame_count)
+    return max(0.0, float(audio_duration_seconds) + hold_seconds)
 
 
 def _render_with_voice(
@@ -434,8 +420,6 @@ def _render_with_voice(
     generated_paths: list[Path] = []
     normalized_paths: list[Path] = []
     scene_timings: dict[str, SceneAudioTiming] = {}
-    intro_duration, outro_duration = _bookend_durations(doc)
-
     with tempfile.NamedTemporaryFile(
         prefix=f"{output_path.stem}_silent_",
         suffix=output_path.suffix,
@@ -448,11 +432,6 @@ def _render_with_voice(
     retimed_document_path: str | None = None
 
     try:
-        if intro_duration > 0:
-            intro_silence = output_path.with_name(f"{output_path.stem}_intro_silence.wav")
-            _write_silence_wav(intro_silence, intro_duration)
-            normalized_paths.append(intro_silence)
-
         for index, scene in enumerate(narrated_scenes, start=1):
             progress_value = 0.1 + (index / len(narrated_scenes)) * 0.25
             _emit_progress(progress, progress_value, f"Generating voice for scene {scene.id}.")
@@ -468,15 +447,11 @@ def _render_with_voice(
             normalize_audio_to_wav(result.audio_path, str(normalized_path))
             normalized_paths.append(normalized_path)
 
+            measured_duration = measure_audio_duration(str(normalized_path))
             scene_timings[scene.id] = SceneAudioTiming(
                 id=scene.id,
-                duration_seconds=measure_audio_duration(str(normalized_path)),
+                duration_seconds=_voice_scene_duration(scene.id, measured_duration),
             )
-
-        if outro_duration > 0:
-            outro_silence = output_path.with_name(f"{output_path.stem}_outro_silence.wav")
-            _write_silence_wav(outro_silence, outro_duration)
-            normalized_paths.append(outro_silence)
 
         timing_data = AudioTimingData(scenes=scene_timings)
         _emit_progress(progress, 0.58, "Retiming the animation to narration.")
