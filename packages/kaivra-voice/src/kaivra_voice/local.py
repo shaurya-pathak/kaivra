@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import re
 import subprocess
 import tempfile
 from array import array
@@ -10,6 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kaivra.audio.base import AudioResult, VoiceProvider
+from kaivra.audio.timings import AudioCue
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -71,10 +76,12 @@ class LocalProvider(VoiceProvider):
             wf.writeframes(_audio_samples_to_wav_bytes(audio))
 
         duration = _measure_duration(output_path)
+        cues = _align_words_whisper(output_path)
         return AudioResult(
             audio_path=output_path,
             duration_seconds=duration,
             scene_id=scene_id,
+            cues=cues,
         )
 
 
@@ -223,3 +230,43 @@ def _audio_samples_to_wav_bytes(audio: object) -> bytes:
         clipped = max(-1.0, min(1.0, float(sample)))
         pcm.append(int(clipped * 32767))
     return pcm.tobytes()
+
+
+def _align_words_whisper(audio_path: str) -> tuple[AudioCue, ...]:
+    """Run forced alignment on generated audio using faster-whisper.
+
+    Returns word-level AudioCue objects, or an empty tuple if
+    faster-whisper is not installed.
+    """
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        log.debug("faster-whisper not installed — skipping word alignment for local TTS")
+        return ()
+
+    try:
+        model = WhisperModel("tiny", device="cpu", compute_type="int8")
+        segments, _info = model.transcribe(audio_path, word_timestamps=True)
+
+        cues: list[AudioCue] = []
+        for segment in segments:
+            for word in segment.words:
+                text = re.sub(r"^[^\w]+|[^\w]+$", "", word.word)
+                if not text:
+                    continue
+                start = float(word.start)
+                end = float(word.end)
+                if end <= start:
+                    continue
+                cues.append(
+                    AudioCue(
+                        start_seconds=start,
+                        duration_seconds=end - start,
+                        text=text,
+                        kind="word",
+                    )
+                )
+        return tuple(cues)
+    except Exception:
+        log.warning("Whisper word alignment failed — falling back to no cues", exc_info=True)
+        return ()

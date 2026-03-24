@@ -380,7 +380,7 @@ def _build_tools() -> list[ToolDefinition]:
                     "voice_provider": {
                         "type": "string",
                         "enum": ["elevenlabs", "local"],
-                        "description": "Voice synthesis provider. 'elevenlabs' for high-quality AI voices (requires API key), 'local' for free offline Sherpa TTS.",
+                        "description": "Voice synthesis provider. 'elevenlabs' for high-quality AI voices (requires API key), 'local' for free offline Sherpa TTS with word-level sync via Whisper alignment.",
                     },
                     "voice_id": {"type": "string"},
                 },

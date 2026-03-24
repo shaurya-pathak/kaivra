@@ -342,6 +342,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "elevenlabs", specifier = ">=1.0" },
+    { name = "faster-whisper", marker = "extra == 'local'", specifier = ">=1.0" },
     { name = "kaivra", specifier = ">=0.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "sherpa-onnx", marker = "extra == 'local'", specifier = ">=1.0" },
