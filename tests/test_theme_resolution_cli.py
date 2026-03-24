@@ -23,7 +23,7 @@ def test_cli_render_sample_and_audit_find_workspace_theme_from_input_path(tmp_pa
     doc_path.write_text(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": {"title": "Workspace Theme", "theme": "workspace"},
                 "scenes": [
                     {

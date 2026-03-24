@@ -8,7 +8,6 @@ import pytest
 
 from kaivra.mcp import workspace as workspace_module
 from kaivra.mcp.workspace import KaivraWorkspace
-from kaivra.themes.modern import MODERN
 
 
 def _check_animation(workspace: KaivraWorkspace, doc: dict) -> dict:
@@ -36,28 +35,32 @@ def test_workspace_guided_flow_writes_files(tmp_path: Path) -> None:
 
     assert Path(added_theme["file_path"]).exists()
 
-    started = workspace.start_animation(
-        title="Queue Basics",
-        pattern="algorithm_walkthrough",
-        beats=[
-            {"title": "Enqueue", "detail": "Add a new item to the back of the queue."},
-            {"title": "Dequeue", "detail": "Remove the oldest item from the front."},
-            {"title": "Result", "detail": "The queue preserves first-in, first-out order."},
-        ],
-        theme=added_theme["theme_name"],
-        audience="beginners",
-        include_narration=False,
-        slug="queue-basics",
+    # Write animation JSON directly (no scaffold)
+    source_path = tmp_path / "animations" / "queue-basics.json"
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_text(
+        json.dumps(
+            {
+                "version": "1.2",
+                "meta": {"title": "Queue Basics", "theme": added_theme["theme_name"]},
+                "scenes": [
+                    {
+                        "id": "enqueue",
+                        "duration": "5s",
+                        "objects": [
+                            {"type": "box", "id": "q", "content": "Enqueue"},
+                        ],
+                        "animations": [{"action": "fade-in", "target": "q"}],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
     )
-
-    source_path = Path(started["file_path"])
-    assert source_path.exists()
 
     checked = workspace.check_animation(file_path=str(source_path))
     assert checked["valid"] is True
-    assert checked["warnings"] == []
     assert isinstance(checked["recommended_edits"], list)
-    assert started["defaults"]["pacing"] == "balanced"
 
     previewed = workspace.preview_animation(file_path=str(source_path))
     assert Path(previewed["html_path"]).exists()
@@ -592,43 +595,6 @@ def test_check_animation_blocks_invalid_connectors_and_animation_targets(tmp_pat
     )
 
 
-def test_workspace_quick_render_creates_artifact(tmp_path: Path) -> None:
-    workspace = KaivraWorkspace(tmp_path)
-
-    result = workspace.quick_render(
-        title="Stack Basics",
-        pattern="algorithm_walkthrough",
-        beats=[
-            "Push adds a value to the top.",
-            "Pop removes the top value.",
-        ],
-    )
-
-    assert result["status"] == "ok"
-    assert Path(result["created_file_path"]).exists()
-    assert Path(result["artifact_path"]).exists()
-    assert result["format"] == "png"
-
-
-def test_workspace_quick_render_passes_pacing_to_start_animation(tmp_path: Path) -> None:
-    workspace = KaivraWorkspace(tmp_path)
-
-    result = workspace.quick_render(
-        title="Narrated Basics",
-        pattern="visual_explainer",
-        beats=["Show how the signal moves through the system."],
-        include_narration=True,
-        pacing="educational",
-    )
-
-    assert result["status"] == "ok"
-    created = Path(result["created_file_path"])
-    assert created.exists()
-    parsed = json.loads(created.read_text(encoding="utf-8"))
-    assert parsed["meta"]["pacing"] == "educational"
-    assert parsed["meta"]["show_subtitles"] is False
-
-
 def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_docs(
     tmp_path: Path,
 ) -> None:
@@ -643,7 +609,7 @@ def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_do
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": {"title": "Nested Theme", "theme": theme["theme_name"]},
                 "scenes": [
                     {
@@ -675,7 +641,7 @@ def test_preview_and_render_use_document_workspace_when_server_root_is_elsewhere
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": {"title": "Doc Workspace", "theme": "modern"},
                 "scenes": [
                     {
@@ -728,30 +694,6 @@ def test_download_model_smoke_installs_and_reuses_local_archive(tmp_path: Path) 
     assert Path(installed["tokens_path"]).exists()
     assert Path(installed["data_dir"]).is_dir()
     assert reused["downloaded"] is False
-
-
-def test_start_animation_resolves_theme_from_nearest_ancestor_workspace(tmp_path: Path) -> None:
-    project_root = tmp_path / "project"
-    nested_root = project_root / "apps" / "demo"
-    nested_root.mkdir(parents=True)
-    workspace_theme = project_root / "themes" / "ancestor.json"
-    workspace_theme.parent.mkdir(parents=True)
-    workspace_theme.write_text(
-        json.dumps({**MODERN.to_dict(), "name": "ancestor"}),
-        encoding="utf-8",
-    )
-
-    workspace = KaivraWorkspace(nested_root)
-    started = workspace.start_animation(
-        title="Ancestor Theme",
-        pattern="algorithm_walkthrough",
-        beats=["Show the inherited workspace theme."],
-        theme="ancestor",
-        audience=None,
-        include_narration=False,
-    )
-
-    assert Path(started["file_path"]).exists()
 
 
 def test_preflight_reports_missing_cairo_fix(

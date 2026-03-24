@@ -271,7 +271,7 @@ def _narrated_doc(
     return parse_string(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": meta,
                 "scenes": [
                     {

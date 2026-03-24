@@ -64,8 +64,10 @@ def build_starter_document(
     pacing_profile = get_pacing_profile(pacing, include_narration=include_narration)
     subtitle_visibility = bool(show_subtitles) if show_subtitles is not None else False
 
+    from kaivra.version import CURRENT_DSL_VERSION
+
     raw = {
-        "version": "1.1",
+        "version": CURRENT_DSL_VERSION,
         "meta": {
             "title": title,
             "resolution": [1920, 1080],
@@ -292,7 +294,7 @@ def _build_process_scene(
         {
             "type": "token",
             "id": stage_id,
-            "content": f"Step {beat.index + 1}",
+            "content": beat.label,
         },
         {
             "type": "group",
@@ -360,6 +362,7 @@ def _build_process_scene(
         "id": scene_id,
         "duration": duration,
         "template": "one-column",
+        "layout": {"type": "stack", "gap": "large", "align": "center"},
         "narration": _scene_narration(animation_title, beat, audience, include_narration),
         "focus": focus_id,
         "focus_style": {
@@ -402,7 +405,7 @@ def _build_visual_scene(
         {
             "type": "token",
             "id": "visual_stage_badge",
-            "content": f"Beat {beat.index + 1}",
+            "content": beat.label,
         },
         {
             "type": "group",
@@ -416,7 +419,7 @@ def _build_visual_scene(
             "children": [
                 _labelled_group(
                     "visual_source_group",
-                    "Signal In",
+                    _truncate(beat.detail, 16) if beat.detail else "Context",
                     {
                         "type": "token",
                         "id": source_id,
@@ -427,7 +430,7 @@ def _build_visual_scene(
                 ),
                 _labelled_group(
                     "visual_focus_group",
-                    "Active Idea",
+                    _truncate(beat.title, 16),
                     {
                         "type": "box",
                         "id": focus_id,
@@ -437,7 +440,7 @@ def _build_visual_scene(
                 ),
                 _labelled_group(
                     "visual_result_group",
-                    "Result",
+                    _neighbor_title(beats, beat.index, 1, fallback="Outcome"),
                     {
                         "type": "token",
                         "id": result_id,
@@ -510,6 +513,7 @@ def _build_visual_scene(
         "id": scene_id,
         "duration": duration,
         "template": "one-column",
+        "layout": {"type": "stack", "gap": "large", "align": "center"},
         "narration": _scene_narration(animation_title, beat, audience, include_narration),
         "focus": focus_id,
         "focus_style": {
@@ -565,7 +569,7 @@ def _build_algorithm_scene(
         {
             "type": "token",
             "id": "algorithm_stage_badge",
-            "content": f"Step {beat.index + 1}",
+            "content": beat.label,
         },
         {
             "type": "group",
@@ -592,7 +596,7 @@ def _build_algorithm_scene(
         {
             "type": "text",
             "id": "algorithm_heading",
-            "content": f"Step {beat.index + 1}: {_truncate(beat.title, 20)}",
+            "content": _truncate(beat.title, 28),
             "style": "heading",
         },
         *_connectors(
@@ -633,6 +637,7 @@ def _build_algorithm_scene(
         "id": scene_id,
         "duration": duration,
         "template": "one-column",
+        "layout": {"type": "stack", "gap": "large", "align": "center"},
         "narration": _scene_narration(animation_title, beat, audience, include_narration),
         "focus": current_card_id,
         "focus_style": {
@@ -679,7 +684,7 @@ def _build_architecture_scene(
         {
             "type": "token",
             "id": "architecture_stage_badge",
-            "content": f"Stage {beat.index + 1}",
+            "content": beat.label,
         },
         {
             "type": "token",
@@ -873,7 +878,7 @@ def _build_comparison_scene(
         {
             "type": "token",
             "id": "comparison_before_status",
-            "content": f"Beat {previous.index + 1}",
+            "content": previous.label,
         },
         {
             "type": "box",
@@ -892,7 +897,7 @@ def _build_comparison_scene(
         {
             "type": "token",
             "id": "comparison_after_status",
-            "content": f"Beat {beat.index + 1}",
+            "content": beat.label,
         },
         {
             "type": "box",

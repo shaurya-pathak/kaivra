@@ -170,13 +170,19 @@ class KaivraMCPServer:
                 "resources": {"listChanged": False, "subscribe": False},
             },
             "instructions": (
-                f'Kaivra DSL schema version: {CURRENT_DSL_VERSION}. Always set "version": "{CURRENT_DSL_VERSION}" in generated documents. '
-                "start_animation and quick_render produce a scaffold — rewrite each scene's objects and animations before shipping. "
-                "Use fade-in for reveals, draw for connectors. Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "
+                f'Kaivra DSL v{CURRENT_DSL_VERSION}. Always set "version": "{CURRENT_DSL_VERSION}". '
+                "Workflow: plan_animation → write JSON directly → check_animation → preview_animation → render_animation. "
+                "Always start with plan_animation to capture voice mode, detail level, audience, theme, and structure. "
+                "After planning, write the animation JSON directly — do NOT use a scaffold. "
+                "Read examples/reference/api_how_it_works.json or examples/reference/forward_propagation.json for the quality bar. "
+                "Wrap objects in group containers with flow (horizontal) or stack (vertical) layouts — flat lists cause overlaps. "
+                "Set scene-level layout.type to 'stack'. "
+                "Keep connected nodes adjacent within groups so connectors don't cross unrelated nodes. "
+                "Available layout types: center, grid, flow, stack, split, absolute, carousel. "
+                "Use fade-in for reveals, draw for connectors. "
+                "Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "
                 "Add a carousel chapter tracker as a persistent document-level object and highlight the active step each scene. "
-                "Set template: one-column on scenes. Write narration as conversational spoken English. "
-                "Workflow: plan_animation → start_animation → rewrite scenes → check_animation → preview_animation → render_animation. "
-                "Always start with plan_animation to ask the user about voice mode, detail level, audience, theme, and structure before creating."
+                "Set template: one-column on scenes. Write narration as conversational spoken English."
             ),
         }
 
@@ -244,14 +250,30 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="add_theme",
             title="Add Theme",
-            description="Create or update a custom Kaivra theme file inside the local workspace.",
+            description="Create or update a custom Kaivra theme file inside the local workspace. Starts from a base theme and applies overrides.",
             input_schema={
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "base_theme": {"type": "string"},
+                    "name": {
+                        "type": "string",
+                        "description": "Name for the custom theme (used as filename and reference).",
+                    },
+                    "base_theme": {
+                        "type": "string",
+                        "enum": ["material", "whiteboard", "modern"],
+                        "description": "Built-in theme to start from. Defaults to 'modern'.",
+                    },
                     "overrides": {
                         "type": "object",
+                        "description": (
+                            "Theme fields to override. Valid keys include: "
+                            "background_color, primary, accent, success, warning, error, muted, "
+                            "text_color, text_light, font_family, font_size_heading, font_size_body, "
+                            "box_fill, box_border, box_border_width, box_corner_radius, box_padding, "
+                            "token_fill, token_border, connector_color, connector_width, "
+                            "gap_small, gap_medium, gap_large, margin, "
+                            "shadow (bool), sketch_effect (bool)."
+                        ),
                         "additionalProperties": True,
                     },
                 },
@@ -270,7 +292,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="plan_animation",
             title="Plan Animation",
-            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, Sherpa, captions only), detail level, audience, visual theme, and structure. Present the questions conversationally, then use the answers to call start_animation.",
+            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. Present the questions conversationally, then use the answers to call start_animation.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -286,126 +308,6 @@ def _build_tools() -> list[ToolDefinition]:
                 "openWorldHint": False,
             },
             handler=_plan_tool,
-        ),
-        ToolDefinition(
-            name="start_animation",
-            title="Start Animation",
-            description="Create a starter SCAFFOLD from a title, pattern, and beat list. The scaffold uses a generic repeating layout — you must rewrite each scene's objects with topic-specific diagrams before it is presentable. Use `visual_explainer` for narrated explainers and `algorithm_walkthrough` for compact silent quick demos.",
-            input_schema={
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string"},
-                    "pattern": {
-                        "type": "string",
-                        "enum": [
-                            "algorithm_walkthrough",
-                            "architecture_explainer",
-                            "before_after_comparison",
-                            "visual_explainer",
-                        ],
-                    },
-                    "beats": {
-                        "type": "array",
-                        "items": {
-                            "anyOf": [
-                                {"type": "string"},
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "title": {"type": "string"},
-                                        "detail": {"type": "string"},
-                                    },
-                                    "additionalProperties": True,
-                                },
-                            ]
-                        },
-                    },
-                    "theme": {"type": "string"},
-                    "audience": {"type": "string"},
-                    "include_narration": {"type": "boolean"},
-                    "show_subtitles": {"type": "boolean"},
-                    "pacing": {
-                        "type": "string",
-                        "enum": ["quick-demo", "balanced", "educational"],
-                    },
-                    "slug": {"type": "string"},
-                },
-                "required": ["title"],
-                "additionalProperties": False,
-            },
-            annotations={
-                "title": "Start Animation",
-                "readOnlyHint": False,
-                "destructiveHint": False,
-                "idempotentHint": False,
-                "openWorldHint": False,
-            },
-            handler=_start_tool,
-        ),
-        ToolDefinition(
-            name="quick_render",
-            title="Quick Render",
-            description="Create, validate, and render a starter scaffold in one first-run flow. The output is a draft with a generic repeating layout — rewrite scene objects with topic-specific diagrams and re-render for a polished result. Use `visual_explainer` for narrated explainers and `algorithm_walkthrough` for compact silent quick demos.",
-            input_schema={
-                "type": "object",
-                "properties": {
-                    "file_path": {"type": "string"},
-                    "title": {"type": "string"},
-                    "pattern": {
-                        "type": "string",
-                        "enum": [
-                            "algorithm_walkthrough",
-                            "architecture_explainer",
-                            "before_after_comparison",
-                            "visual_explainer",
-                        ],
-                    },
-                    "beats": {
-                        "type": "array",
-                        "items": {
-                            "anyOf": [
-                                {"type": "string"},
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "title": {"type": "string"},
-                                        "detail": {"type": "string"},
-                                    },
-                                    "additionalProperties": True,
-                                },
-                            ]
-                        },
-                    },
-                    "theme": {"type": "string"},
-                    "audience": {"type": "string"},
-                    "include_narration": {"type": "boolean"},
-                    "show_subtitles": {"type": "boolean"},
-                    "pacing": {
-                        "type": "string",
-                        "enum": ["quick-demo", "balanced", "educational"],
-                    },
-                    "slug": {"type": "string"},
-                    "format": {
-                        "type": "string",
-                        "enum": ["png", "mp4", "webm"],
-                    },
-                    "output_name": {"type": "string"},
-                    "audio_path": {"type": "string"},
-                    "audio_timings_path": {"type": "string"},
-                    "voice": {"type": "boolean"},
-                    "voice_provider": {"type": "string"},
-                    "voice_id": {"type": "string"},
-                },
-                "additionalProperties": False,
-            },
-            annotations={
-                "title": "Quick Render",
-                "readOnlyHint": False,
-                "destructiveHint": False,
-                "idempotentHint": False,
-                "openWorldHint": False,
-            },
-            handler=_quick_render_tool,
         ),
         ToolDefinition(
             name="check_animation",
@@ -468,7 +370,11 @@ def _build_tools() -> list[ToolDefinition]:
                     "audio_path": {"type": "string"},
                     "audio_timings_path": {"type": "string"},
                     "voice": {"type": "boolean"},
-                    "voice_provider": {"type": "string"},
+                    "voice_provider": {
+                        "type": "string",
+                        "enum": ["elevenlabs", "local"],
+                        "description": "Voice synthesis provider. 'elevenlabs' for high-quality AI voices (requires API key), 'local' for free offline Sherpa TTS.",
+                    },
                     "voice_id": {"type": "string"},
                 },
                 "required": ["file_path", "format"],
@@ -497,23 +403,6 @@ def _plan_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any
     )
 
 
-def _start_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
-    context.emit_progress(0.1, "Choosing a starter blueprint.")
-    result = context.workspace.start_animation(
-        title=arguments["title"],
-        pattern=arguments.get("pattern"),
-        beats=arguments.get("beats"),
-        theme=arguments.get("theme"),
-        audience=arguments.get("audience"),
-        include_narration=bool(arguments.get("include_narration", False)),
-        show_subtitles=arguments.get("show_subtitles"),
-        pacing=arguments.get("pacing"),
-        slug=arguments.get("slug"),
-    )
-    context.emit_progress(1.0, "Starter animation written to the workspace.")
-    return result
-
-
 def _add_theme_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
     context.emit_progress(0.2, "Building the custom theme.")
     result = context.workspace.add_theme(
@@ -535,30 +424,6 @@ def _check_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, An
     )
     context.emit_progress(1.0, "Validation and audit complete.")
     return result
-
-
-def _quick_render_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
-    context.emit_progress(0.05, "Starting the quick render workflow.")
-    return context.workspace.quick_render(
-        file_path=arguments.get("file_path"),
-        title=arguments.get("title"),
-        pattern=arguments.get("pattern"),
-        beats=arguments.get("beats"),
-        theme=arguments.get("theme"),
-        audience=arguments.get("audience"),
-        include_narration=bool(arguments.get("include_narration", False)),
-        show_subtitles=arguments.get("show_subtitles"),
-        pacing=arguments.get("pacing"),
-        slug=arguments.get("slug"),
-        format=arguments.get("format"),
-        output_name=arguments.get("output_name"),
-        audio_path=arguments.get("audio_path"),
-        audio_timings_path=arguments.get("audio_timings_path"),
-        voice=bool(arguments.get("voice", False)),
-        voice_provider=arguments.get("voice_provider"),
-        voice_id=arguments.get("voice_id"),
-        progress=context.emit_progress,
-    )
 
 
 def _preview_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, Any]:
@@ -644,34 +509,47 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
     if name == "plan_animation":
         return (
             "Animation plan ready. Present the questions to the user, "
-            "collect their preferences, then call start_animation with the resolved parameters."
-        )
-    if name == "start_animation":
-        return (
-            f"Starter SCAFFOLD created at {result['file_path']}. "
-            "NEXT: Read the file and rewrite each scene's objects with topic-specific diagrams "
-            "(real values, concrete examples, unique layouts). Do not ship the generic scaffold."
+            "collect their preferences, then write the animation JSON directly. "
+            "Read examples/reference/api_how_it_works.json for the quality bar."
         )
     if name == "add_theme":
         return f"Theme saved at {result['file_path']}."
     if name == "check_animation":
         warnings = result.get("warnings") or []
+        blocking = result.get("blocking_issues") or []
+        recommended = result.get("recommended_edits") or []
         warning_count = len(warnings)
-        version_warnings = [w for w in warnings if w.startswith("VERSION:")]
-        version_note = f" {version_warnings[0]}" if version_warnings else ""
-        if result.get("valid") and warning_count:
-            return f"Animation validated with {warning_count} warnings to review.{version_note}"
-        if result.get("valid"):
-            return "Animation validated cleanly."
-        return f"Animation check found blocking issues.{version_note}"
-    if name == "quick_render":
-        if result.get("status") == "ok":
-            return (
-                f"Quick render draft written to {result['artifact_path']}. "
-                "This used the generic scaffold. For a polished result, rewrite each scene's "
-                "objects with topic-specific diagrams and re-render."
-            )
-        return "Quick render stopped because validation found blocking issues."
+        blocking_count = len(blocking)
+
+        parts: list[str] = []
+
+        # Header
+        if result.get("valid") and not warning_count:
+            parts.append("Animation validated cleanly.")
+        elif result.get("valid"):
+            parts.append(f"Animation validated with {warning_count} warning(s).")
+        else:
+            parts.append(f"Animation check found {blocking_count} blocking issue(s).")
+
+        # Blocking issues
+        if blocking:
+            parts.append("\n**Blocking issues:**")
+            for issue in blocking:
+                parts.append(f"- {issue}")
+
+        # Warnings
+        if warnings:
+            parts.append("\n**Warnings:**")
+            for w in warnings:
+                parts.append(f"- {w}")
+
+        # Recommended edits
+        if recommended:
+            parts.append("\n**Recommended edits:**")
+            for edit in recommended:
+                parts.append(f"- {edit}")
+
+        return "\n".join(parts)
     if name == "preview_animation":
         return f"Preview HTML written to {result['html_path']}."
     if name == "render_animation":

@@ -23,7 +23,6 @@ from typing import Any
 from kaivra.dsl.parser import parse_file, parse_string
 from kaivra.dsl.schema import ObjectType, parse_duration
 from kaivra.mcp.blueprints import (
-    build_starter_document,
     dump_document_json,
     infer_slug,
 )
@@ -256,8 +255,8 @@ class KaivraWorkspace:
                             "label": "ElevenLabs voice — high-quality AI narration (requires API key)",
                         },
                         {
-                            "value": "sherpa",
-                            "label": "Sherpa local voice — free offline TTS narration",
+                            "value": "local",
+                            "label": "Local voice (Sherpa) — free offline TTS narration",
                         },
                         {"value": "captions", "label": "Captions only — text subtitles, no audio"},
                         {"value": "silent", "label": "Silent — no narration or captions"},
@@ -269,10 +268,10 @@ class KaivraWorkspace:
                             "show_subtitles": True,
                             "voice_provider": "elevenlabs",
                         },
-                        "sherpa": {
+                        "local": {
                             "include_narration": True,
                             "show_subtitles": True,
-                            "voice_provider": "sherpa",
+                            "voice_provider": "local",
                         },
                         "captions": {"include_narration": True, "show_subtitles": True},
                         "silent": {"include_narration": False, "show_subtitles": False},
@@ -341,57 +340,6 @@ class KaivraWorkspace:
                 "theme → theme": "Passed directly",
                 "num_beats": "If user specifies a number, generate that many beat outlines",
             },
-        }
-
-    def start_animation(
-        self,
-        *,
-        title: str,
-        pattern: str | None,
-        beats: list[Any] | None,
-        theme: str | None,
-        audience: str | None,
-        include_narration: bool,
-        show_subtitles: bool | None = None,
-        pacing: str | None = None,
-        slug: str | None = None,
-    ) -> dict[str, Any]:
-        """Create a starter animation file and return the normalized JSON."""
-        chosen_theme = theme or "modern"
-        self._resolve_theme(chosen_theme)
-        doc = build_starter_document(
-            title=title,
-            pattern=pattern,
-            beats=beats,
-            theme=chosen_theme,
-            audience=audience,
-            include_narration=include_narration,
-            show_subtitles=show_subtitles,
-            pacing=pacing,
-        )
-        chosen_slug = infer_slug(slug or title)
-        self.paths.animations_dir.mkdir(parents=True, exist_ok=True)
-        path = self._unique_path(self.paths.animations_dir / f"{chosen_slug}.json")
-        dsl_json = dump_document_json(doc)
-        path.write_text(dsl_json + "\n", encoding="utf-8")
-
-        return {
-            "file_path": str(path),
-            "dsl_json": dsl_json,
-            "defaults": {
-                "theme": doc.meta.theme,
-                "resolution": list(doc.meta.resolution),
-                "fps": doc.meta.fps,
-                "show_subtitles": doc.meta.show_subtitles,
-                "pacing": doc.meta.pacing.value,
-                "continuity": doc.meta.continuity,
-            },
-            "next_step": (
-                "IMPORTANT: The generated file is a generic scaffold. "
-                "Rewrite each scene's objects and animations arrays with topic-specific "
-                "diagrams (real values, concrete examples, unique layouts per scene) "
-                "before calling check_animation. Do not ship the scaffold as-is."
-            ),
         }
 
     def add_theme(
@@ -573,91 +521,6 @@ class KaivraWorkspace:
             "warnings": list(result.warnings),
             "retimed_document_path": result.retimed_document_path,
             "source_file_path": str(resolved_path),
-        }
-
-    def quick_render(
-        self,
-        *,
-        file_path: str | None = None,
-        title: str | None = None,
-        pattern: str | None = None,
-        beats: list[Any] | None = None,
-        theme: str | None = None,
-        audience: str | None = None,
-        include_narration: bool = False,
-        show_subtitles: bool | None = None,
-        pacing: str | None = None,
-        slug: str | None = None,
-        format: str | None = None,
-        output_name: str | None = None,
-        audio_path: str | None = None,
-        audio_timings_path: str | None = None,
-        voice: bool = False,
-        voice_provider: str | None = None,
-        voice_id: str | None = None,
-        progress: ProgressReporter | None = None,
-    ) -> dict[str, Any]:
-        """Create or validate an animation and render it with first-run defaults."""
-        if file_path is None and title is None:
-            raise ValueError("Provide either file_path or title.")
-
-        started: dict[str, Any] | None = None
-        source_file_path = file_path
-        if source_file_path is None:
-            started = self.start_animation(
-                title=title or "",
-                pattern=pattern,
-                beats=beats,
-                theme=theme,
-                audience=audience,
-                include_narration=include_narration,
-                show_subtitles=show_subtitles,
-                pacing=pacing,
-                slug=slug,
-            )
-            source_file_path = started["file_path"]
-
-        if progress is not None:
-            progress(0.15, "Validating and auditing the animation.")
-        checked = self.check_animation(file_path=source_file_path, voice=voice)
-        chosen_format = _default_quick_render_format(
-            requested_format=format,
-            include_narration=include_narration,
-            voice=voice,
-            audio_path=audio_path,
-        )
-
-        if not checked["valid"]:
-            return {
-                "status": "invalid",
-                "format": chosen_format,
-                "source_file_path": source_file_path,
-                "created_file_path": started["file_path"] if started else None,
-                "check": checked,
-                "render": None,
-            }
-
-        if progress is not None:
-            progress(0.35, f"Rendering a {chosen_format.upper()} artifact.")
-        rendered = self.render_animation(
-            file_path=source_file_path,
-            format=chosen_format,
-            output_name=output_name,
-            audio_path=audio_path,
-            audio_timings_path=audio_timings_path,
-            voice=voice,
-            voice_provider=voice_provider,
-            voice_id=voice_id,
-            progress=progress,
-        )
-        return {
-            "status": "ok",
-            "format": chosen_format,
-            "source_file_path": source_file_path,
-            "created_file_path": started["file_path"] if started else None,
-            "check": checked,
-            "render": rendered,
-            "artifact_path": rendered["artifact_path"],
         }
 
     def preflight_command(
@@ -864,6 +727,7 @@ class KaivraWorkspace:
             and ffprobe_ok
             and workspace_ok
         ):
+            from kaivra.mcp.blueprints import build_starter_document
             from kaivra.render.cairo_renderer import CairoRenderer
             from kaivra.render.orchestration import build_render_graph
 
@@ -1598,6 +1462,57 @@ def _scene_visibility_findings(
                 ),
             )
         )
+
+    # Second pass: check for invisible parent groups blocking visible children.
+    raw_objects = getattr(scene_spec, "objects", None) or []
+    if raw_objects:
+        parent_map = _object_parent_map(raw_objects)
+        revealed_ids: set[str] = set()
+        for obj_ref in object_refs:
+            oid = obj_ref.object_id
+            if oid and _has_effective_reveal_path(oid, resolved_scene.timeline):
+                revealed_ids.add(oid)
+
+        checked_ancestors: set[str] = set()
+        for child_id in revealed_ids:
+            ancestor_id = parent_map.get(child_id)
+            while ancestor_id is not None:
+                if ancestor_id in checked_ancestors:
+                    break
+                checked_ancestors.add(ancestor_id)
+                node = resolved_scene.node_map.get(ancestor_id)
+                if node is None or node.persistent or node.default_visible:
+                    ancestor_id = parent_map.get(ancestor_id)
+                    continue
+                ancestor_ref = next((r for r in object_refs if r.object_id == ancestor_id), None)
+                if ancestor_ref and getattr(ancestor_ref.spec, "visible", None) is True:
+                    ancestor_id = parent_map.get(ancestor_id)
+                    continue
+                if _has_effective_reveal_path(ancestor_id, resolved_scene.timeline):
+                    ancestor_id = parent_map.get(ancestor_id)
+                    continue
+                findings.append(
+                    CheckFinding(
+                        severity="error",
+                        scene_id=scene_id,
+                        kind="visibility",
+                        message=(
+                            f"Group `{ancestor_id}` has no visibility animation and will block "
+                            f"its children (including `{child_id}`) from appearing while "
+                            "`auto_visible` is off."
+                        ),
+                        recommended_edit=RecommendedEdit(
+                            scene_id=scene_id,
+                            action="add_visibility_animation",
+                            object_id=ancestor_id,
+                            field=f"scenes[{scene_index}].animations",
+                            suggested_value=None,
+                            reason="Add a `fade-in` on this group so its children can appear.",
+                        ),
+                    )
+                )
+                break  # Only report the nearest blocking ancestor
+
     return findings
 
 
@@ -2241,20 +2156,6 @@ def _issue(title: str, detail: str, fix_steps: list[str]) -> dict[str, Any]:
         "detail": detail,
         "fix_steps": fix_steps,
     }
-
-
-def _default_quick_render_format(
-    *,
-    requested_format: str | None,
-    include_narration: bool,
-    voice: bool,
-    audio_path: str | None,
-) -> str:
-    if requested_format:
-        return requested_format.lower()
-    if include_narration or voice or audio_path:
-        return "mp4"
-    return "png"
 
 
 def _doctor_hint_path() -> Path:

@@ -60,7 +60,7 @@ def test_quick_render_smoke_with_voice_renders_mp4(tmp_path: Path, monkeypatch) 
     input_path.write_text(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": {"title": "Voice Smoke", "theme": "modern"},
                 "scenes": [
                     {

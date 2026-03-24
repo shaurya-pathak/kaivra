@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 # Bump this when the DSL schema changes in ways LLMs should know about.
-CURRENT_DSL_VERSION = "1.1"
+CURRENT_DSL_VERSION = "1.2"
 
 # Short changelog an LLM can scan to understand what changed.
 # Keep entries terse — this may be injected into tool responses.
 DSL_CHANGELOG: list[tuple[str, str]] = [
+    (
+        "1.2",
+        "Added: voice_provider passthrough in start_animation, "
+        "scene-level stack layout on scaffolds, beat-titled scaffold badges, "
+        "improved MCP prompt structure and layout guidance, "
+        "invisible parent group audit in check_animation.",
+    ),
     (
         "1.1",
         "Added: carousel object type, one-column scene template, "

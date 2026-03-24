@@ -19,8 +19,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     )[0]
     assert init_response["result"]["serverInfo"]["name"] == "kaivra-local-mcp"
     instructions = init_response["result"]["instructions"]
-    assert "scaffold" in instructions
-    assert "rewrite" in instructions
+    assert "write the animation JSON directly" in instructions
     assert "fade-in" in instructions
     assert "draw" in instructions
     assert "continuity" in instructions
@@ -47,42 +46,9 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     )[0]
     tool_names = {tool["name"] for tool in tools_response["result"]["tools"]}
     assert "add_theme" in tool_names
-    assert "start_animation" in tool_names
-    assert "quick_render" in tool_names
     assert "render_animation" in tool_names
-    start_tool = next(
-        tool for tool in tools_response["result"]["tools"] if tool["name"] == "start_animation"
-    )
-    assert "visual_explainer" in start_tool["inputSchema"]["properties"]["pattern"]["enum"]
-    assert "process_explainer" not in start_tool["inputSchema"]["properties"]["pattern"]["enum"]
-    assert start_tool["inputSchema"]["properties"]["pacing"]["enum"] == [
-        "quick-demo",
-        "balanced",
-        "educational",
-    ]
-
-    start_response = server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {
-                "name": "start_animation",
-                "arguments": {
-                    "title": "Stack Operations",
-                    "pattern": "algorithm_walkthrough",
-                    "beats": [
-                        "Push: Add a value to the top of the stack.",
-                        "Pop: Remove the top value.",
-                    ],
-                },
-            },
-        }
-    )[0]
-
-    result = start_response["result"]["structuredContent"]
-    assert start_response["result"]["isError"] is False
-    assert Path(result["file_path"]).exists()
+    assert "start_animation" not in tool_names
+    assert "quick_render" not in tool_names
 
     resources_response = server.handle_message(
         {
@@ -117,129 +83,13 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
 
 
 def test_check_animation_summary_mentions_warning_count() -> None:
-    assert (
-        _summarize_tool_result(
-            "check_animation",
-            {"valid": True, "warnings": ["warning one", "warning two"]},
-        )
-        == "Animation validated with 2 warnings to review."
+    summary = _summarize_tool_result(
+        "check_animation",
+        {"valid": True, "warnings": ["warning one", "warning two"]},
     )
-
-
-def test_start_animation_tool_description_steers_narrated_flows_toward_visual_explainer(
-    tmp_path: Path,
-) -> None:
-    server = KaivraMCPServer(workspace_root=str(tmp_path))
-    server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {"protocolVersion": "2025-06-18"},
-        }
-    )
-    server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        }
-    )
-    tools_response = server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {},
-        }
-    )[0]
-
-    start_tool = next(
-        tool for tool in tools_response["result"]["tools"] if tool["name"] == "start_animation"
-    )
-
-    assert "visual_explainer" in start_tool["description"]
-    assert "algorithm_walkthrough" in start_tool["description"]
-
-
-def test_quick_render_tool_description_steers_narrated_flows_toward_visual_explainer(
-    tmp_path: Path,
-) -> None:
-    server = KaivraMCPServer(workspace_root=str(tmp_path))
-    server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {"protocolVersion": "2025-06-18"},
-        }
-    )
-    server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        }
-    )
-    tools_response = server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {},
-        }
-    )[0]
-
-    quick_render_tool = next(
-        tool for tool in tools_response["result"]["tools"] if tool["name"] == "quick_render"
-    )
-
-    assert "visual_explainer" in quick_render_tool["description"]
-    assert "algorithm_walkthrough" in quick_render_tool["description"]
-
-
-def test_quick_render_tool_creates_artifact(tmp_path: Path) -> None:
-    server = KaivraMCPServer(workspace_root=str(tmp_path))
-    server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {"protocolVersion": "2025-06-18"},
-        }
-    )
-    server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        }
-    )
-
-    response = server.handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/call",
-            "params": {
-                "name": "quick_render",
-                "arguments": {
-                    "title": "Queue Basics",
-                    "pattern": "algorithm_walkthrough",
-                    "beats": [
-                        "Enqueue adds to the back.",
-                        "Dequeue removes from the front.",
-                    ],
-                },
-            },
-        }
-    )[0]
-
-    result = response["result"]["structuredContent"]
-    assert response["result"]["isError"] is False
-    assert result["status"] == "ok"
-    assert Path(result["created_file_path"]).exists()
-    assert Path(result["artifact_path"]).exists()
+    assert "Animation validated with 2 warning(s)." in summary
+    assert "- warning one" in summary
+    assert "- warning two" in summary
 
 
 def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> None:
@@ -271,21 +121,9 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
             "params": {},
         }
     )[0]
-    quick_render_tool = next(
-        tool for tool in tools_response["result"]["tools"] if tool["name"] == "quick_render"
-    )
     render_tool = next(
         tool for tool in tools_response["result"]["tools"] if tool["name"] == "render_animation"
     )
-    assert "visual_explainer" in quick_render_tool["inputSchema"]["properties"]["pattern"]["enum"]
-    assert (
-        "process_explainer" not in quick_render_tool["inputSchema"]["properties"]["pattern"]["enum"]
-    )
-    assert quick_render_tool["inputSchema"]["properties"]["pacing"]["enum"] == [
-        "quick-demo",
-        "balanced",
-        "educational",
-    ]
     assert "voice" in render_tool["inputSchema"]["properties"]
     assert "voice_provider" in render_tool["inputSchema"]["properties"]
     assert "voice_id" in render_tool["inputSchema"]["properties"]

@@ -91,6 +91,18 @@ def _authoring_profile() -> str:
 - Use `draw` on connectors to animate flow and causality.
 - Each scene should have enough objects to fully illustrate the concept.
 
+## Layout Essentials
+
+**This is critical.** Flat object lists with the default `center` layout stack everything on the same point, producing massive overlaps.
+
+- Set scene-level `layout.type` to `"stack"` so top-level objects flow vertically.
+- Wrap related objects in `group` containers with `layout.type: "flow"` (horizontal rows) or `"stack"` (vertical columns).
+- Available layout types: `center`, `grid`, `flow`, `stack`, `split`, `absolute`, `carousel`.
+- Use `gap: "small" | "medium" | "large"` on groups to control spacing.
+- Use `direction: "horizontal" | "vertical"` on flow/stack layouts.
+
+**Connector overlap:** The engine does not auto-route connectors. If `check_animation` flags crossover warnings, reorder objects within their group so connected nodes are adjacent, or split objects into smaller groups to keep connector paths clear.
+
 ## Document-Level Objects
 
 - Persistent objects in the top-level `objects` array appear in every scene (when `include_persistent_objects: true`).
@@ -177,6 +189,15 @@ def _example_catalog() -> str:
     return """# Example Catalog
 
 Use these as shape references, not templates. Borrow the composition, then rewrite content, IDs, and relationships for the user's concept.
+
+## Full Reference Examples
+
+Read these complete, polished animations before rewriting scaffolds. They demonstrate every v1.1 pattern working together:
+
+- **`examples/reference/api_how_it_works.json`** — 4-scene narrated explainer (How an API Works). Shows carousel chapter tracker, horizontal flow layouts, connector draws, continuity morphs across scenes, and conversational narration. Material theme, educational pacing.
+- **`examples/reference/forward_propagation.json`** — 6-scene narrated explainer (Forward Propagation in a Neural Network). Shows worked-example arithmetic, stacked layouts, highlight colors (accent/success/warning), and deep continuity where computed values carry across scenes. Material theme, educational pacing.
+
+Read one of these files before rewriting your scaffold — they are the quality bar.
 
 ## BAD: Scaffold scene (do NOT ship this)
 

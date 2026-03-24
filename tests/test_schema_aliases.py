@@ -9,7 +9,7 @@ def test_show_subtitles_is_the_preferred_serialized_field_name() -> None:
     doc = parse_string(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": {"theme": "modern", "show_subtitles": False},
                 "scenes": [],
             }
@@ -30,7 +30,7 @@ def test_show_narration_remains_a_backward_compatible_input_alias() -> None:
     doc = parse_string(
         json.dumps(
             {
-                "version": "1.1",
+                "version": "1.2",
                 "meta": {"theme": "modern", "show_narration": False},
                 "scenes": [],
             }

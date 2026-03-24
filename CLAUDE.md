@@ -69,10 +69,34 @@ src/kaivra/
 
 ## Adding New Features
 
-- **New object type**: Add to `ObjectType` enum in schema.py, add fields to `ObjectSpec`, add size estimator in `_sizing.py`, add draw method in `cairo_renderer.py`, add JS draw function in `web/exporter.py`
-- **New animation**: Add to `AnimAction` enum in schema.py, handle in `timeline.py` `apply_animations_at_time`, handle in JS `applyAnimations`
-- **New layout**: Add to `LayoutType` enum, create strategy class in `layout/strategies/`, register in `layout/engine.py`
-- **New theme**: Create file in `themes/`, register in `themes/registry.py`
+**IMPORTANT: Renderer changes require MCP prompt + test updates.** The Cairo renderer (`cairo_renderer.py`) and web exporter (`web/exporter.py`) must stay in sync — every visual feature must work in both. When you change rendering behavior, you must also:
+1. Update the MCP system prompt in `mcp/server.py` (the `"instructions"` string) so LLMs know the feature exists
+2. Update or add tests in `tests/test_mcp_server.py` to assert the prompt mentions the new capability
+3. Run `pytest tests/` to verify nothing broke
+
+### DSL versioning
+
+The DSL version lives in `version.py` (`CURRENT_DSL_VERSION`). When you add or change DSL capabilities:
+1. Bump `CURRENT_DSL_VERSION` in `version.py` (e.g. `"1.2"` → `"1.3"`)
+2. Add a changelog entry to `DSL_CHANGELOG` in the same file
+3. Update the default version in `DocumentSpec` in `schema.py` to match
+4. Update `blueprints.py` if it references the version (it should use `CURRENT_DSL_VERSION`, not a hardcoded string)
+5. Update all `"version"` fields in test fixtures (`tests/*.py`) and example files (`examples/**/*.json`) to the new version — otherwise `check_animation` will emit version drift warnings that break assertions
+
+### Checklists by feature type
+
+- **New object type**: Add to `ObjectType` enum in `schema.py` → add fields to `ObjectSpec` → add size estimator in `_sizing.py` → add draw method in `cairo_renderer.py` → add JS draw function in `web/exporter.py` → serialize new fields in `_serialize_node()` in `web/exporter.py` → update MCP prompt + tests → bump DSL version
+- **New animation**: Add to `AnimAction` enum in `schema.py` → handle in `timeline.py` `apply_animations_at_time` → handle in JS `applyAnimations` → update MCP prompt + tests → bump DSL version
+- **New layout**: Add to `LayoutType` enum → create strategy class in `layout/strategies/` → register in `layout/engine.py` → update MCP prompt + tests → bump DSL version
+- **New theme**: Create file in `themes/` → register in `themes/registry.py`
+- **Renderer-only change** (e.g. connector routing, new draw logic): Update both `cairo_renderer.py` AND `web/exporter.py` → update MCP prompt if it affects how LLMs should author content → update tests → bump DSL version if it changes what LLMs can generate
+
+### Dual-renderer parity
+
+The Cairo renderer and the web Canvas JS player must produce visually equivalent output. When modifying draw logic:
+- `cairo_renderer.py` — Python/Cairo implementation
+- `web/exporter.py` — JavaScript/Canvas 2D implementation (embedded in the HTML template as an f-string; use `{{` / `}}` for literal JS braces)
+- `web/exporter.py` `_serialize_node()` — ensure any new SceneNode fields are serialized to JSON for the JS player
 
 ## Testing
 
@@ -81,4 +105,5 @@ source .venv/bin/activate
 kaivra validate examples/algorithms/bubble_sort.json   # parse + validate
 kaivra render examples/algorithms/bubble_sort.json -o test.png  # static frame
 kaivra render examples/algorithms/bubble_sort.json -o test.mp4  # full video
+pytest tests/                                                    # unit + integration
 ```
