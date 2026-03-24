@@ -120,10 +120,11 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
 
     retimed = json.loads(Path(result.retimed_document_path).read_text(encoding="utf-8"))
     assert retimed["scenes"][0]["id"] == "__kaivra_video_intro__"
-    assert retimed["scenes"][0]["duration"] == "3.05s"
+    # Bookend scenes keep their authored duration when TTS audio is shorter.
+    assert retimed["scenes"][0]["duration"] == "3.8s"
     assert retimed["scenes"][1]["duration"] == "2.8s"
     assert retimed["scenes"][-1]["id"] == "__kaivra_video_outro__"
-    assert retimed["scenes"][-1]["duration"] == "3.05s"
+    assert retimed["scenes"][-1]["duration"] == "3.4s"
 
 
 def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):

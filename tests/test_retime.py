@@ -190,10 +190,12 @@ def test_audio_cues_align_reveals_to_narration_windows() -> None:
     retimed = retime_document_to_audio_timings(document, timing_data)
     scene = retimed["scenes"][0]
 
+    # Semantic match: "Input" ↔ "show the input", "flow" ↔ "draw the flow",
+    # "Result" ↔ "land on the result".  Duration preserved from scene scaling.
     assert scene["animations"][0]["at"] == "1s"
-    assert scene["animations"][0]["duration"] == "0.648s"
+    assert scene["animations"][0]["duration"] == "0.55s"
     assert scene["animations"][1]["at"] == "3.5s"
-    assert scene["animations"][1]["duration"] == "0.864s"
+    assert scene["animations"][1]["duration"] == "1.1s"
     assert scene["animations"][2]["at"] == "6.2s"
     assert "duration" not in scene["animations"][2]
 
@@ -223,3 +225,86 @@ def test_retime_preserves_selected_pacing_baseline_when_meta_fields_are_missing(
 
     assert retimed["meta"]["continuity_duration"] == "1.56s"
     assert retimed["meta"]["glow_release_padding"] == "1.68s"
+
+
+def test_semantic_matching_pairs_cues_to_target_content():
+    """Word cues should match animation targets by content, not position."""
+    document = {
+        "version": "1.2",
+        "meta": {"title": "Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "demo",
+                "duration": "10s",
+                "objects": [
+                    {"type": "token", "id": "fail_token", "content": "FAIL"},
+                    {"type": "box", "id": "server_box", "content": "Server"},
+                    {"type": "token", "id": "pass_token", "content": "PASS"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "pass_token", "at": "0s", "duration": "0.5s"},
+                    {"action": "fade-in", "target": "fail_token", "at": "2s", "duration": "0.5s"},
+                    {"action": "fade-in", "target": "server_box", "at": "4s", "duration": "0.5s"},
+                ],
+            }
+        ],
+    }
+
+    timing_data = AudioTimingData(
+        scenes={
+            "demo": SceneAudioTiming(
+                id="demo",
+                duration_seconds=10.0,
+                cues=(
+                    AudioCue(start_seconds=1.0, duration_seconds=0.8, text="the server boots"),
+                    AudioCue(start_seconds=3.0, duration_seconds=0.6, text="tests pass"),
+                    AudioCue(start_seconds=6.0, duration_seconds=0.7, text="one failure"),
+                ),
+            )
+        }
+    )
+
+    retimed = retime_document_to_audio_timings(document, timing_data)
+    scene = retimed["scenes"][0]
+
+    # "pass_token" (content "PASS") should match cue "tests pass" at 3s.
+    assert scene["animations"][0]["at"] == "3s"
+    # "fail_token" (content "FAIL") should match cue "one failure" at 6s (substring).
+    assert scene["animations"][1]["at"] == "6s"
+    # "server_box" (content "Server") should match cue "the server boots" at 1s.
+    assert scene["animations"][2]["at"] == "1s"
+
+
+def test_scene_duration_never_shrinks_below_authored():
+    """When TTS audio is shorter than authored duration, keep the authored duration."""
+    document = {
+        "version": "1.2",
+        "meta": {"title": "Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "10s",
+                "objects": [],
+                "animations": [
+                    {"action": "highlight", "target": "step", "at": "2s", "duration": "4s"},
+                    {"action": "pulse", "target": "node", "at": "7s", "duration": "1s"},
+                ],
+            }
+        ],
+    }
+
+    timing_data = AudioTimingData(
+        scenes={
+            "intro": SceneAudioTiming(id="intro", duration_seconds=6.0),
+        }
+    )
+
+    retimed = retime_document_to_audio_timings(document, timing_data)
+    scene = retimed["scenes"][0]
+
+    # Scene should keep authored 10s, not shrink to 6s.
+    assert scene["duration"] == "10s"
+    # Animations should be unchanged (scale = 1.0).
+    assert scene["animations"][0]["at"] == "2s"
+    assert scene["animations"][0]["duration"] == "4s"
+    assert scene["animations"][1]["at"] == "7s"

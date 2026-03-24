@@ -189,7 +189,11 @@ class KaivraMCPServer:
                 "Connector overlap: connectors route as straight lines between anchors. To avoid crossings, "
                 "order objects in the group so that connected nodes are adjacent — the engine does not auto-route around obstacles. "
                 "If a connector must span non-adjacent nodes, split into a separate group or use an intermediate waypoint node. "
-                "Write narration as conversational spoken English."
+                "Write narration as conversational spoken English. "
+                "Narration sync: the engine matches spoken words to animation targets by content and ID. "
+                "Use the same words in narration that appear on screen — e.g., if an object has content 'Server', "
+                "say 'the server boots' in narration so the reveal lands on that word. "
+                "This applies to both ElevenLabs and local voice providers."
             ),
         }
 

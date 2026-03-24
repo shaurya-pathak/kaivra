@@ -26,6 +26,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "conversational spoken English" in instructions
     assert "Template vs layout" in instructions
     assert "Connector overlap" in instructions
+    assert "Narration sync" in instructions
 
     assert (
         server.handle_message(

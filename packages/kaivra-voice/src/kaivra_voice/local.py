@@ -241,7 +241,10 @@ def _align_words_whisper(audio_path: str) -> tuple[AudioCue, ...]:
     try:
         from faster_whisper import WhisperModel
     except ImportError:
-        log.debug("faster-whisper not installed — skipping word alignment for local TTS")
+        log.warning(
+            "faster-whisper not installed — local TTS will not produce word-level sync. "
+            "Install with: pip install faster-whisper"
+        )
         return ()
 
     try:

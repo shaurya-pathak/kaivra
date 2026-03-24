@@ -7,6 +7,7 @@ windows provided by the caller.
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from dataclasses import dataclass
 from statistics import median
@@ -45,6 +46,7 @@ class _EmphasisEvent:
     ref: dict[str, Any]
     start: float
     scene_order: int
+    target_content: str = ""
 
 
 def retime_document_to_audio_timings(
@@ -72,18 +74,23 @@ def retime_document_to_audio_timings(
         if timing is None:
             continue
 
-        target_duration = max(0.0, float(timing.duration_seconds))
         source_duration = estimate_scene_duration(scene, meta=retimed.get("meta"))
+        target_duration = max(source_duration, float(timing.duration_seconds))
         scale = 1.0 if source_duration <= 0 else target_duration / source_duration
         scene_scales.append(scale)
 
         _retime_scene(scene, scale)
         if align_audio_cues and timing.cues:
+            content_index = _build_content_index(
+                scene.get("objects"),
+                retimed.get("objects"),
+            )
             _align_scene_events_to_cues(
                 scene,
                 list(timing.cues),
                 persistent_ids,
                 scene_duration=target_duration,
+                content_index=content_index,
             )
         scene["duration"] = format_duration(target_duration)
 
@@ -274,13 +281,21 @@ def _align_scene_events_to_cues(
     persistent_ids: set[str],
     *,
     scene_duration: float,
+    content_index: dict[str, str] | None = None,
 ) -> None:
-    events = _collect_cue_aligned_events(scene, persistent_ids, scene_duration)
+    events = _collect_cue_aligned_events(
+        scene,
+        persistent_ids,
+        scene_duration,
+        content_index or {},
+    )
     if not events:
         return
 
-    matched_cues = _match_cues_to_events(cues, len(events))
+    matched_cues = _match_cues_to_events(cues, events)
     for event, cue in zip(events, matched_cues):
+        if cue is None:
+            continue
         if event.kind == "focus":
             _align_focus_style_to_cue(event.ref, cue)
         elif event.kind == "reveal":
@@ -293,6 +308,7 @@ def _collect_cue_aligned_events(
     scene: Mapping[str, Any],
     persistent_ids: set[str],
     scene_duration: float,
+    content_index: dict[str, str],
 ) -> list[_EmphasisEvent]:
     events: list[_EmphasisEvent] = []
     for idx, anim in enumerate(scene.get("animations", []) or []):
@@ -318,24 +334,28 @@ def _collect_cue_aligned_events(
         else:
             continue
 
+        target_content = _targets_to_content(targets, content_index)
         events.append(
             _EmphasisEvent(
                 kind=event_kind,
                 ref=anim,
                 start=_parse_time(anim.get("at"), 0.0),
                 scene_order=idx,
+                target_content=target_content,
             )
         )
 
     focus_style = scene.get("focus_style")
     focus_target = scene.get("focus")
     if isinstance(focus_style, dict) and focus_target:
+        focus_targets = _normalize_targets(focus_target)
         events.append(
             _EmphasisEvent(
                 kind="focus",
                 ref=focus_style,
                 start=_parse_time(focus_style.get("at"), 0.0),
                 scene_order=len(events) + 10_000,
+                target_content=_targets_to_content(focus_targets, content_index),
             )
         )
 
@@ -343,20 +363,62 @@ def _collect_cue_aligned_events(
     return events
 
 
-def _match_cues_to_events(cues: list[AudioCue], event_count: int) -> list[AudioCue]:
-    if event_count <= 0:
+def _match_cues_to_events(
+    cues: list[AudioCue],
+    events: list[_EmphasisEvent],
+) -> list[AudioCue | None]:
+    """Match cues to events using semantic content matching with positional fallback."""
+    if not events:
         return []
-
     if not cues:
+        return [None] * len(events)
+
+    sorted_cues = sorted(cues, key=lambda c: c.start_seconds)
+    result: list[AudioCue | None] = [None] * len(events)
+
+    # Phase 1: Semantic matching — pair cues to events by content similarity.
+    scores: list[tuple[float, int, int]] = []
+    for ei, event in enumerate(events):
+        for ci, cue in enumerate(sorted_cues):
+            score = _semantic_score(cue.text or "", event.target_content)
+            if score > 0:
+                scores.append((score, ei, ci))
+
+    scores.sort(key=lambda x: -x[0])
+    used_events: set[int] = set()
+    used_cues: set[int] = set()
+
+    for score, ei, ci in scores:
+        if ei not in used_events and ci not in used_cues:
+            result[ei] = sorted_cues[ci]
+            used_events.add(ei)
+            used_cues.add(ci)
+
+    # Phase 2: Positional fallback for events without a semantic match.
+    unmatched = [i for i in range(len(events)) if i not in used_events]
+    if unmatched:
+        remaining = [c for ci, c in enumerate(sorted_cues) if ci not in used_cues]
+        positional = _distribute_positionally(remaining, len(unmatched))
+        for ue_idx, cue in zip(unmatched, positional):
+            result[ue_idx] = cue
+
+    return result
+
+
+def _distribute_positionally(
+    cues: list[AudioCue],
+    count: int,
+) -> list[AudioCue]:
+    """Pick *count* evenly-spaced cues from the list, splitting if needed."""
+    if count <= 0 or not cues:
         return []
 
-    working = list(sorted(cues, key=lambda cue: cue.start_seconds))
-    while len(working) < event_count:
+    working = list(cues)
+    while len(working) < count:
         split_index = max(range(len(working)), key=lambda idx: working[idx].duration_seconds)
         split_cue = working[split_index]
         if split_cue.duration_seconds < MIN_CUE_DURATION_SECONDS:
             break
-
         half = split_cue.duration_seconds / 2.0
         working[split_index : split_index + 1] = [
             AudioCue(
@@ -373,66 +435,28 @@ def _match_cues_to_events(cues: list[AudioCue], event_count: int) -> list[AudioC
             ),
         ]
 
-    if len(working) < event_count:
+    if len(working) <= count:
         return working
 
-    if len(working) == event_count:
-        return working
-
-    if event_count == 1:
+    if count == 1:
         return [working[len(working) // 2]]
 
     matched: list[AudioCue] = []
     last_index = len(working) - 1
-    for idx in range(event_count):
-        cue_index = round(idx * last_index / (event_count - 1))
+    for idx in range(count):
+        cue_index = round(idx * last_index / (count - 1))
         matched.append(working[cue_index])
     return matched
 
 
 def _align_animation_to_cue(anim: dict[str, Any], cue: AudioCue) -> None:
-    start = max(0.0, cue.start_seconds)
-    targets = _normalize_targets(anim.get("target"))
-    target_count = max(1, len(targets))
-    original_duration = _parse_time(anim.get("duration"), 0.5)
-    original_stagger = _parse_time(anim.get("stagger"), 0.0)
-    original_total = original_duration + original_stagger * max(0, target_count - 1)
-
-    target_total = max(MIN_CUE_DURATION_SECONDS, cue.duration_seconds * 0.84)
-    scale = target_total / original_total if original_total > 0 else 1.0
-
-    anim["at"] = format_duration(start)
-    anim["duration"] = format_duration(
-        max(MIN_EMPHASIS_DURATION_SECONDS, original_duration * scale)
-    )
-    if "stagger" in anim or original_stagger > 0:
-        anim["stagger"] = format_duration(max(0.0, original_stagger * scale))
+    """Snap the animation start to the cue, preserving authored duration."""
+    anim["at"] = format_duration(max(0.0, cue.start_seconds))
 
 
 def _align_reveal_to_cue(anim: dict[str, Any], cue: AudioCue) -> None:
-    start = max(0.0, cue.start_seconds)
-    anim["at"] = format_duration(start)
-
-    action = anim.get("action")
-    original_duration = _parse_time(anim.get("duration"), 0.0)
-    if action == "appear" and original_duration <= 0:
-        return
-
-    targets = _normalize_targets(anim.get("target"))
-    target_count = max(1, len(targets))
-    original_stagger = _parse_time(anim.get("stagger"), 0.0)
-    original_total = original_duration + original_stagger * max(0, target_count - 1)
-    target_total = max(MIN_REVEAL_DURATION_SECONDS, cue.duration_seconds * REVEAL_CUE_FRACTION)
-
-    scale = target_total / original_total if original_total > 0 else 1.0
-    scaled_duration = original_duration * scale
-    if original_duration <= 0 and action in {"fade-in", "draw", "type", "replace"}:
-        scaled_duration = target_total
-
-    if scaled_duration > 0:
-        anim["duration"] = format_duration(max(MIN_REVEAL_DURATION_SECONDS, scaled_duration))
-    if "stagger" in anim or original_stagger > 0:
-        anim["stagger"] = format_duration(max(0.0, original_stagger * scale))
+    """Snap the reveal start to the cue, preserving authored duration."""
+    anim["at"] = format_duration(max(0.0, cue.start_seconds))
 
 
 def _align_focus_style_to_cue(focus_style: dict[str, Any], cue: AudioCue) -> None:
@@ -446,6 +470,64 @@ def _normalize_targets(target: Any) -> list[str]:
     if isinstance(target, list):
         return [item for item in target if isinstance(item, str)]
     return []
+
+
+def _build_content_index(
+    *object_lists: list[dict[str, Any]] | None,
+) -> dict[str, str]:
+    """Map object id → searchable text (id words + content, lowercased)."""
+    index: dict[str, str] = {}
+    for obj_list in object_lists:
+        for obj in obj_list or []:
+            if isinstance(obj, dict):
+                _index_object(obj, index)
+    return index
+
+
+def _index_object(obj: dict[str, Any], index: dict[str, str]) -> None:
+    obj_id = obj.get("id")
+    if not isinstance(obj_id, str) or not obj_id:
+        return
+    content = obj.get("content", "")
+    if not isinstance(content, str):
+        content = ""
+    # Split camelCase / snake_case id into words for matching.
+    id_words = re.sub(r"([a-z])([A-Z])", r"\1 \2", obj_id).replace("_", " ").replace("-", " ")
+    index[obj_id] = f"{id_words} {content}".lower().strip()
+    for child in obj.get("children", []) or []:
+        if isinstance(child, dict):
+            _index_object(child, index)
+
+
+def _targets_to_content(targets: list[str], content_index: dict[str, str]) -> str:
+    parts = [content_index.get(t, t) for t in targets]
+    return " ".join(parts).lower()
+
+
+def _semantic_score(cue_text: str, target_content: str) -> float:
+    """Score how well a cue's spoken text matches an animation target's content."""
+    if not cue_text or not target_content:
+        return 0.0
+    cue_words = set(_normalize_for_match(cue_text).split())
+    content_words = set(_normalize_for_match(target_content).split())
+    if not cue_words or not content_words:
+        return 0.0
+
+    # Exact word overlap.
+    overlap = cue_words & content_words
+    if overlap:
+        return float(len(overlap))
+
+    # Substring match (e.g., "failure" ↔ "fail").
+    for cw in cue_words:
+        for tw in content_words:
+            if len(cw) >= 3 and len(tw) >= 3 and (cw in tw or tw in cw):
+                return 0.5
+    return 0.0
+
+
+def _normalize_for_match(text: str) -> str:
+    return re.sub(r"[^\w\s]", "", text.lower()).strip()
 
 
 def _collect_object_ids(objects: list[dict[str, Any]] | None) -> set[str]:
