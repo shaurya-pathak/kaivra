@@ -182,7 +182,14 @@ class KaivraMCPServer:
                 "Use fade-in for reveals, draw for connectors. "
                 "Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "
                 "Add a carousel chapter tracker as a persistent document-level object and highlight the active step each scene. "
-                "Set template: one-column on scenes. Write narration as conversational spoken English."
+                "Set template: one-column on scenes. "
+                "Template vs layout: 'template' is a high-level scene preset ('one-column' or 'two-column') that sets default layout and regions. "
+                "'layout' on a scene or group is the algorithmic arrangement (center, grid, flow, stack, etc.). "
+                "Template sets the layout automatically — do NOT set both template and layout on the same scene; use template for simple column layouts, layout for fine-grained control. "
+                "Connector overlap: connectors route as straight lines between anchors. To avoid crossings, "
+                "order objects in the group so that connected nodes are adjacent — the engine does not auto-route around obstacles. "
+                "If a connector must span non-adjacent nodes, split into a separate group or use an intermediate waypoint node. "
+                "Write narration as conversational spoken English."
             ),
         }
 
