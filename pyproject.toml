@@ -7,7 +7,7 @@ name = "kaivra"
 version = "0.1.0"
 description = "Declarative animation engine for LLMs — Typst for animations"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
     "pydantic>=2.0",
@@ -47,7 +47,7 @@ markers = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [

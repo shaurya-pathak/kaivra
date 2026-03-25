@@ -6,6 +6,8 @@ Kaivra includes a local stdio MCP server for guided animation authoring.
 
 Run these commands from the repo root.
 
+Kaivra targets Python 3.12+. If you use `uv`, the repo's [`.python-version`](/Users/shauryapathak/Desktop/Development/dsa-animation/.python-version) file gives it a supported default interpreter for the local virtualenv.
+
 ### 1. Install `uv`
 
 macOS / Linux:

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "kaivra-voice"
 version = "0.1.0"
 description = "Voice synthesis providers for kaivra animations"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
     "kaivra>=0.1.0",

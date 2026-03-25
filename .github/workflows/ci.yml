@@ -10,6 +10,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
 
     steps:
       - name: Check out repository
@@ -18,7 +22,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -61,7 +65,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-smoke-render
+          name: ci-smoke-render-py${{ matrix.python-version }}
           path: artifacts/quick-renders/ci-smoke.png
           if-no-files-found: ignore
 
@@ -75,7 +79,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
