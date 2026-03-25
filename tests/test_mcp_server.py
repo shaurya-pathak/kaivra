@@ -99,6 +99,13 @@ def test_check_animation_summary_mentions_warning_count() -> None:
     assert "- warning two" in summary
 
 
+def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
+    summary = _summarize_tool_result("plan_animation", {"status": "ok"})
+
+    assert "mirror on-screen keywords" in summary
+    assert "spoken_forms" in summary
+
+
 def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> None:
     server = KaivraMCPServer(workspace_root=str(tmp_path))
     server._writer = lambda message: emitted.append(message)
@@ -134,7 +141,9 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
     check_tool = next(
         tool for tool in tools_response["result"]["tools"] if tool["name"] == "check_animation"
     )
-    plan_tool = next(tool for tool in tools_response["result"]["tools"] if tool["name"] == "plan_animation")
+    plan_tool = next(
+        tool for tool in tools_response["result"]["tools"] if tool["name"] == "plan_animation"
+    )
     assert "voice" in render_tool["inputSchema"]["properties"]
     assert "voice_provider" in render_tool["inputSchema"]["properties"]
     assert "voice_id" in render_tool["inputSchema"]["properties"]

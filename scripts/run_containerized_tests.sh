@@ -13,6 +13,16 @@ log() {
     printf '[kaivra-precommit] %s\n' "$*" >&2
 }
 
+normalize_path() {
+    local candidate
+    for candidate in /opt/homebrew/bin /usr/local/bin; do
+        if [[ -d "$candidate" && ":$PATH:" != *":$candidate:"* ]]; then
+            PATH="$candidate:$PATH"
+        fi
+    done
+    export PATH
+}
+
 run_engine() {
     "${ENGINE[@]}" "$@"
 }
@@ -62,6 +72,7 @@ EOF
 }
 
 main() {
+    normalize_path
     select_engine
     log "Using ${ENGINE_LABEL}."
     log "Building ${IMAGE_TAG} from ${DOCKERFILE_PATH}."

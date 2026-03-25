@@ -538,6 +538,8 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
         return (
             "Animation plan ready. Present the questions to the user, "
             "collect their preferences, then write the animation JSON directly. "
+            "If voice is enabled, remind them to mirror on-screen keywords in "
+            "narration and add spoken_forms for tricky names. "
             "Read examples/reference/api_how_it_works.json for the quality bar."
         )
     if name == "add_theme":
