@@ -2865,7 +2865,11 @@ def _extract_tarball(archive_path: Path, destination: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="kaivra_extract_") as tmpdir:
         extract_root = Path(tmpdir)
         with tarfile.open(archive_path) as archive:
-            archive.extractall(extract_root, filter="data")
+            # filter= requires Python 3.12+ (tarfile data filter).
+            if sys.version_info >= (3, 12):
+                archive.extractall(extract_root, filter="data")
+            else:
+                archive.extractall(extract_root)
 
         entries = [path for path in extract_root.iterdir()]
         source_root = extract_root
