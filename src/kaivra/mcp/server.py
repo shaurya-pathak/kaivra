@@ -172,7 +172,8 @@ class KaivraMCPServer:
             "instructions": (
                 f'Kaivra DSL v{CURRENT_DSL_VERSION}. Always set "version": "{CURRENT_DSL_VERSION}". '
                 "Workflow: plan_animation → write JSON directly → check_animation → preview_animation → render_animation. "
-                "Always start with plan_animation to capture voice mode, detail level, audience, theme, and structure. "
+                "Start with plan_animation when user preferences are still missing. If the user already gave enough direction, "
+                "assume the draft defaults and start writing the JSON immediately. "
                 "After planning, write the animation JSON directly — do NOT use a scaffold. "
                 "Read MCP example resources like kaivra://example/api_how_it_works or kaivra://example/forward_propagation "
                 "(or the matching files under examples/reference/) for the quality bar. "
@@ -306,7 +307,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="plan_animation",
             title="Plan Animation",
-            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. If voice is enabled, remind the user to mirror on-screen keywords in narration and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
+            description="Interactive planning step — returns a structured questionnaire plus draft defaults before creating an animation. Use it when user preferences are still missing; if the request is already specific enough, assume the defaults and start authoring immediately. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. If voice is enabled, remind the user to mirror on-screen keywords in narration and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -326,7 +327,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="check_animation",
             title="Check Animation",
-            description="Validate and audit a Kaivra JSON file or raw JSON string, with optional normalization write-back and provider-aware voice sync guidance.",
+            description="Validate and audit a Kaivra JSON file or raw JSON string, with optional normalization write-back, narration timing guidance, and provider-aware voice sync guidance.",
             input_schema={
                 "type": "object",
                 "properties": {

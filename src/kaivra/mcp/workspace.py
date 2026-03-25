@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import math
 import os
 import platform
 import re
@@ -483,6 +484,7 @@ class KaivraWorkspace:
                 "blocking_issues": [str(exc)],
                 "warnings": [],
                 "audit_findings": [],
+                "narration_timing": [],
                 "normalized_dsl_json": None,
                 "recommended_edits": _recommend_edits_from_messages([str(exc)]),
                 "file_path": str(self.resolve_path(file_path)) if file_path else None,
@@ -510,23 +512,30 @@ class KaivraWorkspace:
                     "voice_sync": [],
                     "continuity": [],
                 },
+                "narration_timing": [],
                 "normalized_dsl_json": None,
                 "recommended_edits": _recommend_edits_from_messages([str(exc)]),
                 "applied_fixes": [],
                 "file_path": str(resolved_path) if resolved_path else None,
             }
 
+        narration_timing = _narration_timing_advice(doc)
         applied_fixes: list[dict[str, Any]] = []
         if write_back:
             if resolved_path is None:
                 raise ValueError("write_back requires file_path.")
-            doc, applied_fixes = _apply_safe_write_back_fixes(doc, raw_findings)
+            doc, applied_fixes = _apply_safe_write_back_fixes(
+                doc,
+                raw_findings,
+                narration_timing=narration_timing,
+            )
             raw_findings, findings, recommended_edits = _audit_document_report(
                 doc,
                 theme_search_roots=theme_roots,
                 voice=voice,
                 voice_provider=voice_provider,
             )
+            narration_timing = _narration_timing_advice(doc)
 
         normalized = dump_document_json(doc)
         blocking = [finding for finding in findings if finding.startswith("ERROR")]
@@ -547,6 +556,7 @@ class KaivraWorkspace:
             "audit_findings": findings,
             "structured_findings": [finding.to_dict() for finding in raw_findings],
             "finding_groups": _group_serialized_findings(raw_findings),
+            "narration_timing": narration_timing,
             "normalized_dsl_json": normalized,
             "recommended_edits": recommended_edits,
             "applied_fixes": applied_fixes,
@@ -2349,6 +2359,8 @@ def _dedupe_recommended_edits(edits: list[RecommendedEdit]) -> list[RecommendedE
 def _apply_safe_write_back_fixes(
     doc: Any,
     findings: list[CheckFinding],
+    *,
+    narration_timing: list[dict[str, Any]] | None = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
     applied_fixes: list[dict[str, Any]] = []
@@ -2361,15 +2373,19 @@ def _apply_safe_write_back_fixes(
         and finding.recommended_edit.action == "enable_layout_group_visibility"
         and finding.recommended_edit.object_id
     }
-    if not target_ids:
-        return doc, applied_fixes
-
     for scene_index, scene in enumerate(raw_doc.get("scenes", []) or []):
         scene_id = scene.get("id") or f"scene_{scene_index}"
         for obj in scene.get("objects", []) or []:
             applied_fixes.extend(
                 _enable_safe_group_visibility(obj, scene_id=scene_id, target_ids=target_ids)
             )
+        applied_fixes.extend(
+            _stretch_scene_to_narration(
+                scene,
+                scene_id=scene_id,
+                narration_timing=narration_timing or [],
+            )
+        )
 
     if not applied_fixes:
         return doc, applied_fixes
@@ -2411,6 +2427,44 @@ def _enable_safe_group_visibility(
                 _enable_safe_group_visibility(child, scene_id=scene_id, target_ids=target_ids)
             )
     return applied
+
+
+def _stretch_scene_to_narration(
+    scene: dict[str, Any],
+    *,
+    scene_id: str,
+    narration_timing: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    for advice in narration_timing:
+        if advice.get("scene_id") != scene_id or not advice.get("needs_review"):
+            continue
+        suggested_seconds = advice.get("suggested_duration_seconds")
+        if not isinstance(suggested_seconds, (int, float)):
+            continue
+        current_duration = scene.get("duration")
+        if not isinstance(current_duration, str):
+            continue
+        current_seconds = parse_duration(current_duration)
+        if current_seconds >= float(suggested_seconds):
+            continue
+        suggested_duration = advice.get("suggested_duration") or _format_duration_value(
+            float(suggested_seconds)
+        )
+        scene["duration"] = suggested_duration
+        return [
+            {
+                "scene_id": scene_id,
+                "object_id": None,
+                "action": "stretch_scene_to_narration",
+                "field": "duration",
+                "value": suggested_duration,
+                "reason": (
+                    "Extended the scene to the estimated spoken read time so the first voiced draft "
+                    "does not feel rushed."
+                ),
+            }
+        ]
+    return []
 
 
 def _collect_object_refs(objects: list[Any], *, prefix: str) -> list[ObjectRef]:
@@ -2491,6 +2545,35 @@ def _find_redundant_text_ref(scene_refs: list[ObjectRef], narration: str) -> Obj
         if best_match is None or score > best_match[0]:
             best_match = (score, object_ref)
     return best_match[1] if best_match else None
+
+
+def _narration_timing_advice(doc: Any) -> list[dict[str, Any]]:
+    advice: list[dict[str, Any]] = []
+    for scene_index, scene in enumerate(doc.scenes):
+        narration = (getattr(scene, "narration", None) or "").strip()
+        if not narration:
+            continue
+        current_seconds = parse_duration(getattr(scene, "duration", "0s"))
+        estimated_seconds = _estimate_read_time_seconds(narration)
+        suggested_seconds = _round_up_duration_seconds(max(current_seconds, estimated_seconds))
+        advice.append(
+            {
+                "scene_id": getattr(scene, "id", None) or f"scene_{scene_index}",
+                "current_duration_seconds": round(current_seconds, 2),
+                "estimated_read_time_seconds": round(estimated_seconds, 2),
+                "suggested_duration_seconds": round(suggested_seconds, 2),
+                "suggested_duration": _format_duration_value(suggested_seconds),
+                "needs_review": (
+                    estimated_seconds > current_seconds * _NARRATION_OVERAGE_RATIO
+                    and estimated_seconds - current_seconds >= _NARRATION_OVERAGE_SECONDS
+                ),
+            }
+        )
+    return advice
+
+
+def _round_up_duration_seconds(value: float) -> float:
+    return max(0.5, math.ceil(value * 2.0) / 2.0)
 
 
 def _tokenize_for_overlap(text: str) -> list[str]:

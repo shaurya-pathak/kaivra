@@ -140,6 +140,7 @@ def _authoring_profile() -> str:
 - Write narration as conversational spoken English with contractions and direct address. Not "Title. Definition."
 - Mention labels and values in the order you want reveals to land.
 - Let the explanation determine scene length.
+- `check_animation` reports estimated read time at roughly 150 WPM. Use that timing guidance before previewing a narrated render.
 
 ## Voice Sync Checklist
 
@@ -169,9 +170,17 @@ Narration: "First, the backend component handles incoming traffic..."
 - When a data structure spans scenes (array, graph, pipeline), keep the same object IDs. Recreating with new IDs each scene kills the smooth morph.
 - When a concept repeats the same operation, show one concrete worked example, then generalize.
 
+## Common Mistakes
+
+- Reusing the same `id` for a different label in the next scene. Keep the content close if you want a morph; otherwise rename the object.
+- Leaving top-level objects flat under the default center layout. Wrap rows and columns in `group` containers with `flow` or `stack`.
+- Drawing connectors across unrelated nodes. Keep connected objects adjacent in their group so straight-line connectors stay legible.
+- Forgetting `spoken_forms` on names the TTS or aligner may hear differently.
+- Hiding a layout-only parent group under `auto_visible: false` without either `visible: true` or a group-level reveal.
+
 ## Workflow
 
-1. `plan_animation` → gather topic, audience, theme, structure, and voice mode.
+1. `plan_animation` → gather topic, audience, theme, structure, and voice mode when those preferences are still missing. If the prompt is already specific enough, assume the draft defaults and start writing.
 2. Write the JSON directly, and Rewrite any generic starter ideas into topic-specific scenes, objects, and animations before shipping.
 3. `check_animation` → `preview_animation` → `render_animation`.
 """

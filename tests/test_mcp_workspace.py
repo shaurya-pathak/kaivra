@@ -449,6 +449,49 @@ def test_check_animation_write_back_enables_layout_group_visibility(tmp_path: Pa
     assert not checked["finding_groups"]["blocking"]
 
 
+def test_check_animation_reports_narration_timing_and_can_stretch_scene(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    source_path = tmp_path / "animations" / "timing-fix.json"
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_text(
+        json.dumps(
+            {
+                "version": "1.2",
+                "meta": {"theme": "modern", "show_narration": True},
+                "scenes": [
+                    {
+                        "id": "voice_scene",
+                        "duration": "4s",
+                        "template": "one-column",
+                        "narration": (
+                            "This is a deliberately long spoken explanation that should take "
+                            "longer than four seconds to read comfortably out loud."
+                        ),
+                        "objects": [
+                            {"id": "voice_card", "type": "text", "content": "Worked example"},
+                        ],
+                        "animations": [{"action": "appear", "target": "voice_card", "at": "0s"}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    checked = workspace.check_animation(file_path=str(source_path), write_back=True, voice=True)
+    rewritten = json.loads(source_path.read_text(encoding="utf-8"))
+
+    assert checked["narration_timing"]
+    assert checked["narration_timing"][0]["scene_id"] == "voice_scene"
+    assert checked["narration_timing"][0]["needs_review"] is False
+    assert float(checked["narration_timing"][0]["suggested_duration_seconds"]) >= 8.0
+    assert any(
+        fix["action"] == "stretch_scene_to_narration" and fix["scene_id"] == "voice_scene"
+        for fix in checked["applied_fixes"]
+    )
+    assert rewritten["scenes"][0]["duration"] != "4s"
+
+
 def test_check_animation_warns_when_scene_crossfade_and_object_reveal_stack(
     tmp_path: Path,
 ) -> None:
