@@ -72,11 +72,6 @@ class TransitionType(str, Enum):
     FADE = "fade"
 
 
-class CameraAction(str, Enum):
-    ZOOM = "zoom"
-    PAN = "pan"
-
-
 class GapSize(str, Enum):
     SMALL = "small"
     MEDIUM = "medium"
@@ -361,37 +356,6 @@ class AnimSpec(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Camera
-# ---------------------------------------------------------------------------
-
-
-class CameraInitial(BaseModel):
-    """Initial camera state for a scene."""
-
-    zoom: float = Field(1.0, description="Initial zoom level (1.0 = 100%)")
-    focus: str = Field("center", description="Initial focus point: object ID or 'center'")
-
-
-class CameraSpec(BaseModel):
-    """Camera configuration for a scene."""
-
-    initial: CameraInitial | None = None
-
-
-class CameraAnimSpec(BaseModel):
-    """A camera animation (viewport-level, not object-level)."""
-
-    action: CameraAction = Field(description="Camera action: zoom or pan")
-    to: float | None = Field(None, description="Target zoom level (for zoom action)")
-    focus: str | None = Field(
-        None, description="Target focus point: object ID or 'center' (for pan)"
-    )
-    at: str = Field(description="Start time, e.g. '1s'")
-    duration: str = Field("1s", description="Animation duration")
-    easing: EasingType = Field(EasingType.EASE_IN_OUT, description="Easing function")
-
-
-# ---------------------------------------------------------------------------
 # Transitions
 # ---------------------------------------------------------------------------
 
@@ -462,11 +426,6 @@ class SceneSpec(BaseModel):
     )
     show_progress_bar: bool = Field(
         True, description="Whether to render the bottom progress bar for this scene"
-    )
-
-    camera: CameraSpec | None = Field(None, description="Camera configuration")
-    camera_animations: list[CameraAnimSpec] = Field(
-        default_factory=list, description="Camera animations"
     )
     transition: TransitionSpec | None = Field(None, description="Transition to next scene")
 

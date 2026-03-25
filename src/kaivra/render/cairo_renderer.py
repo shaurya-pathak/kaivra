@@ -1,7 +1,7 @@
 """Cairo-based frame renderer.
 
 Renders a single frame of the scene graph to a Cairo surface.
-Handles all object types, animation state, camera transforms, and theme styling.
+Handles all object types, animation state, transitions, and theme styling.
 """
 
 from __future__ import annotations
@@ -12,8 +12,8 @@ import random
 import cairo
 
 from kaivra.dsl.schema import ObjectType
-from kaivra.scene_graph.models import CameraState, ResolvedScene, SceneGraph, SceneNode
-from kaivra.scene_graph.timeline import apply_animations_at_time, compute_camera_at_time
+from kaivra.scene_graph.models import ResolvedScene, SceneGraph, SceneNode
+from kaivra.scene_graph.timeline import apply_animations_at_time
 from kaivra.themes.base import ThemeSpec
 from kaivra.utils.color import hex_to_rgba
 from kaivra.utils.geometry import connector_endpoints
@@ -74,17 +74,8 @@ class CairoRenderer:
     ) -> None:
         """Draw a complete scene into an existing context."""
         apply_animations_at_time(scene.node_map, scene.timeline, scene_time)
-        camera = compute_camera_at_time(
-            scene.camera_initial,
-            scene.camera_keyframes,
-            scene_time,
-            graph.width,
-            graph.height,
-            scene.node_map,
-        )
         self._fill_background(ctx, graph.width, graph.height)
         ctx.save()
-        self._apply_camera(ctx, camera, graph.width, graph.height)
         for node in scene.nodes:
             self._draw_node(ctx, node, scene.node_map, scene_time)
         ctx.restore()
@@ -125,14 +116,6 @@ class CairoRenderer:
         ctx.set_source_rgba(r, g, b, a)
         ctx.rectangle(0, 0, w, h)
         ctx.fill()
-
-    def _apply_camera(self, ctx: cairo.Context, camera: CameraState, w: int, h: int) -> None:
-        if camera.zoom != 1.0 or camera.center_x or camera.center_y:
-            cx = camera.center_x or w / 2
-            cy = camera.center_y or h / 2
-            ctx.translate(w / 2, h / 2)
-            ctx.scale(camera.zoom, camera.zoom)
-            ctx.translate(-cx, -cy)
 
     def _draw_node(
         self, ctx: cairo.Context, node: SceneNode, node_map: dict[str, SceneNode], scene_time: float

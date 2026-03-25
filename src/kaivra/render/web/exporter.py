@@ -51,31 +51,12 @@ def build_web_preview_html(
                 }
             )
 
-        camera_kfs = []
-        for ckf in scene.camera_keyframes:
-            camera_kfs.append(
-                {
-                    "action": ckf.action,
-                    "start_time": ckf.start_time,
-                    "duration": ckf.duration,
-                    "easing": ckf.easing,
-                    "to_zoom": ckf.to_zoom,
-                    "focus_id": ckf.focus_id,
-                }
-            )
-
         scenes_data.append(
             {
                 "id": scene.id,
                 "duration": scene.duration,
                 "nodes": nodes_data,
                 "timeline": timeline_data,
-                "camera_initial": {
-                    "zoom": scene.camera_initial.zoom,
-                    "center_x": scene.camera_initial.center_x,
-                    "center_y": scene.camera_initial.center_y,
-                },
-                "camera_keyframes": camera_kfs,
                 "transition": {
                     "type": scene.transition.type,
                     "duration": scene.transition.duration,
@@ -281,11 +262,27 @@ function getEasing(name) {{ return easings[name] || easings['ease-in-out']; }}
 
 function getSceneAtTime(t) {{
   let elapsed = 0;
-  for (const scene of GRAPH.scenes) {{
-    if (t < elapsed + scene.duration) return {{ scene, localTime: t - elapsed }};
+  for (let index = 0; index < GRAPH.scenes.length; index++) {{
+    const scene = GRAPH.scenes[index];
+    const localTime = t - elapsed;
+    if (localTime < scene.duration) {{
+      let blend = 0;
+      let nextScene = null;
+      let nextLocalTime = 0;
+      if (scene.transition && scene.transition.duration > 0 && index + 1 < GRAPH.scenes.length) {{
+        const transDur = scene.transition.duration;
+        const timeRemaining = scene.duration - localTime;
+        if (timeRemaining < transDur) {{
+          blend = Math.max(0, Math.min(1, 1 - timeRemaining / transDur));
+          nextScene = GRAPH.scenes[index + 1];
+          nextLocalTime = transDur - timeRemaining;
+        }}
+      }}
+      return {{ scene, sceneIndex: index, localTime, blend, nextScene, nextLocalTime }};
+    }}
     elapsed += scene.duration;
   }}
-  return {{ scene: null, localTime: 0 }};
+  return {{ scene: null, sceneIndex: -1, localTime: 0, blend: 0, nextScene: null, nextLocalTime: 0 }};
 }}
 
 function getProgress(kf, t) {{
@@ -294,6 +291,12 @@ function getProgress(kf, t) {{
   const raw = (t - kf.start_time) / kf.duration;
   if (raw > 1) return null;
   return getEasing(kf.easing)(Math.max(0, Math.min(1, raw)));
+}}
+
+function highlightIntensity(progress) {{
+  if (progress < 0.25) return progress / 0.25;
+  if (progress > 0.75) return (1 - progress) / 0.25;
+  return 1;
 }}
 
 function applyAnimations(nodeMap, keyframes, t) {{
@@ -368,7 +371,7 @@ function applyAnimations(nodeMap, keyframes, t) {{
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = dx; node._translateY = dy; }}
         break;
       case 'highlight': case 'pulse':
-        if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._highlightIntensity = p; }}
+        if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._highlightIntensity = highlightIntensity(p); node._highlightColor = kf.color; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; }}
         break;
       case 'build':
@@ -467,6 +470,7 @@ function drawNode(ctx, node, nodeMap) {{
     ctx.scale(sx, sy);
     ctx.translate(-cx, -cy);
     drawNodeShell(ctx, node, nodeMap);
+    if (node._highlightIntensity > 0) drawHighlight(ctx, node);
     ctx.restore();
     drawNodeTextLayer(ctx, node);
     ctx.restore();
@@ -480,8 +484,32 @@ function drawNode(ctx, node, nodeMap) {{
   }}
 
   drawNodeVisual(ctx, node, nodeMap);
+  if (node._highlightIntensity > 0) drawHighlight(ctx, node);
 
   ctx.restore();
+}}
+
+function resolveThemeColor(name) {{
+  if (!name) return THEME.accent;
+  const mapped = THEME[name];
+  return mapped || name;
+}}
+
+function drawHighlight(ctx, node) {{
+  const r = node.rect;
+  const intensity = (node._highlightIntensity || 0) * 0.3 * node._opacity;
+  if (intensity <= 0) return;
+  const color = resolveThemeColor(node._highlightColor);
+  roundedRect(
+    ctx,
+    r.x - 4,
+    r.y - 4,
+    r.w + 8,
+    r.h + 8,
+    THEME.boxCornerRadius + 4,
+  );
+  ctx.fillStyle = hexToRgba(color, intensity);
+  ctx.fill();
 }}
 
 function drawNodeVisual(ctx, node, nodeMap) {{
@@ -670,8 +698,32 @@ function drawGroup(ctx, node, nodeMap) {{
   }}
 }}
 
+function buildNodeMap(nodes) {{
+  const nodeMap = {{}};
+  function mapNodes(items) {{
+    for (const n of items) {{
+      nodeMap[n.id] = n;
+      if (n.children) mapNodes(n.children);
+    }}
+  }}
+  mapNodes(nodes);
+  return nodeMap;
+}}
+
+function renderScene(ctx, scene, localTime, alpha = 1) {{
+  sceneTime = localTime;
+  const nodeMap = buildNodeMap(scene.nodes);
+  applyAnimations(nodeMap, scene.timeline, localTime);
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  for (const node of scene.nodes) drawNode(ctx, node, nodeMap);
+  ctx.restore();
+}}
+
 function render(t) {{
-  const {{ scene, localTime }} = getSceneAtTime(t);
+  const {{ scene, localTime, blend, nextScene, nextLocalTime }} = getSceneAtTime(t);
   sceneTime = localTime;
   ctx.clearRect(0, 0, GRAPH.width, GRAPH.height);
 
@@ -681,58 +733,12 @@ function render(t) {{
 
   if (!scene) return;
 
-  // Build node map
-  const nodeMap = {{}};
-  function mapNodes(nodes) {{
-    for (const n of nodes) {{
-      nodeMap[n.id] = n;
-      if (n.children) mapNodes(n.children);
-    }}
+  if (blend > 0 && nextScene) {{
+    renderScene(ctx, scene, localTime, 1);
+    renderScene(ctx, nextScene, nextLocalTime, blend);
+  }} else {{
+    renderScene(ctx, scene, localTime, 1);
   }}
-  mapNodes(scene.nodes);
-
-  applyAnimations(nodeMap, scene.timeline, localTime);
-
-  // Camera
-  ctx.save();
-  let zoom = scene.camera_initial.zoom || 1;
-  let centerX = scene.camera_initial.center_x || (GRAPH.width / 2);
-  let centerY = scene.camera_initial.center_y || (GRAPH.height / 2);
-
-  function focusPoint(focusId) {{
-    if (!focusId || focusId === 'center') return [GRAPH.width / 2, GRAPH.height / 2];
-    const n = nodeMap[focusId];
-    if (!n) return [GRAPH.width / 2, GRAPH.height / 2];
-    return [n.rect.x + n.rect.w / 2, n.rect.y + n.rect.h / 2];
-  }}
-
-  for (const ckf of scene.camera_keyframes) {{
-    if (localTime < ckf.start_time) continue;
-    const raw = ckf.duration > 0 ? Math.min(1, (localTime - ckf.start_time) / ckf.duration) : 1;
-    const p = getEasing(ckf.easing)(raw);
-    const [tx, ty] = focusPoint(ckf.focus_id);
-
-    if (ckf.action === 'pan') {{
-      centerX = centerX + (tx - centerX) * p;
-      centerY = centerY + (ty - centerY) * p;
-    }}
-    if (ckf.action === 'zoom' && ckf.to_zoom != null) {{
-      zoom = zoom + (ckf.to_zoom - zoom) * p;
-      if (ckf.focus_id) {{
-        centerX = centerX + (tx - centerX) * p;
-        centerY = centerY + (ty - centerY) * p;
-      }}
-    }}
-  }}
-
-  if (zoom !== 1 || centerX !== GRAPH.width / 2 || centerY !== GRAPH.height / 2) {{
-    ctx.translate(centerX, centerY);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-centerX, -centerY);
-  }}
-
-  for (const node of scene.nodes) drawNode(ctx, node, nodeMap);
-  ctx.restore();
 
   // Narration
   if (GRAPH.showNarration) {{

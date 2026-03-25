@@ -823,3 +823,98 @@ def test_download_model_extracts_bundle(tmp_path: Path, monkeypatch: pytest.Monk
     assert Path(result["model_path"]).exists()
     assert Path(result["tokens_path"]).exists()
     assert Path(result["data_dir"]).is_dir()
+
+
+def test_voice_sync_findings_flag_unmatched_targets(tmp_path: Path) -> None:
+    """ElevenLabs sync audit warns when narration misses animation targets."""
+    workspace = KaivraWorkspace(tmp_path)
+    doc = {
+        "version": "1.2",
+        "meta": {"title": "Sync Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "8s",
+                "template": "one-column",
+                "narration": "The backend component handles incoming traffic smoothly.",
+                "objects": [
+                    {"type": "box", "id": "server", "content": "Server"},
+                    {"type": "box", "id": "traffic", "content": "Traffic"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "server", "at": "0s", "duration": "0.5s"},
+                    {"action": "fade-in", "target": "traffic", "at": "2s", "duration": "0.5s"},
+                ],
+            }
+        ],
+    }
+    result = workspace.check_animation(
+        dsl_json=json.dumps(doc),
+        voice=True,
+        voice_provider="elevenlabs",
+    )
+
+    voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
+    # "server" has no keyword overlap with narration ("backend component" ≠ "Server")
+    assert any("server" in f for f in voice_findings)
+    # "traffic" DOES overlap with narration
+    assert not any("'traffic'" in f for f in voice_findings)
+
+
+def test_voice_sync_findings_suppressed_for_local_voice(tmp_path: Path) -> None:
+    """Local voice uses draft timing, so keyword-match warnings stay quiet."""
+    workspace = KaivraWorkspace(tmp_path)
+    doc = {
+        "version": "1.2",
+        "meta": {"title": "Sync Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "8s",
+                "template": "one-column",
+                "narration": "The backend component handles incoming traffic.",
+                "objects": [
+                    {"type": "box", "id": "server", "content": "Server"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "server", "at": "0s", "duration": "0.5s"},
+                ],
+            }
+        ],
+    }
+
+    result = workspace.check_animation(
+        dsl_json=json.dumps(doc),
+        voice=True,
+        voice_provider="local",
+    )
+
+    voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
+    assert voice_findings == []
+
+
+def test_voice_sync_findings_absent_without_voice_flag(tmp_path: Path) -> None:
+    """check_animation without voice=True should not emit voice_sync findings."""
+    workspace = KaivraWorkspace(tmp_path)
+    doc = {
+        "version": "1.2",
+        "meta": {"title": "Sync Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "8s",
+                "template": "one-column",
+                "narration": "The backend component handles incoming traffic.",
+                "objects": [
+                    {"type": "box", "id": "server", "content": "Server"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "server", "at": "0s", "duration": "0.5s"},
+                ],
+            }
+        ],
+    }
+    result = workspace.check_animation(dsl_json=json.dumps(doc), voice=False)
+
+    voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
+    assert voice_findings == []

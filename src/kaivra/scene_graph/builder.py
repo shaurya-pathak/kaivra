@@ -26,8 +26,6 @@ from kaivra.layout.engine import LayoutEngine
 from kaivra.layout.strategies.carousel import carousel_scale_profile
 from kaivra.scene_graph.models import (
     AnimationKeyframe,
-    CameraKeyframe,
-    CameraState,
     ResolvedScene,
     SceneGraph,
     SceneNode,
@@ -229,36 +227,6 @@ def _build_scene(
     timeline = _propagate_group_visibility(timeline, nodes)
     timeline = _normalize_timeline(timeline, duration, glow_release_padding)
 
-    # Camera
-    camera_initial = CameraState()
-    if spec.camera and spec.camera.initial:
-        focus_id = spec.camera.initial.focus
-        if focus_id and focus_id != "center" and focus_id in node_map:
-            focus_rect = node_map[focus_id].rect
-            camera_initial = CameraState(
-                zoom=spec.camera.initial.zoom,
-                center_x=focus_rect.center.x,
-                center_y=focus_rect.center.y,
-            )
-        else:
-            camera_initial = CameraState(
-                zoom=spec.camera.initial.zoom,
-                center_x=canvas.center.x,
-                center_y=canvas.center.y,
-            )
-
-    camera_keyframes = [
-        CameraKeyframe(
-            action=ca.action.value,
-            start_time=parse_duration(ca.at),
-            duration=parse_duration(ca.duration),
-            easing=ca.easing.value,
-            to_zoom=ca.to,
-            focus_id=ca.focus,
-        )
-        for ca in spec.camera_animations
-    ]
-
     # Transition
     transition = None
     if spec.transition:
@@ -273,8 +241,6 @@ def _build_scene(
         nodes=nodes,
         node_map=node_map,
         timeline=timeline,
-        camera_initial=camera_initial,
-        camera_keyframes=camera_keyframes,
         transition=transition,
         narration=spec.narration,
         show_progress_bar=spec.show_progress_bar,
@@ -503,10 +469,6 @@ def _delay_scene_opening(scene: ResolvedScene, delay: float) -> None:
     delayed_targets = {kf.target_id for kf in scene.timeline if kf.start_time < delay}
     for kf in scene.timeline:
         if kf.target_id in delayed_targets:
-            kf.start_time += delay
-
-    if any(kf.start_time < delay for kf in scene.camera_keyframes):
-        for kf in scene.camera_keyframes:
             kf.start_time += delay
 
 

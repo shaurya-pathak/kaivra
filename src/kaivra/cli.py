@@ -156,6 +156,12 @@ def render(
 
     workspace = KaivraWorkspace()
     output_path = Path(output)
+    _validate_render_request(
+        output_path=output_path,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
+    )
     _run_preflight_for_render(
         workspace,
         command_name="render",
@@ -259,7 +265,11 @@ def quick_render(
 
     input_path = Path(input_file).expanduser().resolve()
     workspace = KaivraWorkspace(input_path.parent)
-    check = workspace.check_animation(file_path=str(input_path), voice=voice)
+    check = workspace.check_animation(
+        file_path=str(input_path),
+        voice=voice,
+        voice_provider=voice_provider,
+    )
 
     if check["warnings"]:
         for warning in check["warnings"]:
@@ -274,6 +284,12 @@ def quick_render(
 
     output_path = _resolve_quick_render_output(
         str(input_path), output, requested_format, voice, audio
+    )
+    _validate_render_request(
+        output_path=output_path,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
     )
     _run_preflight_for_render(
         workspace,
@@ -440,6 +456,27 @@ def _run_preflight_for_render(
     )
 
 
+def _validate_render_request(
+    *,
+    output_path: Path,
+    audio: str | None,
+    audio_timings: str | None,
+    voice: bool,
+) -> None:
+    if voice and (audio or audio_timings):
+        raise click.ClickException("--voice cannot be combined with --audio or --audio-timings.")
+
+    if output_path.suffix == ".png":
+        if audio or audio_timings or voice:
+            raise click.ClickException(
+                "Audio options are only supported for video outputs (.mp4 or .webm)."
+            )
+        return
+
+    if output_path.suffix not in {".mp4", ".webm"}:
+        raise click.ClickException(f"Unsupported output format: {output_path}")
+
+
 def _render_to_output(
     *,
     input_file: str,
@@ -457,16 +494,12 @@ def _render_to_output(
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if voice and (audio or audio_timings):
-        raise click.ClickException("--voice cannot be combined with --audio or --audio-timings.")
-
-    if output_path.suffix == ".png":
-        if audio or audio_timings or voice:
-            raise click.ClickException(
-                "Audio options are only supported for video outputs (.mp4 or .webm)."
-            )
-    elif output_path.suffix not in {".mp4", ".webm"}:
-        raise click.ClickException(f"Unsupported output format: {output}")
+    _validate_render_request(
+        output_path=output_path,
+        audio=audio,
+        audio_timings=audio_timings,
+        voice=voice,
+    )
 
     doc = parse_file(input_file)
     theme_roots = resolve_theme_search_roots(input_file)

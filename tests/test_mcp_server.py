@@ -27,6 +27,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "Template vs layout" in instructions
     assert "Connector overlap" in instructions
     assert "Narration sync" in instructions
+    assert "uniform duration scaling" in instructions
 
     assert (
         server.handle_message(
@@ -78,6 +79,8 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     assert "draw" in authoring
     assert "carousel" in authoring
     assert "template" in authoring
+    assert "Voice Sync Checklist" in authoring
+    assert "positional matching" in authoring
     assert "algorithm_walkthrough" in pattern_catalog
     assert "Rewrite scene objects before shipping" in pattern_catalog
     assert "BAD: Scaffold scene" in examples
@@ -127,9 +130,13 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
     render_tool = next(
         tool for tool in tools_response["result"]["tools"] if tool["name"] == "render_animation"
     )
+    check_tool = next(
+        tool for tool in tools_response["result"]["tools"] if tool["name"] == "check_animation"
+    )
     assert "voice" in render_tool["inputSchema"]["properties"]
     assert "voice_provider" in render_tool["inputSchema"]["properties"]
     assert "voice_id" in render_tool["inputSchema"]["properties"]
+    assert "voice_provider" in check_tool["inputSchema"]["properties"]
 
     captured: dict[str, object] = {}
 

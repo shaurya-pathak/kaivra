@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from kaivra.dsl.schema import AnimAction
-from kaivra.scene_graph.models import AnimationKeyframe, CameraKeyframe, CameraState, SceneNode
+from kaivra.scene_graph.models import AnimationKeyframe, SceneNode
 from kaivra.utils.easing import get_easing
 
 
@@ -209,53 +209,6 @@ def apply_animations_at_time(
                     node.visible = True
                     node.opacity = 1.0
                     node.draw_progress = 1.0
-
-
-def compute_camera_at_time(
-    initial: CameraState,
-    keyframes: list[CameraKeyframe],
-    t: float,
-    canvas_width: int,
-    canvas_height: int,
-    node_map: dict[str, SceneNode] | None = None,
-) -> CameraState:
-    """Compute camera state at time t."""
-    state = CameraState(
-        zoom=initial.zoom,
-        center_x=initial.center_x or canvas_width / 2,
-        center_y=initial.center_y or canvas_height / 2,
-    )
-
-    for kf in keyframes:
-        if t < kf.start_time:
-            continue
-
-        raw_progress = (t - kf.start_time) / kf.duration if kf.duration > 0 else 1.0
-        raw_progress = min(1.0, max(0.0, raw_progress))
-        easing_fn = get_easing(kf.easing)
-        progress = easing_fn(raw_progress)
-
-        def resolve_focus(focus_id: str | None) -> tuple[float, float]:
-            if not focus_id or focus_id == "center" or node_map is None:
-                return (canvas_width / 2, canvas_height / 2)
-            node = node_map.get(focus_id)
-            if node is None:
-                return (canvas_width / 2, canvas_height / 2)
-            return (node.rect.center.x, node.rect.center.y)
-
-        if kf.action == "zoom" and kf.to_zoom is not None:
-            prev_zoom = state.zoom
-            state.zoom = prev_zoom + (kf.to_zoom - prev_zoom) * progress
-            if kf.focus_id:
-                fx, fy = resolve_focus(kf.focus_id)
-                state.center_x = state.center_x + (fx - state.center_x) * progress
-                state.center_y = state.center_y + (fy - state.center_y) * progress
-        elif kf.action == "pan":
-            fx, fy = resolve_focus(kf.focus_id)
-            state.center_x = state.center_x + (fx - state.center_x) * progress
-            state.center_y = state.center_y + (fy - state.center_y) * progress
-
-    return state
 
 
 def _get_progress(kf: AnimationKeyframe, t: float) -> float | None:

@@ -66,10 +66,6 @@
         { "action": "highlight", "target": "t6", "at": "5s", "duration": "1.5s", "style": "glow", "color": "accent" },
         { "action": "fade-in", "target": "token_callout", "at": "6.5s", "duration": "0.8s" }
       ],
-      "camera_animations": [
-        { "action": "zoom", "to": 1.2, "focus": "t4", "at": "3.5s", "duration": "1.5s" },
-        { "action": "zoom", "to": 1.0, "at": "8s", "duration": "1.5s" }
-      ],
       "transition": { "type": "wipe", "direction": "down", "duration": "0.8s" }
     },
 
@@ -152,10 +148,6 @@
           ]
         },
         { "action": "fade-in", "target": "attn_callout", "at": "8s", "duration": "0.8s" }
-      ],
-      "camera_animations": [
-        { "action": "zoom", "to": 1.25, "focus": "attn", "at": "6s", "duration": "2s" },
-        { "action": "zoom", "to": 1.0, "at": "10s", "duration": "1.5s" }
       ],
       "transition": { "type": "zoom-into", "target": "attn", "duration": "1s" }
     },

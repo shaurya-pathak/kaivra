@@ -8,6 +8,7 @@ from kaivra.audio.base import AudioResult
 from kaivra.audio.timings import AudioCue
 from kaivra.dsl.parser import parse_string
 from kaivra.render import orchestration
+from kaivra.render.web.exporter import build_web_preview_html
 
 
 def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_path, monkeypatch):
@@ -253,6 +254,42 @@ def test_voice_render_preserves_explicit_subtitles_setting(tmp_path, monkeypatch
 
     assert result.artifact_path == str(tmp_path / "narrated.mp4")
     assert seen_subtitles == [True]
+
+
+def test_web_preview_html_includes_transition_and_highlight_preview_logic() -> None:
+    doc = parse_string(
+        json.dumps(
+            {
+                "version": "1.2",
+                "meta": {"title": "Preview", "theme": "modern"},
+                "scenes": [
+                    {
+                        "id": "intro",
+                        "duration": "4s",
+                        "narration": "Preview parity",
+                        "objects": [{"id": "box", "type": "box", "content": "Box"}],
+                        "animations": [
+                            {"action": "highlight", "target": "box", "at": "0s", "duration": "2s"}
+                        ],
+                        "transition": {"type": "fade", "duration": "0.5s"},
+                    },
+                    {
+                        "id": "next",
+                        "duration": "2s",
+                        "objects": [{"id": "next_box", "type": "box", "content": "Next"}],
+                    },
+                ],
+            }
+        ),
+        format="json",
+    )
+
+    html = build_web_preview_html(doc)
+
+    assert "return { scene, sceneIndex: index, localTime, blend, nextScene, nextLocalTime }" in html
+    assert "if (blend > 0 && nextScene)" in html
+    assert "if (progress < 0.25) return progress / 0.25;" in html
+    assert "drawHighlight(ctx, node);" in html
 
 
 def _narrated_doc(

@@ -84,27 +84,6 @@ class AnimationKeyframe:
 
 
 @dataclass
-class CameraState:
-    """Camera viewport state."""
-
-    zoom: float = 1.0
-    center_x: float = 0.0
-    center_y: float = 0.0
-
-
-@dataclass
-class CameraKeyframe:
-    """A camera animation keyframe."""
-
-    action: str
-    start_time: float
-    duration: float
-    easing: str = "ease-in-out"
-    to_zoom: float | None = None
-    focus_id: str | None = None
-
-
-@dataclass
 class TransitionInfo:
     """Scene transition info."""
 
@@ -121,8 +100,6 @@ class ResolvedScene:
     nodes: list[SceneNode]
     node_map: dict[str, SceneNode]  # id -> node for quick lookup
     timeline: list[AnimationKeyframe]
-    camera_initial: CameraState = field(default_factory=CameraState)
-    camera_keyframes: list[CameraKeyframe] = field(default_factory=list)
     transition: TransitionInfo | None = None
     narration: str | None = None
     show_progress_bar: bool = True

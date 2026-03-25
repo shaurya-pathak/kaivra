@@ -152,11 +152,6 @@ def estimate_scene_duration(
     for anim in scene.get("animations", []) or []:
         max_end = max(max_end, _estimate_animation_end(anim))
 
-    for anim in scene.get("camera_animations", []) or []:
-        start = _parse_time(anim.get("at"), 0.0)
-        duration = _parse_time(anim.get("duration"), 1.0)
-        max_end = max(max_end, start + duration)
-
     focus_style = scene.get("focus_style")
     if isinstance(focus_style, dict):
         default_focus_duration = 1.2
@@ -184,10 +179,6 @@ def estimate_scene_duration(
 def _retime_scene(scene: dict[str, Any], scale: float) -> None:
     for anim in scene.get("animations", []) or []:
         _retime_animation(anim, scale)
-
-    for anim in scene.get("camera_animations", []) or []:
-        _scale_duration_field(anim, "at", scale)
-        _scale_duration_field(anim, "duration", scale)
 
     focus_style = scene.get("focus_style")
     if isinstance(focus_style, dict):

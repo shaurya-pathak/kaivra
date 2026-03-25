@@ -121,6 +121,26 @@ def _authoring_profile() -> str:
 - Mention labels and values in the order you want reveals to land.
 - Let the explanation determine scene length.
 
+## Voice Sync Checklist
+
+When authoring for voice, especially ElevenLabs:
+
+- **Mirror on-screen labels in narration.** If a box says "Load Balancer", say "the load balancer distributes" in narration — not "the distributor sends". The engine matches spoken words to animation targets by content overlap.
+- **Order narration to match reveal order.** Mention concepts in the same sequence as their `at` timings so reveals land naturally.
+- **Run `check_animation` with `voice: true` and `voice_provider: "elevenlabs"`** to catch targets with no keyword overlap before rendering.
+
+### Good
+Object: `{ "id": "server", "content": "Server" }`
+Narration: "First, the server receives the request..."
+→ Engine matches "server" in speech to the Server object reveal.
+
+### Bad
+Object: `{ "id": "server", "content": "Server" }`
+Narration: "First, the backend component handles incoming traffic..."
+→ No word overlap — reveal falls back to positional matching (less precise).
+
+**Note:** Substring matching works — "failure" matches "fail", "servers" matches "server". Local (Sherpa) renders use duration-scaled positional timing without word-level cues, so these tips primarily improve ElevenLabs renders.
+
 ## Continuity
 
 - Reuse the same `id` and `content` across consecutive scenes when a value carries forward. The engine morphs it into its new position automatically.
@@ -129,8 +149,8 @@ def _authoring_profile() -> str:
 
 ## Workflow
 
-1. `start_animation` → scaffold.
-2. Rewrite each scene's objects and animations to be topic-specific.
+1. `plan_animation` → gather topic, audience, theme, structure, and voice mode.
+2. Write the JSON directly, and Rewrite any generic starter ideas into topic-specific scenes, objects, and animations before shipping.
 3. `check_animation` → `preview_animation` → `render_animation`.
 """
 

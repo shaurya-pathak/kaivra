@@ -93,8 +93,8 @@ Use `kaivra doctor` if you want to verify the exact binary path your MCP client 
 The MCP is intentionally small and opinionated:
 
 1. `add_theme` creates a reusable custom theme JSON in the workspace.
-2. `start_animation` creates a starter file from a title, pattern, beat list, and optional `pacing` preset.
-3. `quick_render` is the fastest first-run path when you want Kaivra to create and render a starter artifact in one step.
+2. `plan_animation` gathers topic, audience, theme, structure, and voice choices.
+3. Write the animation JSON directly in `animations/`.
 4. `check_animation` validates, normalizes, and audits the result.
 5. `preview_animation` writes an HTML preview and a PNG still.
 6. `render_animation` writes the final PNG, MP4, or WebM artifact.

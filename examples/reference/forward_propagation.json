@@ -1,0 +1,1549 @@
+{
+  "version": "1.2",
+  "meta": {
+    "title": "Forward Propagation",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "material",
+    "show_subtitles": false,
+    "pacing": "educational",
+    "continuity": true,
+    "continuity_duration": "1.2s",
+    "glow_release_padding": "1.0s",
+    "video_bookends": true
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "chapters",
+      "position": "bottom",
+      "children": [
+        {
+          "type": "token",
+          "id": "step_overview",
+          "content": "1  Overview"
+        },
+        {
+          "type": "token",
+          "id": "step_hidden_sum",
+          "content": "2  Hidden sum"
+        },
+        {
+          "type": "token",
+          "id": "step_bias",
+          "content": "3  Add bias"
+        },
+        {
+          "type": "token",
+          "id": "step_relu",
+          "content": "4  ReLU"
+        },
+        {
+          "type": "token",
+          "id": "step_output",
+          "content": "5  Output logit"
+        },
+        {
+          "type": "token",
+          "id": "step_predict",
+          "content": "6  Prediction"
+        }
+      ],
+      "layout": {
+        "type": "carousel",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center",
+        "curve": 16.0,
+        "active_scale": 1.16,
+        "inactive_scale": 0.92
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "overview",
+      "duration": "19.683s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Before we zoom into the arithmetic, let's anchor the purpose of forward propagation. At this point the network already has fixed weights and biases. Its job is to take one input example, transform those raw numbers into hidden evidence, and then turn that evidence into a prediction.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "overview_title",
+          "content": "Forward Propagation in One Pass",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "overview_stack",
+          "visible": true,
+          "children": [
+            {
+              "type": "group",
+              "id": "pipeline_row",
+              "children": [
+                {
+                  "type": "box",
+                  "id": "input_vector",
+                  "content": "Input x = [0.70, -0.40]"
+                },
+                {
+                  "type": "box",
+                  "id": "hidden_layer_summary",
+                  "content": "Hidden layer: z = W x + b, h = ReLU(z)"
+                },
+                {
+                  "type": "box",
+                  "id": "prediction_summary",
+                  "content": "Output: y_hat = sigmoid(logit)"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "group",
+              "id": "formula_row",
+              "children": [
+                {
+                  "type": "token",
+                  "id": "formula_sum",
+                  "content": "weights scale influence"
+                },
+                {
+                  "type": "token",
+                  "id": "formula_bias",
+                  "content": "bias shifts baseline"
+                },
+                {
+                  "type": "token",
+                  "id": "formula_relu",
+                  "content": "ReLU keeps positive signal"
+                },
+                {
+                  "type": "token",
+                  "id": "formula_output",
+                  "content": "sigmoid makes a probability"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "medium",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "vertical",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "overview_in_to_hidden",
+          "from": "input_vector",
+          "to": "hidden_layer_summary"
+        },
+        {
+          "type": "connector",
+          "id": "overview_hidden_to_out",
+          "from": "hidden_layer_summary",
+          "to": "prediction_summary"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "overview_title",
+          "at": "0s",
+          "duration": "0.861s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "pipeline_row",
+          "at": "0.984s",
+          "duration": "1.23s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "input_vector",
+          "at": "1.476s",
+          "duration": "0.984s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "overview_in_to_hidden",
+          "at": "3.445s",
+          "duration": "1.23s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "hidden_layer_summary",
+          "at": "3.691s",
+          "duration": "0.984s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "hidden_layer_summary",
+          "at": "5.29s",
+          "duration": "2.46s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "overview_hidden_to_out",
+          "at": "8.242s",
+          "duration": "1.23s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "prediction_summary",
+          "at": "8.488s",
+          "duration": "0.984s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "prediction_summary",
+          "at": "10.088s",
+          "duration": "2.46s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "formula_row",
+          "at": "13.04s",
+          "duration": "0.984s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "formula_sum",
+          "at": "13.286s",
+          "duration": "0.738s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "formula_bias",
+          "at": "13.901s",
+          "duration": "0.738s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "formula_relu",
+          "at": "14.516s",
+          "duration": "0.738s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "formula_output",
+          "at": "15.131s",
+          "duration": "0.738s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "step_overview",
+          "at": "0s",
+          "duration": "17.961s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_overview",
+          "at": "0.123s",
+          "duration": "0.984s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.12
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true
+    },
+    {
+      "id": "hidden_sum",
+      "duration": "25.117s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Now let's slow down and look at why this weighted sum exists. Each weight tells the neuron how strongly to listen to one input. The multiplication scales that input's influence, and the sign tells us whether it supports or opposes the neuron firing. Then we add the contributions together because the neuron is pooling evidence from all of its incoming inputs.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "hidden_sum_title",
+          "content": "1. Compute One Hidden Weighted Sum",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "hidden_sum_stack",
+          "visible": true,
+          "children": [
+            {
+              "type": "group",
+              "id": "term_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "term_1",
+                  "content": "0.70 x 0.50 = 0.35"
+                },
+                {
+                  "type": "box",
+                  "id": "term_2",
+                  "content": "-0.40 x -0.30 = 0.12"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "box",
+              "id": "partial_sum",
+              "content": "0.35 + 0.12 = 0.47"
+            },
+            {
+              "type": "group",
+              "id": "weight_note_row",
+              "children": [
+                {
+                  "type": "token",
+                  "id": "term_1_label",
+                  "content": "x1 contributes evidence to h1"
+                },
+                {
+                  "type": "token",
+                  "id": "term_2_label",
+                  "content": "x2 contributes evidence to h1"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "medium",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "vertical",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "term_1_to_sum",
+          "from": "term_1",
+          "to": "partial_sum"
+        },
+        {
+          "type": "connector",
+          "id": "term_2_to_sum",
+          "from": "term_2",
+          "to": "partial_sum"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "hidden_sum_title",
+          "at": "0s",
+          "duration": "0.977s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "term_1",
+          "at": "1.256s",
+          "duration": "1.116s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "term_1",
+          "at": "2.651s",
+          "duration": "2.233s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "fade-in",
+          "target": "term_2",
+          "at": "6s",
+          "duration": "1.116s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "term_2",
+          "at": "7.395s",
+          "duration": "2.233s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "fade-in",
+          "target": "weight_note_row",
+          "at": "10.605s",
+          "duration": "1.116s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "term_1_label",
+          "at": "10.884s",
+          "duration": "0.837s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "term_2_label",
+          "at": "11.582s",
+          "duration": "0.837s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "term_1_to_sum",
+          "at": "14.233s",
+          "duration": "1.256s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "term_2_to_sum",
+          "at": "14.93s",
+          "duration": "1.256s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "partial_sum",
+          "at": "15.768s",
+          "duration": "1.116s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "partial_sum",
+          "at": "17.582s",
+          "duration": "2.791s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "step_hidden_sum",
+          "at": "0s",
+          "duration": "23.163s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_hidden_sum",
+          "at": "0.14s",
+          "duration": "1.116s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.12
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true
+    },
+    {
+      "id": "add_bias",
+      "duration": "25.535s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "The bias is not just a random extra number. It lets the neuron shift its baseline before the activation function sees the result, which means it controls how easy or hard it is for that neuron to turn on. Here the weighted evidence is zero point four seven, the bias nudges it upward by zero point one zero, and that moves the pre-activation to zero point five seven.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "bias_title",
+          "content": "2. Add the Bias Term",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "bias_stack",
+          "visible": true,
+          "children": [
+            {
+              "type": "group",
+              "id": "bias_inputs_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "partial_sum",
+                  "content": "0.35 + 0.12 = 0.47"
+                },
+                {
+                  "type": "box",
+                  "id": "bias_value",
+                  "content": "bias = +0.10"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "box",
+              "id": "biased_total",
+              "content": "0.47 + 0.10 = 0.57"
+            },
+            {
+              "type": "box",
+              "id": "z1_value",
+              "content": "z1 = 0.57"
+            },
+            {
+              "type": "token",
+              "id": "bias_note",
+              "content": "bias shifts the neuron's turn-on threshold"
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "vertical",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "sum_to_biased_total",
+          "from": "partial_sum",
+          "to": "biased_total"
+        },
+        {
+          "type": "connector",
+          "id": "bias_to_biased_total",
+          "from": "bias_value",
+          "to": "biased_total"
+        },
+        {
+          "type": "connector",
+          "id": "biased_total_to_z1",
+          "from": "biased_total",
+          "to": "z1_value"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "bias_title",
+          "at": "0s",
+          "duration": "0.993s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "partial_sum",
+          "at": "1.277s",
+          "duration": "1.135s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "bias_value",
+          "at": "4.823s",
+          "duration": "1.135s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "bias_value",
+          "at": "6.384s",
+          "duration": "2.128s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "sum_to_biased_total",
+          "at": "10.214s",
+          "duration": "1.277s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "bias_to_biased_total",
+          "at": "10.923s",
+          "duration": "1.277s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "biased_total",
+          "at": "11.774s",
+          "duration": "1.135s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "biased_total",
+          "at": "13.618s",
+          "duration": "2.553s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "biased_total_to_z1",
+          "at": "17.023s",
+          "duration": "1.135s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "z1_value",
+          "at": "17.591s",
+          "duration": "1.135s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "z1_value",
+          "at": "19.435s",
+          "duration": "2.553s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "bias_note",
+          "at": "21.279s",
+          "duration": "0.993s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "step_bias",
+          "at": "0s",
+          "duration": "23.549s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_bias",
+          "at": "0.142s",
+          "duration": "1.135s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.12
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true
+    },
+    {
+      "id": "relu",
+      "duration": "29.296s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "ReLU matters because it is what keeps the whole network from collapsing into one big linear equation. Its rule is simple: keep positive evidence, and clip negative values to zero. That introduces nonlinearity, which is what lets deeper networks model more interesting patterns. In this example h one survives because it is positive, while h two gets shut off because its pre-activation is negative.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "relu_title",
+          "content": "3. Apply ReLU to Hidden Neurons",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "relu_row",
+          "visible": true,
+          "children": [
+            {
+              "type": "group",
+              "id": "positive_lane",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "z1_value",
+                  "content": "z1 = 0.57"
+                },
+                {
+                  "type": "box",
+                  "id": "relu_1",
+                  "content": "ReLU"
+                },
+                {
+                  "type": "box",
+                  "id": "h1_act",
+                  "content": "h1 = 0.57"
+                }
+              ],
+              "layout": {
+                "type": "stack",
+                "gap": "medium",
+                "direction": "vertical",
+                "align": "center"
+              }
+            },
+            {
+              "type": "group",
+              "id": "negative_lane",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "z2_value",
+                  "content": "z2 = -0.56"
+                },
+                {
+                  "type": "box",
+                  "id": "relu_2",
+                  "content": "ReLU"
+                },
+                {
+                  "type": "box",
+                  "id": "h2_act",
+                  "content": "h2 = 0.00"
+                }
+              ],
+              "layout": {
+                "type": "stack",
+                "gap": "medium",
+                "direction": "vertical",
+                "align": "center"
+              }
+            },
+            {
+              "type": "group",
+              "id": "relu_note_row",
+              "children": [
+                {
+                  "type": "token",
+                  "id": "relu_note_positive",
+                  "content": "positive values stay"
+                },
+                {
+                  "type": "token",
+                  "id": "relu_note_negative",
+                  "content": "negative values become 0"
+                },
+                {
+                  "type": "token",
+                  "id": "relu_note_nonlinear",
+                  "content": "this adds nonlinearity"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "medium",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "flow",
+            "gap": "large",
+            "direction": "horizontal",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "z1_to_relu",
+          "from": "z1_value",
+          "to": "relu_1"
+        },
+        {
+          "type": "connector",
+          "id": "relu_to_h1",
+          "from": "relu_1",
+          "to": "h1_act"
+        },
+        {
+          "type": "connector",
+          "id": "z2_to_relu",
+          "from": "z2_value",
+          "to": "relu_2"
+        },
+        {
+          "type": "connector",
+          "id": "relu_to_h2",
+          "from": "relu_2",
+          "to": "h2_act"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "relu_title",
+          "at": "0s",
+          "duration": "1.079s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "relu_1",
+          "at": "2.467s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "z1_to_relu",
+          "at": "3.546s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "relu_to_h1",
+          "at": "5.088s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "h1_act",
+          "at": "5.705s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "h1_act",
+          "at": "7.401s",
+          "duration": "2.775s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "z2_value",
+          "at": "11.564s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "relu_2",
+          "at": "13.26s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "z2_to_relu",
+          "at": "14.34s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "relu_to_h2",
+          "at": "15.882s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "h2_act",
+          "at": "16.498s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "h2_act",
+          "at": "18.195s",
+          "duration": "2.775s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "fade-in",
+          "target": "relu_note_row",
+          "at": "22.049s",
+          "duration": "1.234s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "relu_note_positive",
+          "at": "22.358s",
+          "duration": "0.925s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "relu_note_negative",
+          "at": "23.129s",
+          "duration": "0.925s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "relu_note_nonlinear",
+          "at": "23.9s",
+          "duration": "0.925s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "step_relu",
+          "at": "0s",
+          "duration": "27.138s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_relu",
+          "at": "0.154s",
+          "duration": "1.234s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.12
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true
+    },
+    {
+      "id": "output_logit_scene",
+      "duration": "31.386s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "Now the hidden layer hands its features to the output neuron. This is a different neuron, so it uses its own output weights and its own output bias. The purpose of this step is to compress everything the hidden layer discovered into one score for the positive class. H one contributes strongly here, h two contributes nothing because ReLU already shut it off, and then the output bias shifts that combined score into the logit we will convert into a probability.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "output_title",
+          "content": "4. Build the Output Logit",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "output_stack",
+          "visible": true,
+          "children": [
+            {
+              "type": "group",
+              "id": "output_activation_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "h1_act",
+                  "content": "h1 = 0.57"
+                },
+                {
+                  "type": "box",
+                  "id": "h2_act",
+                  "content": "h2 = 0.00"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "group",
+              "id": "output_term_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "out_term_1",
+                  "content": "h1 x w_out1 = 0.57 x 1.20 = 0.684"
+                },
+                {
+                  "type": "box",
+                  "id": "out_term_2",
+                  "content": "h2 x w_out2 = 0.00 x -0.70 = 0.000"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "group",
+              "id": "output_result_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "group",
+                  "id": "output_merge_row",
+                  "visible": true,
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "output_partial",
+                      "content": "weighted sum = 0.684 + 0.000 = 0.684"
+                    },
+                    {
+                      "type": "box",
+                      "id": "output_bias",
+                      "content": "output bias b_out = +0.05"
+                    }
+                  ],
+                  "layout": {
+                    "type": "flow",
+                    "gap": "large",
+                    "direction": "horizontal",
+                    "align": "center"
+                  }
+                },
+                {
+                  "type": "box",
+                  "id": "output_total",
+                  "content": "logit = 0.684 + 0.05 = 0.734"
+                },
+                {
+                  "type": "box",
+                  "id": "output_logit",
+                  "content": "logit = 0.734"
+                },
+                {
+                  "type": "token",
+                  "id": "output_note",
+                  "content": "the output neuron has its own weights and bias"
+                }
+              ],
+              "layout": {
+                "type": "stack",
+                "gap": "large",
+                "direction": "vertical",
+                "align": "center"
+              }
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "vertical",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "h1_to_out_term_1",
+          "from": "h1_act",
+          "to": "out_term_1"
+        },
+        {
+          "type": "connector",
+          "id": "h2_to_out_term_2",
+          "from": "h2_act",
+          "to": "out_term_2"
+        },
+        {
+          "type": "connector",
+          "id": "out_term_1_to_partial",
+          "from": "out_term_1",
+          "to": "output_partial"
+        },
+        {
+          "type": "connector",
+          "id": "out_term_2_to_partial",
+          "from": "out_term_2",
+          "to": "output_partial"
+        },
+        {
+          "type": "connector",
+          "id": "partial_to_output_total",
+          "from": "output_partial",
+          "to": "output_total"
+        },
+        {
+          "type": "connector",
+          "id": "bias_to_output_total",
+          "from": "output_bias",
+          "to": "output_total"
+        },
+        {
+          "type": "connector",
+          "id": "output_total_to_logit",
+          "from": "output_total",
+          "to": "output_logit"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "output_title",
+          "at": "0s",
+          "duration": "1.099s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "h1_act",
+          "at": "1.569s",
+          "duration": "2.511s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "draw",
+          "target": "h1_to_out_term_1",
+          "at": "4.237s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "out_term_1",
+          "at": "4.708s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "h2_act",
+          "at": "7.847s",
+          "duration": "2.511s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "h2_to_out_term_2",
+          "at": "10.514s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "out_term_2",
+          "at": "10.985s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "out_term_1_to_partial",
+          "at": "14.124s",
+          "duration": "1.412s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "out_term_2_to_partial",
+          "at": "14.908s",
+          "duration": "1.412s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "output_partial",
+          "at": "15.85s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "output_partial",
+          "at": "17.733s",
+          "duration": "2.511s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "fade-in",
+          "target": "output_bias",
+          "at": "20.401s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "partial_to_output_total",
+          "at": "22.284s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "bias_to_output_total",
+          "at": "23.069s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "output_total",
+          "at": "23.853s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "output_total_to_logit",
+          "at": "25.894s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "output_logit",
+          "at": "26.521s",
+          "duration": "1.255s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "output_logit",
+          "at": "28.247s",
+          "duration": "1.883s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "output_note",
+          "at": "29.032s",
+          "duration": "1.099s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "step_output",
+          "at": "0s",
+          "duration": "29.189s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_output",
+          "at": "0.157s",
+          "duration": "1.255s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.12
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true
+    },
+    {
+      "id": "prediction",
+      "duration": "29.575s",
+      "layout": {
+        "type": "center",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center"
+      },
+      "template": "one-column",
+      "narration": "A logit is useful for the model, but it is not yet a probability that we can interpret comfortably. The sigmoid fixes that by mapping any real-valued score onto the range from zero to one. A bigger positive logit would push us closer to one, a negative logit would push us toward zero, and this particular score lands at about zero point six seven six. So the network is leaning toward the positive class with moderate confidence.",
+      "objects": [
+        {
+          "type": "text",
+          "id": "prediction_title",
+          "content": "5. Turn the Logit into a Prediction",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "prediction_stack",
+          "visible": true,
+          "children": [
+            {
+              "type": "group",
+              "id": "activation_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "box",
+                  "id": "output_logit",
+                  "content": "logit = 0.734"
+                },
+                {
+                  "type": "box",
+                  "id": "sigmoid_box",
+                  "content": "sigmoid(0.734)"
+                },
+                {
+                  "type": "box",
+                  "id": "prediction_box",
+                  "content": "y_hat = 0.676"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "large",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "group",
+              "id": "recap_row",
+              "visible": true,
+              "children": [
+                {
+                  "type": "token",
+                  "id": "recap_input",
+                  "content": "x = [0.70, -0.40]"
+                },
+                {
+                  "type": "token",
+                  "id": "recap_h1",
+                  "content": "h1 = 0.57"
+                },
+                {
+                  "type": "token",
+                  "id": "recap_h2",
+                  "content": "h2 = 0.00"
+                },
+                {
+                  "type": "token",
+                  "id": "recap_y",
+                  "content": "y_hat = 0.676"
+                }
+              ],
+              "layout": {
+                "type": "flow",
+                "gap": "medium",
+                "direction": "horizontal",
+                "align": "center"
+              }
+            },
+            {
+              "type": "token",
+              "id": "prediction_note",
+              "content": "sigmoid maps an unbounded score into 0 to 1"
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "gap": "large",
+            "direction": "vertical",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "logit_to_sigmoid",
+          "from": "output_logit",
+          "to": "sigmoid_box"
+        },
+        {
+          "type": "connector",
+          "id": "sigmoid_to_prediction",
+          "from": "sigmoid_box",
+          "to": "prediction_box"
+        }
+      ],
+      "animations": [
+        {
+          "action": "fade-in",
+          "target": "prediction_title",
+          "at": "0s",
+          "duration": "1.294s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "output_logit",
+          "at": "1.848s",
+          "duration": "1.479s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "logit_to_sigmoid",
+          "at": "5.915s",
+          "duration": "1.479s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "sigmoid_box",
+          "at": "6.47s",
+          "duration": "1.479s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "draw",
+          "target": "sigmoid_to_prediction",
+          "at": "11.091s",
+          "duration": "1.479s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "prediction_box",
+          "at": "11.83s",
+          "duration": "1.479s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "prediction_box",
+          "at": "14.233s",
+          "duration": "3.697s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "prediction_note",
+          "at": "18.484s",
+          "duration": "1.294s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "recap_input",
+          "at": "21.442s",
+          "duration": "1.109s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "recap_h1",
+          "at": "22.366s",
+          "duration": "1.109s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "recap_h2",
+          "at": "23.29s",
+          "duration": "1.109s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "fade-in",
+          "target": "recap_y",
+          "at": "24.214s",
+          "duration": "1.109s",
+          "easing": "ease-in-out"
+        },
+        {
+          "action": "highlight",
+          "target": "recap_y",
+          "at": "25.508s",
+          "duration": "2.957s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "highlight",
+          "target": "step_predict",
+          "at": "0s",
+          "duration": "26.987s",
+          "easing": "ease-in-out",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_predict",
+          "at": "0.185s",
+          "duration": "1.479s",
+          "easing": "ease-in-out",
+          "scale_factor": 1.12
+        }
+      ],
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "show_progress_bar": true,
+      "transition": {
+        "type": "fade",
+        "duration": "0.924s"
+      }
+    }
+  ]
+}

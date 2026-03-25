@@ -193,7 +193,8 @@ class KaivraMCPServer:
                 "Narration sync: the engine matches spoken words to animation targets by content and ID. "
                 "Use the same words in narration that appear on screen — e.g., if an object has content 'Server', "
                 "say 'the server boots' in narration so the reveal lands on that word. "
-                "This applies to both ElevenLabs and local voice providers."
+                "ElevenLabs renders get precise word-level alignment; local (Sherpa) renders use uniform "
+                "duration scaling as a draft preview — keyword overlap still helps ordering but is not required."
             ),
         }
 
@@ -303,7 +304,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="plan_animation",
             title="Plan Animation",
-            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. Present the questions conversationally, then use the answers to call start_animation.",
+            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. Present the questions conversationally, then use the answers to author the JSON directly.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -323,7 +324,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="check_animation",
             title="Check Animation",
-            description="Validate and audit a Kaivra JSON file or raw JSON string, with optional normalization write-back and voice-aware narration pacing notes.",
+            description="Validate and audit a Kaivra JSON file or raw JSON string, with optional normalization write-back and provider-aware voice sync guidance.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -331,6 +332,16 @@ def _build_tools() -> list[ToolDefinition]:
                     "dsl_json": {"type": "string"},
                     "write_back": {"type": "boolean"},
                     "voice": {"type": "boolean"},
+                    "voice_provider": {
+                        "type": "string",
+                        "enum": ["elevenlabs", "local"],
+                        "description": (
+                            "Optional voice provider hint for sync auditing. "
+                            "Use 'elevenlabs' for word-level sync checks; "
+                            "'local' suppresses those warnings because local renders "
+                            "use duration scaling without word-level cues."
+                        ),
+                    },
                 },
                 "additionalProperties": False,
             },
@@ -384,7 +395,11 @@ def _build_tools() -> list[ToolDefinition]:
                     "voice_provider": {
                         "type": "string",
                         "enum": ["elevenlabs", "local"],
-                        "description": "Voice synthesis provider. 'elevenlabs' for high-quality AI voices (requires API key), 'local' for free offline Sherpa TTS with word-level sync via Whisper alignment.",
+                        "description": (
+                            "Voice synthesis provider. 'elevenlabs' gives high-quality AI narration "
+                            "with precise word-level alignment; 'local' uses offline Sherpa TTS with "
+                            "duration-scaled draft timing."
+                        ),
                     },
                     "voice_id": {"type": "string"},
                 },
@@ -432,6 +447,7 @@ def _check_tool(arguments: dict[str, Any], context: ToolContext) -> dict[str, An
         dsl_json=arguments.get("dsl_json"),
         write_back=bool(arguments.get("write_back", False)),
         voice=bool(arguments.get("voice", False)),
+        voice_provider=arguments.get("voice_provider"),
     )
     context.emit_progress(1.0, "Validation and audit complete.")
     return result

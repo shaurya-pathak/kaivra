@@ -122,7 +122,13 @@ def _measure_duration(path: str) -> float:
         "csv=p=0",
         path,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", check=False)
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "ffprobe is required to measure generated ElevenLabs audio. "
+            "Install ffmpeg so ffprobe is available on PATH."
+        ) from exc
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {proc.stderr}")
     return float(proc.stdout.strip())

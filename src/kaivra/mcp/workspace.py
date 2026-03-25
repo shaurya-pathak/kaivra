@@ -21,6 +21,12 @@ from pathlib import Path
 from typing import Any
 
 from kaivra.dsl.parser import parse_file, parse_string
+from kaivra.dsl.retime import (
+    EMPHASIS_ACTIONS,
+    REVEAL_ACTIONS,
+    _build_content_index,
+    _semantic_score,
+)
 from kaivra.dsl.schema import ObjectType, parse_duration
 from kaivra.mcp.blueprints import (
     dump_document_json,
@@ -199,15 +205,15 @@ class KaivraWorkspace:
         topic: str | None = None,
     ) -> dict[str, Any]:
         """Return a structured questionnaire for the LLM to present to the user
-        before creating an animation.  The answers feed into start_animation."""
+        before creating an animation JSON document."""
         return {
             "status": "ok",
             "topic": topic,
             "instructions": (
                 "Present these questions conversationally to the user.  "
-                "Collect their answers, then call start_animation with the "
-                "resolved parameters.  Skip questions the user has already "
-                "answered or that are not relevant."
+                "Collect their answers, then use them to author the animation "
+                "JSON directly.  Skip questions the user has already answered "
+                "or that are not relevant."
             ),
             "questions": [
                 {
@@ -340,6 +346,20 @@ class KaivraWorkspace:
                 "theme → theme": "Passed directly",
                 "num_beats": "If user specifies a number, generate that many beat outlines",
             },
+            "notes": [
+                {
+                    "id": "voice_sync_tip",
+                    "when": "voice_mode is 'elevenlabs' or 'local'",
+                    "text": (
+                        "Voice sync tip: use the same keywords in narration that appear "
+                        "as on-screen object content or IDs. The engine matches spoken "
+                        "words to animation targets semantically — saying 'the server "
+                        "boots' will sync the reveal to an object with content 'Server'. "
+                        "Local (Sherpa) renders use uniform duration scaling (no word-level "
+                        "sync); ElevenLabs renders get precise word-level alignment."
+                    ),
+                },
+            ],
         }
 
     def add_theme(
@@ -369,7 +389,10 @@ class KaivraWorkspace:
             "file_path": str(file_path),
             "theme_json": json.dumps(theme.to_dict(), indent=2),
             "supported_fields": theme_field_names(),
-            "next_step": f"Use theme: {chosen_name} in start_animation or set meta.theme to {chosen_name}.",
+            "next_step": (
+                f"Use theme: {chosen_name} when authoring JSON directly, "
+                f"or set meta.theme to {chosen_name} in an existing document."
+            ),
         }
 
     def check_animation(
@@ -379,6 +402,7 @@ class KaivraWorkspace:
         dsl_json: str | None = None,
         write_back: bool = False,
         voice: bool = False,
+        voice_provider: str | None = None,
     ) -> dict[str, Any]:
         """Validate and audit a Kaivra document from disk or raw JSON."""
         if file_path is None and dsl_json is None:
@@ -405,6 +429,7 @@ class KaivraWorkspace:
                 doc,
                 theme_search_roots=theme_roots,
                 voice=voice,
+                voice_provider=voice_provider,
             )
         except Exception as exc:
             return {
@@ -941,6 +966,80 @@ def format_preflight_report(command_name: str, report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _voice_sync_findings(
+    doc: Any,
+    *,
+    voice_provider: str | None = None,
+) -> list[CheckFinding]:
+    """Check that narration keywords overlap with animation target content.
+
+    Only meaningful for ElevenLabs renders where word-level cue alignment
+    is used. For local (draft) renders the retimer uses positional
+    fallback, so these warnings are intentionally suppressed.
+    """
+    if voice_provider == "local":
+        return []
+
+    findings: list[CheckFinding] = []
+    sync_actions = REVEAL_ACTIONS | EMPHASIS_ACTIONS
+
+    for scene_spec in doc.scenes:
+        narration = getattr(scene_spec, "narration", None)
+        if not narration:
+            continue
+
+        scene_id = scene_spec.id or "unknown"
+
+        # Build content index from scene + document-level objects.
+        object_lists = []
+        if scene_spec.objects:
+            object_lists.append([obj.model_dump(exclude_none=True) for obj in scene_spec.objects])
+        if doc.objects:
+            object_lists.append([obj.model_dump(exclude_none=True) for obj in doc.objects])
+        content_index = _build_content_index(*object_lists) if object_lists else {}
+        if not content_index:
+            continue
+
+        for anim in scene_spec.animations or []:
+            action = anim.action if hasattr(anim, "action") else None
+            if action not in sync_actions:
+                continue
+
+            targets = anim.target if isinstance(anim.target, list) else [anim.target]
+            for target_id in targets:
+                if target_id is None:
+                    continue
+                content = content_index.get(target_id, "")
+                if not content:
+                    continue
+                score = _semantic_score(narration, content)
+                if score == 0:
+                    if voice_provider == "elevenlabs":
+                        message = (
+                            f"{action} targeting '{target_id}' "
+                            f"(content: '{content.strip()}') has no keyword match "
+                            f"in narration — ElevenLabs will fall back to positional "
+                            f"matching instead of precise word-level sync."
+                        )
+                    else:
+                        message = (
+                            f"{action} targeting '{target_id}' "
+                            f"(content: '{content.strip()}') has no keyword match "
+                            f"in narration — voice retiming may fall back to positional "
+                            f"matching instead of semantic alignment."
+                        )
+                    findings.append(
+                        CheckFinding(
+                            severity="warning",
+                            scene_id=scene_id,
+                            kind="voice_sync",
+                            message=message,
+                        )
+                    )
+
+    return findings
+
+
 def _audit_document(doc: Any, *, theme_search_roots: list[Path] | None = None) -> list[str]:
     findings, _recommended_edits = _audit_document_report(
         doc,
@@ -954,6 +1053,7 @@ def _audit_document_report(
     *,
     theme_search_roots: list[Path] | None = None,
     voice: bool = False,
+    voice_provider: str | None = None,
 ) -> tuple[list[str], list[dict[str, str | int | float | bool | None]]]:
     graph, _theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
     findings: list[CheckFinding] = []
@@ -1022,6 +1122,9 @@ def _audit_document_report(
         )
 
     findings.extend(_repetitive_scaffold_findings(doc.scenes))
+
+    if voice:
+        findings.extend(_voice_sync_findings(doc, voice_provider=voice_provider))
 
     serialized_findings = _serialize_findings(findings)
     recommended_edits = _recommended_edits_from_findings(findings)
