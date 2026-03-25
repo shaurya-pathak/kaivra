@@ -84,6 +84,12 @@ class PacingPreset(str, Enum):
     EDUCATIONAL = "educational"
 
 
+class AudienceLevel(str, Enum):
+    LAYPERSON = "layperson"
+    MIXED = "mixed"
+    TECHNICAL = "technical"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -458,6 +464,10 @@ class MetaSpec(BaseModel):
     )
     fps: int = Field(30, description="Frames per second")
     theme: str = Field("whiteboard", description="Visual theme name")
+    audience: AudienceLevel | None = Field(
+        None,
+        description="Target audience level: layperson, mixed, or technical.",
+    )
     show_subtitles: bool = Field(
         True,
         description="Whether to render scene narration as on-screen subtitles",

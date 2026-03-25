@@ -176,7 +176,8 @@ class KaivraMCPServer:
                 "assume the draft defaults and start writing the JSON immediately. "
                 "After planning, write the animation JSON directly — do NOT use a scaffold. "
                 "Read MCP example resources like kaivra://example/api_how_it_works or kaivra://example/forward_propagation "
-                "(or the matching files under examples/reference/) for the quality bar. "
+                "(or the matching files under examples/reference/) for the quality bar. If your client only shows "
+                "resource descriptors first, call resources/read on those example URIs to fetch the actual JSON body. "
                 "Wrap objects in group containers with flow (horizontal) or stack (vertical) layouts — flat lists cause overlaps. "
                 "Prefer template: one-column on scenes. If you skip template, default scene-level layout.type to 'stack'. "
                 "Keep connected nodes adjacent within groups so connectors don't cross unrelated nodes. "
@@ -307,7 +308,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="plan_animation",
             title="Plan Animation",
-            description="Interactive planning step — returns a structured questionnaire plus draft defaults before creating an animation. Use it when user preferences are still missing; if the request is already specific enough, assume the defaults and start authoring immediately. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. If voice is enabled, remind the user to mirror on-screen keywords in narration and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
+            description="Interactive planning step — returns a structured questionnaire, draft defaults, a starter outline, and embedded example excerpts before creating an animation. Use it when user preferences are still missing; if the request is already specific enough, assume the defaults and start authoring immediately. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. If voice is enabled, remind the user to mirror on-screen keywords in narration and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -551,27 +552,46 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             f"- title: {suggested_meta.get('title', 'Untitled Animation')}",
             f"- theme: {suggested_meta.get('theme', 'modern')}",
             f"- pacing: {suggested_meta.get('pacing', 'balanced')}",
+            f"- audience: {suggested_meta.get('audience', 'mixed')}",
             f"- continuity: {suggested_meta.get('continuity', True)}",
             f"- show_subtitles: {suggested_meta.get('show_subtitles', False)}",
             "",
             "Draft defaults:",
-            f"- audience: {draft_defaults.get('audience', 'general audience')}",
+            f"- audience: {draft_defaults.get('audience', 'mixed')}",
             f"- detail_level: {draft_defaults.get('detail_level', 'balanced')}",
             f"- voice_mode: {draft_defaults.get('voice_mode', 'captions')}",
             f"- pattern: {draft_defaults.get('pattern', 'visual_explainer')}",
             f"- theme: {draft_defaults.get('theme', 'modern')}",
             f"- num_beats: {draft_defaults.get('num_beats', 'auto')}",
             "",
-            "Questions to collect:",
+            "Starter outline:",
         ]
+        for outline_item in result.get("draft_outline") or []:
+            if isinstance(outline_item, dict):
+                lines.append(
+                    f"- {outline_item.get('scene_id', 'scene')}: {outline_item.get('suggested_title', '')}"
+                )
+        lines.extend(
+            [
+                "",
+                "Questions to collect:",
+            ]
+        )
         for question in questions:
             default = question.get("default")
             default_suffix = f" (default: {default})" if default is not None else ""
             lines.append(f"- {question['id']}: {question.get('question', '')}{default_suffix}")
+        reference_examples = result.get("reference_examples") or []
+        if reference_examples:
+            lines.extend(["", "Embedded reference examples:"])
+            for example in reference_examples:
+                if isinstance(example, dict):
+                    lines.append(f"- {example.get('uri')}: {example.get('why', '')}")
         lines.extend(
             [
                 "",
                 "If voice is enabled, mirror on-screen keywords in narration and add spoken_forms for tricky names.",
+                "If audience is layperson, strip file paths, repo-internal names, and jargon from narration.",
                 "Prefer persistent document-level state when concepts carry across scenes.",
                 "Read kaivra://example/api_how_it_works for the quality bar.",
             ]

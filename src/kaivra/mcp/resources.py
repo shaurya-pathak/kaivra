@@ -99,6 +99,7 @@ def _authoring_profile() -> str:
 
 - `visual_explainer` for narrated explainers, `algorithm_walkthrough` for silent demos.
 - `pacing: educational` for narrated, `balanced` for silent.
+- `audience: mixed` by default. Use `layperson` when you want the checker to push back on jargon, repo names, file paths, and code identifiers in narration.
 - `modern` theme by default, `whiteboard` for sketch-style teaching.
 
 ## Scene Construction
@@ -191,7 +192,7 @@ def _pattern_catalog() -> str:
 
 ## `visual_explainer`
 
-Default for narrated concept explainers. Use it as a composition pattern and author topic-specific scenes directly.
+Default for narrated concept explainers. Use a problem-first story arc: problem → idea → how it works → takeaway. Explain why the topic matters before you explain the mechanism.
 
 ## `algorithm_walkthrough`
 
@@ -249,6 +250,8 @@ Read these complete, polished animations before authoring your own JSON. They de
 - **`examples/reference/forward_propagation.json`** — 6-scene narrated explainer (Forward Propagation in a Neural Network). Shows worked-example arithmetic, stacked layouts, highlight colors (accent/success/warning), and deep continuity where computed values carry across scenes. Material theme, educational pacing.
 
 Read one of these files before authoring a new animation — they are the quality bar.
+
+If your MCP client shows only resource descriptors at first, call `resources/read` on `kaivra://example/api_how_it_works` or `kaivra://example/forward_propagation` to fetch the actual JSON example body.
 
 ## BAD: Generic repeated scene (do NOT ship this)
 

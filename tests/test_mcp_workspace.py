@@ -164,6 +164,37 @@ def test_check_animation_warns_when_body_text_duplicates_narration(tmp_path: Pat
     )
 
 
+def test_check_animation_flags_internal_terms_for_layperson_audience(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "version": "1.2",
+            "meta": {"theme": "modern", "audience": "layperson"},
+            "scenes": [
+                {
+                    "id": "plain_english",
+                    "duration": "8s",
+                    "template": "one-column",
+                    "narration": (
+                        "The qa_harness reads logs from src/debug_agent.py, then sends the payload "
+                        "to the backend service for remediation."
+                    ),
+                    "objects": [
+                        {"id": "card", "type": "box", "content": "Fix flow"},
+                    ],
+                    "animations": [{"action": "fade-in", "target": "card", "duration": "0.5s"}],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any("audience_language" in warning for warning in checked["warnings"])
+    assert any("src/debug_agent.py" in warning for warning in checked["warnings"])
+    assert any(edit["action"] == "simplify_language" for edit in checked["recommended_edits"])
+
+
 def test_check_animation_annotates_narration_pacing_when_voice_retiming_is_enabled(
     tmp_path: Path,
 ) -> None:

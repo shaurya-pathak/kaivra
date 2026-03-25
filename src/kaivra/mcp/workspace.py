@@ -105,6 +105,23 @@ _MECHANICAL_SCENE_MARKERS = (
     "pre-activation",
 )
 _COMMON_HEADING_IDS = {"title", "subtitle", "heading", "scene_title", "scene_heading"}
+_LAYPERSON_JARGON = {
+    "api",
+    "backend",
+    "daemon",
+    "endpoint",
+    "fixture",
+    "harness",
+    "payload",
+    "port",
+    "queue",
+    "remediation",
+    "repo",
+    "service",
+    "stack trace",
+    "test harness",
+    "triage",
+}
 
 DEFAULT_LOCAL_MODEL_NAME = "vits-piper-en_US-amy-low"
 DEFAULT_LOCAL_MODEL_DIR = Path.home() / ".kaivra" / "models" / DEFAULT_LOCAL_MODEL_NAME
@@ -241,11 +258,12 @@ class KaivraWorkspace:
                 "title": topic or "Untitled Animation",
                 "theme": "modern",
                 "pacing": "balanced",
+                "audience": "mixed",
                 "continuity": True,
                 "show_subtitles": False,
             },
             "draft_defaults": {
-                "audience": "general audience",
+                "audience": "mixed",
                 "detail_level": "balanced",
                 "voice_mode": "captions",
                 "pattern": "visual_explainer",
@@ -263,9 +281,23 @@ class KaivraWorkspace:
                 {
                     "id": "audience",
                     "category": "content",
-                    "question": "Who is the audience? (e.g. beginners, students, developers, general public)",
-                    "default": "general audience",
-                    "maps_to": "audience",
+                    "question": "Who is the audience level for this explainer?",
+                    "options": [
+                        {
+                            "value": "layperson",
+                            "label": "Layperson — minimize jargon and internal names",
+                        },
+                        {
+                            "value": "mixed",
+                            "label": "Mixed — accessible but still comfortable with light technical detail",
+                        },
+                        {
+                            "value": "technical",
+                            "label": "Technical — comfortable with precise terms and implementation details",
+                        },
+                    ],
+                    "default": "mixed",
+                    "maps_to": "meta.audience",
                 },
                 {
                     "id": "detail_level",
@@ -327,7 +359,7 @@ class KaivraWorkspace:
                     "options": [
                         {
                             "value": "visual_explainer",
-                            "label": "Visual explainer — narrated walkthrough of a concept",
+                            "label": "Visual explainer — problem first, then idea, then how it works",
                         },
                         {
                             "value": "algorithm_walkthrough",
@@ -376,7 +408,7 @@ class KaivraWorkspace:
             ],
             "parameter_mapping": {
                 "topic → title": "The topic becomes the animation title",
-                "audience → audience": "Passed directly",
+                "audience → meta.audience": "Use layperson, mixed, or technical to tune narration style",
                 "detail_level → pacing": "Passed directly",
                 "voice_mode": "Resolves to include_narration, show_subtitles, and optionally voice_provider",
                 "pattern → pattern": "Passed directly",
@@ -393,6 +425,7 @@ class KaivraWorkspace:
                 "Use template: one-column for straightforward explainers, then add groups for rows, columns, or connector neighborhoods.",
                 "Prefer persistent document-level objects first when labels, chapter rails, legends, or shared state appear in multiple scenes.",
             ],
+            "draft_outline": _planner_draft_outline(topic),
             "narration_assist": {
                 "goal": "Write spoken English that names the same on-screen concepts in the same order as their reveals.",
                 "when_voice": [
@@ -400,7 +433,24 @@ class KaivraWorkspace:
                     "Mirror object labels in narration so voice-sync checks can map words to targets.",
                     "For tricky names, add object.spoken_forms aliases before rendering.",
                 ],
+                "layperson_guardrails": [
+                    "Replace repo names, file paths, and code identifiers with plain-English descriptions.",
+                    "Spell out why the problem matters before diving into the mechanism.",
+                    "Prefer 'test runner' over 'harness', 'fix' over 'remediation', and 'queue gets stuck' over 'the daemon stalls'.",
+                ],
             },
+            "reference_examples": [
+                {
+                    "uri": "kaivra://example/api_how_it_works",
+                    "why": "Shows the quality bar for a narrated problem-first visual explainer.",
+                    "excerpt": _reference_example_excerpt("api_how_it_works.json"),
+                },
+                {
+                    "uri": "kaivra://example/forward_propagation",
+                    "why": "Shows a deeper educational explainer with continuity carry-over.",
+                    "excerpt": _reference_example_excerpt("forward_propagation.json"),
+                },
+            ],
             "notes": [
                 {
                     "id": "voice_sync_tip",
@@ -414,6 +464,14 @@ class KaivraWorkspace:
                         "['co pilot', 'cobalt'] so checks and cue matching still recognize "
                         "the intended target. ElevenLabs uses word-level cues; local "
                         "(Sherpa) uses scene-level timing with the same semantic checks."
+                    ),
+                },
+                {
+                    "id": "example_fetch_tip",
+                    "when": "always",
+                    "text": (
+                        "If your MCP client only shows resource descriptors first, call resources/read "
+                        "on kaivra://example/api_how_it_works to fetch the full JSON example body."
                     ),
                 },
             ],
@@ -1223,6 +1281,13 @@ def _audit_document_report(
             )
         )
         findings.extend(
+            _audience_narration_findings(
+                scene_spec=scene_spec,
+                resolved_scene=resolved_scene,
+                audience=getattr(doc.meta, "audience", None),
+            )
+        )
+        findings.extend(
             _explanatory_narration_findings(
                 scene_spec=scene_spec,
                 resolved_scene=resolved_scene,
@@ -1407,6 +1472,67 @@ def _narration_findings(
                 )
             )
 
+    return findings
+
+
+def _audience_narration_findings(
+    *,
+    scene_spec: Any,
+    resolved_scene: Any,
+    audience: Any,
+) -> list[CheckFinding]:
+    if getattr(audience, "value", audience) != "layperson":
+        return []
+
+    narration = (scene_spec.narration or "").strip()
+    if not narration:
+        return []
+
+    findings: list[CheckFinding] = []
+    matched_terms: list[str] = []
+
+    file_matches = re.findall(r"\b[\w./-]+\.(?:py|ts|tsx|js|jsx|json|yaml|yml|md)\b", narration)
+    path_matches = re.findall(r"(?:^|[\s(])(/[\w./-]+|[\w.-]+/[\w./-]+)", narration)
+    identifier_matches = re.findall(
+        r"\b[a-z]+(?:_[a-z0-9]+)+\b|\b[a-z]+[A-Z][A-Za-z0-9]*\b", narration
+    )
+
+    matched_terms.extend(file_matches[:3])
+    matched_terms.extend(match.strip(" (") for match in path_matches[:3])
+    matched_terms.extend(identifier_matches[:3])
+
+    lowered = narration.lower()
+    for term in sorted(_LAYPERSON_JARGON):
+        if term in lowered:
+            matched_terms.append(term)
+
+    deduped_terms = [term for term in dict.fromkeys(matched_terms) if term]
+    if not deduped_terms:
+        return []
+
+    findings.append(
+        CheckFinding(
+            severity="warning",
+            scene_id=resolved_scene.id,
+            kind="audience_language",
+            message=(
+                "Narration targets a layperson audience but still uses file names, code paths, or technical jargon: "
+                + ", ".join(deduped_terms[:6])
+                + "."
+            ),
+            recommended_edit=RecommendedEdit(
+                scene_id=resolved_scene.id,
+                action="simplify_language",
+                object_id=None,
+                field="narration",
+                suggested_value=None,
+                reason=(
+                    "Replace internal identifiers and jargon with plain-English descriptions that explain the idea "
+                    "without requiring repo or implementation context."
+                ),
+            ),
+        )
+    )
     return findings
 
 
@@ -2574,6 +2700,45 @@ def _narration_timing_advice(doc: Any) -> list[dict[str, Any]]:
 
 def _round_up_duration_seconds(value: float) -> float:
     return max(0.5, math.ceil(value * 2.0) / 2.0)
+
+
+def _planner_draft_outline(topic: str | None) -> list[dict[str, str]]:
+    subject = (topic or "the concept").strip()
+    lowered = subject.lower()
+    mechanism_title = f"How {subject} works"
+    if lowered.startswith("how "):
+        mechanism_title = subject[0].upper() + subject[1:]
+    return [
+        {
+            "scene_id": "problem",
+            "purpose": "Show the pain or confusion first so the viewer cares.",
+            "suggested_title": f"Why {subject} matters",
+        },
+        {
+            "scene_id": "idea",
+            "purpose": "Introduce the core idea in one clean visual.",
+            "suggested_title": f"The core idea behind {subject}",
+        },
+        {
+            "scene_id": "mechanism",
+            "purpose": "Walk through how it works step by step with the main diagram.",
+            "suggested_title": mechanism_title,
+        },
+        {
+            "scene_id": "takeaway",
+            "purpose": "Close with the outcome, benefit, or mental model to remember.",
+            "suggested_title": f"What to remember about {subject}",
+        },
+    ]
+
+
+def _reference_example_excerpt(filename: str, *, max_lines: int = 22) -> str:
+    root = Path(__file__).resolve().parents[3]
+    lines = (root / "examples" / "reference" / filename).read_text(encoding="utf-8").splitlines()
+    excerpt = lines[:max_lines]
+    if len(lines) > max_lines:
+        excerpt.append("...")
+    return "\n".join(excerpt)
 
 
 def _tokenize_for_overlap(text: str) -> list[str]:

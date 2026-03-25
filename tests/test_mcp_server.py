@@ -31,6 +31,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "scene-level timing" in instructions
     assert "persistent document-level objects" in instructions
     assert "assume the draft defaults" in instructions
+    assert "resources/read" in instructions
 
     assert (
         server.handle_message(
@@ -92,10 +93,12 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     assert "positional matching" in authoring
     assert "algorithm_walkthrough" in pattern_catalog
     assert "authoring patterns, not generated scaffolds" in pattern_catalog
+    assert "problem → idea → how it works → takeaway" in pattern_catalog
     assert "BAD: Generic repeated scene" in examples
     assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
     assert '"version": "1.2"' in examples
+    assert "resources/read" in examples
     assert '"title": "How an API Works"' in api_example
 
 
@@ -137,17 +140,28 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
                 "title": "Queues",
                 "theme": "modern",
                 "pacing": "balanced",
+                "audience": "mixed",
                 "continuity": True,
                 "show_subtitles": False,
             },
             "draft_defaults": {
-                "audience": "general audience",
+                "audience": "mixed",
                 "detail_level": "balanced",
                 "voice_mode": "captions",
                 "pattern": "visual_explainer",
                 "theme": "modern",
                 "num_beats": "auto",
             },
+            "draft_outline": [
+                {"scene_id": "problem", "suggested_title": "Why queues matter"},
+                {"scene_id": "idea", "suggested_title": "The core idea behind queues"},
+            ],
+            "reference_examples": [
+                {
+                    "uri": "kaivra://example/api_how_it_works",
+                    "why": "Problem-first explainer reference",
+                }
+            ],
             "questions": [
                 {"id": "audience"},
                 {"id": "detail_level"},
@@ -163,8 +177,13 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
     assert "- detail_level:" in summary
     assert "- voice_mode:" in summary
     assert "Draft defaults:" in summary
+    assert "Starter outline:" in summary
+    assert "- problem: Why queues matter" in summary
+    assert "Embedded reference examples:" in summary
+    assert "kaivra://example/api_how_it_works" in summary
     assert "Prefer persistent document-level state" in summary
     assert "assume the draft defaults" in summary
+    assert "If audience is layperson" in summary
 
 
 def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> None:
@@ -211,6 +230,7 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
     assert "voice_provider" in check_tool["inputSchema"]["properties"]
     assert "narration timing guidance" in check_tool["description"]
     assert "assume the defaults" in plan_tool["description"]
+    assert "embedded example excerpts" in plan_tool["description"]
     assert "mirror on-screen keywords" in plan_tool["description"]
     assert "spoken_forms" in plan_tool["description"]
 
