@@ -195,6 +195,37 @@ def test_check_animation_flags_internal_terms_for_layperson_audience(tmp_path: P
     assert any(edit["action"] == "simplify_language" for edit in checked["recommended_edits"])
 
 
+def test_check_animation_warns_when_mixed_audience_narration_is_too_codey(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "version": "1.2",
+            "meta": {"theme": "modern", "audience": "mixed"},
+            "scenes": [
+                {
+                    "id": "codey_default",
+                    "duration": "8s",
+                    "template": "one-column",
+                    "narration": (
+                        "main.py sends the payload into model_manager.py, then medical_tools.py "
+                        "returns the remediation path from app/router.tsx."
+                    ),
+                    "objects": [
+                        {"id": "card", "type": "box", "content": "Flow"},
+                    ],
+                    "animations": [{"action": "fade-in", "target": "card", "duration": "0.5s"}],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert any("audience_language" in warning for warning in checked["warnings"])
+    assert any("main.py" in warning for warning in checked["warnings"])
+    assert any(edit["action"] == "simplify_language" for edit in checked["recommended_edits"])
+
+
 def test_check_animation_annotates_narration_pacing_when_voice_retiming_is_enabled(
     tmp_path: Path,
 ) -> None:

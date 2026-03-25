@@ -97,9 +97,10 @@ def _authoring_profile() -> str:
 
 ## Defaults
 
-- `visual_explainer` for narrated explainers, `algorithm_walkthrough` for silent demos.
+- `process_explainer` for narrated explainers, `algorithm_walkthrough` for silent demos.
 - `pacing: educational` for narrated, `balanced` for silent.
-- `audience: mixed` by default. Use `layperson` when you want the checker to push back on jargon, repo names, file paths, and code identifiers in narration.
+- `audience: mixed` by default, but still write for clarity first. Use plain spoken English and avoid file paths, repo names, or module inventories in narration unless the user explicitly wants implementation detail.
+- Use `layperson` when you want the checker to push back even harder on jargon, repo names, file paths, and code identifiers in narration.
 - `modern` theme by default, `whiteboard` for sketch-style teaching.
 
 ## Scene Construction
@@ -139,6 +140,7 @@ def _authoring_profile() -> str:
 ## Narration
 
 - Write narration as conversational spoken English with contractions and direct address. Not "Title. Definition."
+- Default to an understandable explainer voice even for `mixed` audiences. Explain the user-facing process, not the repo structure.
 - Mention labels and values in the order you want reveals to land.
 - Let the explanation determine scene length.
 - `check_animation` reports estimated read time at roughly 150 WPM. Use that timing guidance before previewing a narrated render.
@@ -190,9 +192,13 @@ Narration: "First, the backend component handles incoming traffic..."
 def _pattern_catalog() -> str:
     return """# Starter Pattern Catalog
 
+## `process_explainer`
+
+Default for narrated explainers. Use a process-first story arc: why it matters → state enters the system → step-by-step flow → outcome. Prefer user-facing concepts over internal component inventories.
+
 ## `visual_explainer`
 
-Default for narrated concept explainers. Use a problem-first story arc: problem → idea → how it works → takeaway. Explain why the topic matters before you explain the mechanism.
+Use when the core idea is a concept diagram rather than a process. Still lead with why it matters, but let one strong visual carry most of the explanation.
 
 ## `algorithm_walkthrough`
 
@@ -200,7 +206,7 @@ Sequence with a clear active step and surrounding context (compare/swap/progress
 
 ## `architecture_explainer`
 
-Systems or pipeline explanation with sidebar/main-content structure and visible connections between stages.
+Systems or pipeline explanation with visible stages and connections. Use this only when the viewer truly needs a component map, not as the default for narrated explainers.
 
 ## `before_after_comparison`
 

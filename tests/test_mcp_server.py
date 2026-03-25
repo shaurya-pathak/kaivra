@@ -72,13 +72,13 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "example_forward_propagation" in resource_names
 
 
-def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_references() -> None:
+def test_resource_guidance_promotes_process_explainers_and_examples_as_shape_references() -> None:
     authoring = read_resource("kaivra://authoring-profile")["contents"][0]["text"]
     pattern_catalog = read_resource("kaivra://pattern-catalog")["contents"][0]["text"]
     examples = read_resource("kaivra://example-catalog")["contents"][0]["text"]
     api_example = read_resource("kaivra://example/api_how_it_works")["contents"][0]["text"]
 
-    assert "visual_explainer" in authoring
+    assert "process_explainer" in authoring
     assert "educational" in authoring
     assert "fade-in" in authoring
     assert "same `id` and `content`" in authoring
@@ -91,9 +91,11 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
     assert "Common Mistakes" in authoring
     assert "150 WPM" in authoring
     assert "positional matching" in authoring
+    assert "understandable explainer voice" in authoring
+    assert "process_explainer" in pattern_catalog
     assert "algorithm_walkthrough" in pattern_catalog
     assert "authoring patterns, not generated scaffolds" in pattern_catalog
-    assert "problem → idea → how it works → takeaway" in pattern_catalog
+    assert "why it matters → state enters the system → step-by-step flow → outcome" in pattern_catalog
     assert "BAD: Generic repeated scene" in examples
     assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
@@ -148,13 +150,13 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
                 "audience": "mixed",
                 "detail_level": "balanced",
                 "voice_mode": "captions",
-                "pattern": "visual_explainer",
+                "pattern": "process_explainer",
                 "theme": "modern",
                 "num_beats": "auto",
             },
             "draft_outline": [
                 {"scene_id": "problem", "suggested_title": "Why queues matter"},
-                {"scene_id": "idea", "suggested_title": "The core idea behind queues"},
+                {"scene_id": "entry", "suggested_title": "Where queues begin"},
             ],
             "reference_examples": [
                 {
@@ -181,6 +183,7 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
     assert "- problem: Why queues matter" in summary
     assert "Embedded reference examples:" in summary
     assert "kaivra://example/api_how_it_works" in summary
+    assert "Prefer process_explainer" in summary
     assert "Prefer persistent document-level state" in summary
     assert "assume the draft defaults" in summary
     assert "If audience is layperson" in summary
@@ -233,6 +236,7 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
     assert "embedded example excerpts" in plan_tool["description"]
     assert "mirror on-screen keywords" in plan_tool["description"]
     assert "spoken_forms" in plan_tool["description"]
+    assert "process_explainer" in plan_tool["description"]
 
     captured: dict[str, object] = {}
 

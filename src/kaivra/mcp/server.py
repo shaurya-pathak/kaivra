@@ -178,6 +178,7 @@ class KaivraMCPServer:
                 "Read MCP example resources like kaivra://example/api_how_it_works or kaivra://example/forward_propagation "
                 "(or the matching files under examples/reference/) for the quality bar. If your client only shows "
                 "resource descriptors first, call resources/read on those example URIs to fetch the actual JSON body. "
+                "Default narrated explainers to the process_explainer pattern: start with why it matters, then show the state flow, then close with the outcome. "
                 "Wrap objects in group containers with flow (horizontal) or stack (vertical) layouts — flat lists cause overlaps. "
                 "Prefer template: one-column on scenes. If you skip template, default scene-level layout.type to 'stack'. "
                 "Keep connected nodes adjacent within groups so connectors don't cross unrelated nodes. "
@@ -192,7 +193,7 @@ class KaivraMCPServer:
                 "Connector overlap: connectors route as straight lines between anchors. To avoid crossings, "
                 "order objects in the group so that connected nodes are adjacent — the engine does not auto-route around obstacles. "
                 "If a connector must span non-adjacent nodes, split into a separate group or use an intermediate waypoint node. "
-                "Write narration as conversational spoken English. "
+                "Write narration as conversational spoken English. Prefer user-facing concepts and plain-English process language over filenames, module names, repo paths, or component inventories unless the user explicitly asks for implementation detail. "
                 "Narration sync: the engine matches spoken words to animation targets by content and ID. "
                 "Use the same words in narration that appear on screen — e.g., if an object has content 'Server', "
                 "say 'the server boots' in narration so the reveal lands on that word. "
@@ -308,7 +309,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="plan_animation",
             title="Plan Animation",
-            description="Interactive planning step — returns a structured questionnaire, draft defaults, a starter outline, and embedded example excerpts before creating an animation. Use it when user preferences are still missing; if the request is already specific enough, assume the defaults and start authoring immediately. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. If voice is enabled, remind the user to mirror on-screen keywords in narration and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
+            description="Interactive planning step — returns a structured questionnaire, draft defaults, a starter outline, and embedded example excerpts before creating an animation. Use it when user preferences are still missing; if the request is already specific enough, assume the defaults and start authoring immediately. Default narrated explainers to process_explainer unless the user clearly wants another pattern. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. Write narration in clear spoken English, favor user-facing concepts over implementation inventory, and if voice is enabled remind the user to mirror on-screen keywords and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -560,7 +561,7 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             f"- audience: {draft_defaults.get('audience', 'mixed')}",
             f"- detail_level: {draft_defaults.get('detail_level', 'balanced')}",
             f"- voice_mode: {draft_defaults.get('voice_mode', 'captions')}",
-            f"- pattern: {draft_defaults.get('pattern', 'visual_explainer')}",
+            f"- pattern: {draft_defaults.get('pattern', 'process_explainer')}",
             f"- theme: {draft_defaults.get('theme', 'modern')}",
             f"- num_beats: {draft_defaults.get('num_beats', 'auto')}",
             "",
@@ -591,7 +592,9 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             [
                 "",
                 "If voice is enabled, mirror on-screen keywords in narration and add spoken_forms for tricky names.",
-                "If audience is layperson, strip file paths, repo-internal names, and jargon from narration.",
+                "Default to clear spoken English and avoid file paths, repo-internal names, and implementation inventory unless the user explicitly wants technical detail.",
+                "If audience is layperson, strip file paths, repo-internal names, and jargon from narration completely.",
+                "Prefer process_explainer for narrated explainers: why it matters -> state flow -> outcome.",
                 "Prefer persistent document-level state when concepts carry across scenes.",
                 "Read kaivra://example/api_how_it_works for the quality bar.",
             ]

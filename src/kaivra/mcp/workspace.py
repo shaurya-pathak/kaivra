@@ -250,7 +250,10 @@ class KaivraWorkspace:
                 "Present these questions conversationally to the user.  "
                 "Collect their answers, then use them to author the animation "
                 "JSON directly.  Skip questions the user has already answered "
-                "or that are not relevant.  If the user chooses a voice mode, "
+                "or that are not relevant.  Default narrated explainers to a "
+                "process_explainer shape unless the user clearly wants another pattern.  "
+                "Write narration in clear spoken English that explains the process in user-facing terms.  "
+                "If the user chooses a voice mode, "
                 "explicitly remind them to mirror on-screen keywords in the narration "
                 "so reveals can line up cleanly."
             ),
@@ -264,9 +267,9 @@ class KaivraWorkspace:
             },
             "draft_defaults": {
                 "audience": "mixed",
-                "detail_level": "balanced",
+                "detail_level": "educational",
                 "voice_mode": "captions",
-                "pattern": "visual_explainer",
+                "pattern": "process_explainer",
                 "theme": "modern",
                 "num_beats": "auto",
             },
@@ -289,7 +292,7 @@ class KaivraWorkspace:
                         },
                         {
                             "value": "mixed",
-                            "label": "Mixed — accessible but still comfortable with light technical detail",
+                            "label": "Mixed — clear and understandable first, with light technical detail only when it helps",
                         },
                         {
                             "value": "technical",
@@ -358,8 +361,12 @@ class KaivraWorkspace:
                     "question": "What kind of animation pattern fits best?",
                     "options": [
                         {
+                            "value": "process_explainer",
+                            "label": "Process explainer — why it matters, then state flow, then outcome",
+                        },
+                        {
                             "value": "visual_explainer",
-                            "label": "Visual explainer — problem first, then idea, then how it works",
+                            "label": "Visual explainer — concept-first diagram with narrated beats",
                         },
                         {
                             "value": "algorithm_walkthrough",
@@ -367,14 +374,14 @@ class KaivraWorkspace:
                         },
                         {
                             "value": "architecture_explainer",
-                            "label": "Architecture explainer — system components and data flow",
+                            "label": "Architecture explainer — component map and data flow when system inventory is the goal",
                         },
                         {
                             "value": "before_after_comparison",
                             "label": "Before/after comparison — contrasting two approaches",
                         },
                     ],
-                    "default": "visual_explainer",
+                    "default": "process_explainer",
                     "maps_to": "pattern",
                 },
                 {
@@ -422,16 +429,18 @@ class KaivraWorkspace:
             ],
             "agent_quickstart": [
                 "If the user has already given enough direction, do not block on every question. Assume the draft defaults and start writing the JSON immediately.",
+                "For narrated explainers, default to process_explainer: show why it matters, then visualize the state flow, then close with the outcome.",
                 "Use template: one-column for straightforward explainers, then add groups for rows, columns, or connector neighborhoods.",
                 "Prefer persistent document-level objects first when labels, chapter rails, legends, or shared state appear in multiple scenes.",
             ],
             "draft_outline": _planner_draft_outline(topic),
             "narration_assist": {
-                "goal": "Write spoken English that names the same on-screen concepts in the same order as their reveals.",
+                "goal": "Write spoken English that names the same on-screen concepts in the same order as their reveals, and explain the process in plain user-facing language first.",
                 "when_voice": [
                     "Use contractions and direct address instead of title-card prose.",
                     "Mirror object labels in narration so voice-sync checks can map words to targets.",
                     "For tricky names, add object.spoken_forms aliases before rendering.",
+                    "Avoid spelling out filenames, modules, or repo paths in narration unless the user explicitly asked for implementation detail.",
                 ],
                 "layperson_guardrails": [
                     "Replace repo names, file paths, and code identifiers with plain-English descriptions.",
@@ -442,7 +451,7 @@ class KaivraWorkspace:
             "reference_examples": [
                 {
                     "uri": "kaivra://example/api_how_it_works",
-                    "why": "Shows the quality bar for a narrated problem-first visual explainer.",
+                    "why": "Shows the quality bar for a narrated process explainer with a clear why -> flow -> outcome arc.",
                     "excerpt": _reference_example_excerpt("api_how_it_works.json"),
                 },
                 {
@@ -464,6 +473,14 @@ class KaivraWorkspace:
                         "['co pilot', 'cobalt'] so checks and cue matching still recognize "
                         "the intended target. ElevenLabs uses word-level cues; local "
                         "(Sherpa) uses scene-level timing with the same semantic checks."
+                    ),
+                },
+                {
+                    "id": "process_default_tip",
+                    "when": "always",
+                    "text": (
+                        "Default to process_explainer for narrated work: start with the user-facing problem, "
+                        "then visualize how state moves through the system, and close with the outcome or mental model."
                     ),
                 },
                 {
@@ -1481,16 +1498,15 @@ def _audience_narration_findings(
     resolved_scene: Any,
     audience: Any,
 ) -> list[CheckFinding]:
-    if getattr(audience, "value", audience) != "layperson":
+    audience_value = getattr(audience, "value", audience)
+    if audience_value not in {"layperson", "mixed"}:
         return []
 
     narration = (scene_spec.narration or "").strip()
     if not narration:
         return []
 
-    findings: list[CheckFinding] = []
     matched_terms: list[str] = []
-
     file_matches = re.findall(r"\b[\w./-]+\.(?:py|ts|tsx|js|jsx|json|yaml|yml|md)\b", narration)
     path_matches = re.findall(r"(?:^|[\s(])(/[\w./-]+|[\w.-]+/[\w./-]+)", narration)
     identifier_matches = re.findall(
@@ -1510,30 +1526,47 @@ def _audience_narration_findings(
     if not deduped_terms:
         return []
 
-    findings.append(
+    if audience_value == "mixed":
+        strong_internal_terms = len(file_matches) + len(path_matches) + len(identifier_matches)
+        jargon_hits = [term for term in deduped_terms if term.lower() in _LAYPERSON_JARGON]
+        if strong_internal_terms < 2 and len(jargon_hits) < 3:
+            return []
+        message = (
+            "Narration targets a mixed audience but still leans on internal identifiers or implementation jargon: "
+            + ", ".join(deduped_terms[:6])
+            + "."
+        )
+        reason = (
+            "Keep the default narration understandable on first listen. Replace file names, paths, and internal "
+            "implementation terms with user-facing process language unless the user explicitly asked for technical detail."
+        )
+    else:
+        message = (
+            "Narration targets a layperson audience but still uses file names, code paths, or technical jargon: "
+            + ", ".join(deduped_terms[:6])
+            + "."
+        )
+        reason = (
+            "Replace internal identifiers and jargon with plain-English descriptions that explain the idea "
+            "without requiring repo or implementation context."
+        )
+
+    return [
         CheckFinding(
             severity="warning",
             scene_id=resolved_scene.id,
             kind="audience_language",
-            message=(
-                "Narration targets a layperson audience but still uses file names, code paths, or technical jargon: "
-                + ", ".join(deduped_terms[:6])
-                + "."
-            ),
+            message=message,
             recommended_edit=RecommendedEdit(
                 scene_id=resolved_scene.id,
                 action="simplify_language",
                 object_id=None,
                 field="narration",
                 suggested_value=None,
-                reason=(
-                    "Replace internal identifiers and jargon with plain-English descriptions that explain the idea "
-                    "without requiring repo or implementation context."
-                ),
+                reason=reason,
             ),
         )
-    )
-    return findings
+    ]
 
 
 def _explanatory_narration_findings(
@@ -2705,7 +2738,7 @@ def _round_up_duration_seconds(value: float) -> float:
 def _planner_draft_outline(topic: str | None) -> list[dict[str, str]]:
     subject = (topic or "the concept").strip()
     lowered = subject.lower()
-    mechanism_title = f"How {subject} works"
+    mechanism_title = f"How {subject} moves through the system"
     if lowered.startswith("how "):
         mechanism_title = subject[0].upper() + subject[1:]
     return [
@@ -2715,19 +2748,19 @@ def _planner_draft_outline(topic: str | None) -> list[dict[str, str]]:
             "suggested_title": f"Why {subject} matters",
         },
         {
-            "scene_id": "idea",
-            "purpose": "Introduce the core idea in one clean visual.",
-            "suggested_title": f"The core idea behind {subject}",
+            "scene_id": "entry",
+            "purpose": "Show what enters the system or where the process begins.",
+            "suggested_title": f"Where {subject} begins",
         },
         {
-            "scene_id": "mechanism",
-            "purpose": "Walk through how it works step by step with the main diagram.",
+            "scene_id": "flow",
+            "purpose": "Walk through the step-by-step state flow with the main diagram.",
             "suggested_title": mechanism_title,
         },
         {
-            "scene_id": "takeaway",
+            "scene_id": "outcome",
             "purpose": "Close with the outcome, benefit, or mental model to remember.",
-            "suggested_title": f"What to remember about {subject}",
+            "suggested_title": f"The outcome for {subject}",
         },
     ]
 
