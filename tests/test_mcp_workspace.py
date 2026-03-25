@@ -351,6 +351,59 @@ def test_check_animation_respects_group_inherited_reveal_for_hidden_children(
     assert not any("child_b" in warning for warning in checked["warnings"])
 
 
+def test_check_animation_write_back_enables_layout_group_visibility(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    source_path = tmp_path / "animations" / "visibility-fix.json"
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_text(
+        json.dumps(
+            {
+                "version": "1.2",
+                "meta": {"theme": "modern", "show_narration": False},
+                "scenes": [
+                    {
+                        "id": "blocked_child",
+                        "duration": "6s",
+                        "auto_visible": False,
+                        "layout": "center",
+                        "objects": [
+                            {
+                                "id": "cluster",
+                                "type": "group",
+                                "layout": "flow",
+                                "children": [
+                                    {"id": "child_box", "type": "box", "content": "Child"},
+                                ],
+                            }
+                        ],
+                        "animations": [
+                            {
+                                "action": "fade-in",
+                                "target": "child_box",
+                                "at": "0s",
+                                "duration": "0.6s",
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    checked = workspace.check_animation(file_path=str(source_path), write_back=True)
+    rewritten = json.loads(source_path.read_text(encoding="utf-8"))
+
+    assert checked["valid"] is True
+    assert checked["applied_fixes"]
+    assert any(
+        fix["action"] == "enable_layout_group_visibility" and fix["object_id"] == "cluster"
+        for fix in checked["applied_fixes"]
+    )
+    assert rewritten["scenes"][0]["objects"][0]["visible"] is True
+    assert not checked["finding_groups"]["blocking"]
+
+
 def test_check_animation_warns_when_scene_crossfade_and_object_reveal_stack(
     tmp_path: Path,
 ) -> None:
@@ -857,8 +910,11 @@ def test_voice_sync_findings_flag_unmatched_targets(tmp_path: Path) -> None:
     voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
     # "server" has no keyword overlap with narration ("backend component" ≠ "Server")
     assert any("server" in f for f in voice_findings)
+    assert any("Missing target terms: server." in f for f in voice_findings)
+    assert any("Narration terms seen:" in f for f in voice_findings)
     # "traffic" DOES overlap with narration
     assert not any("'traffic'" in f for f in voice_findings)
+    assert result["finding_groups"]["voice_sync"]
 
 
 def test_voice_sync_findings_warn_for_local_voice(tmp_path: Path) -> None:
@@ -919,3 +975,42 @@ def test_voice_sync_findings_absent_without_voice_flag(tmp_path: Path) -> None:
 
     voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
     assert voice_findings == []
+
+
+def test_check_animation_warns_when_continuity_id_changes_content_too_much(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    result = _check_animation(
+        workspace,
+        {
+            "version": "1.2",
+            "meta": {"theme": "modern", "continuity": True},
+            "scenes": [
+                {
+                    "id": "scene_a",
+                    "duration": "5s",
+                    "template": "one-column",
+                    "objects": [
+                        {"type": "box", "id": "status", "content": "Queued request"},
+                    ],
+                    "animations": [{"action": "fade-in", "target": "status", "duration": "0.3s"}],
+                },
+                {
+                    "id": "scene_b",
+                    "duration": "5s",
+                    "template": "one-column",
+                    "objects": [
+                        {"type": "box", "id": "status", "content": "GPU memory scheduler"},
+                    ],
+                    "animations": [{"action": "fade-in", "target": "status", "duration": "0.3s"}],
+                },
+            ],
+        },
+    )
+
+    assert result["valid"] is True
+    assert result["finding_groups"]["continuity"]
+    assert any("changes sharply" in finding for finding in result["finding_groups"]["continuity"])
+    assert any(
+        edit["action"] == "split_continuity_id" and edit["object_id"] == "status"
+        for edit in result["recommended_edits"]
+    )

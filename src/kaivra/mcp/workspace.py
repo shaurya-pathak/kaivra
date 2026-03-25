@@ -147,6 +147,16 @@ class CheckFinding:
         location = self.scene_id or "document"
         return f"{self.severity.upper()} {location} {self.kind}: {self.message}"
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "severity": self.severity,
+            "scene_id": self.scene_id,
+            "kind": self.kind,
+            "category": _finding_category(self),
+            "message": self.message,
+            "recommended_edit": self.recommended_edit.to_dict() if self.recommended_edit else None,
+        }
+
 
 @dataclass(frozen=True)
 class ObjectRef:
@@ -217,6 +227,13 @@ class KaivraWorkspace:
                 "explicitly remind them to mirror on-screen keywords in the narration "
                 "so reveals can line up cleanly."
             ),
+            "suggested_meta": {
+                "title": topic or "Untitled Animation",
+                "theme": "modern",
+                "pacing": "balanced",
+                "continuity": True,
+                "show_subtitles": False,
+            },
             "questions": [
                 {
                     "id": "topic",
@@ -348,6 +365,19 @@ class KaivraWorkspace:
                 "theme → theme": "Passed directly",
                 "num_beats": "If user specifies a number, generate that many beat outlines",
             },
+            "persistent_state_guidance": [
+                "Prefer document-level persistent objects whenever labels, legends, chapter rails, or shared state carry across scenes.",
+                "Use continuity morphs for scene-local objects that evolve from one beat to the next.",
+                "If a chapter tracker or repeated label appears in more than one scene, try to lift it into top-level objects first.",
+            ],
+            "narration_assist": {
+                "goal": "Write spoken English that names the same on-screen concepts in the same order as their reveals.",
+                "when_voice": [
+                    "Use contractions and direct address instead of title-card prose.",
+                    "Mirror object labels in narration so voice-sync checks can map words to targets.",
+                    "For tricky names, add object.spoken_forms aliases before rendering.",
+                ],
+            },
             "notes": [
                 {
                     "id": "voice_sync_tip",
@@ -364,6 +394,16 @@ class KaivraWorkspace:
                     ),
                 },
             ],
+            "questionnaire": {
+                "required_topics": [
+                    "audience",
+                    "detail_level",
+                    "voice_mode",
+                    "pattern",
+                    "theme",
+                ],
+                "optional_topics": ["topic", "num_beats"],
+            },
         }
 
     def add_theme(
@@ -427,9 +467,8 @@ class KaivraWorkspace:
             }
 
         try:
-            normalized = dump_document_json(doc)
             theme_roots = self._theme_roots_for_document(resolved_path)
-            findings, recommended_edits = _audit_document_report(
+            raw_findings, findings, recommended_edits = _audit_document_report(
                 doc,
                 theme_search_roots=theme_roots,
                 voice=voice,
@@ -442,11 +481,32 @@ class KaivraWorkspace:
                 "blocking_issues": [str(exc)],
                 "warnings": [],
                 "audit_findings": [],
+                "structured_findings": [],
+                "finding_groups": {
+                    "blocking": [],
+                    "quality": [],
+                    "voice_sync": [],
+                    "continuity": [],
+                },
                 "normalized_dsl_json": None,
                 "recommended_edits": _recommend_edits_from_messages([str(exc)]),
+                "applied_fixes": [],
                 "file_path": str(resolved_path) if resolved_path else None,
             }
 
+        applied_fixes: list[dict[str, Any]] = []
+        if write_back:
+            if resolved_path is None:
+                raise ValueError("write_back requires file_path.")
+            doc, applied_fixes = _apply_safe_write_back_fixes(doc, raw_findings)
+            raw_findings, findings, recommended_edits = _audit_document_report(
+                doc,
+                theme_search_roots=theme_roots,
+                voice=voice,
+                voice_provider=voice_provider,
+            )
+
+        normalized = dump_document_json(doc)
         blocking = [finding for finding in findings if finding.startswith("ERROR")]
         warnings = [finding for finding in findings if not finding.startswith("ERROR")]
 
@@ -455,8 +515,6 @@ class KaivraWorkspace:
             warnings.insert(0, f"VERSION: {drift}")
 
         if write_back:
-            if resolved_path is None:
-                raise ValueError("write_back requires file_path.")
             resolved_path.write_text(normalized + "\n", encoding="utf-8")
 
         return {
@@ -465,8 +523,11 @@ class KaivraWorkspace:
             "blocking_issues": blocking,
             "warnings": warnings,
             "audit_findings": findings,
+            "structured_findings": [finding.to_dict() for finding in raw_findings],
+            "finding_groups": _group_serialized_findings(raw_findings),
             "normalized_dsl_json": normalized,
             "recommended_edits": recommended_edits,
+            "applied_fixes": applied_fixes,
             "file_path": str(resolved_path) if resolved_path else None,
         }
 
@@ -1015,12 +1076,32 @@ def _voice_sync_findings(
                     continue
                 score = _semantic_score(narration, content)
                 if score == 0:
+                    target_terms = [
+                        token
+                        for token in dict.fromkeys(_tokenize_for_overlap(content))
+                        if len(token) >= 3
+                    ]
+                    narration_terms = [
+                        token
+                        for token in dict.fromkeys(_tokenize_for_overlap(narration))
+                        if len(token) >= 3
+                    ]
+                    detail_parts: list[str] = []
+                    if target_terms:
+                        detail_parts.append(
+                            "Missing target terms: " + ", ".join(target_terms[:4]) + "."
+                        )
+                    if narration_terms:
+                        detail_parts.append(
+                            "Narration terms seen: " + ", ".join(narration_terms[:6]) + "."
+                        )
+                    detail_suffix = (" " + " ".join(detail_parts)) if detail_parts else ""
                     if voice_provider == "elevenlabs":
                         message = (
                             f"{action} targeting '{target_id}' "
                             f"(content: '{content.strip()}') has no keyword match "
                             f"in narration — ElevenLabs will fall back to positional "
-                            f"matching instead of precise word-level sync."
+                            f"matching instead of precise word-level sync.{detail_suffix}"
                         )
                     else:
                         message = (
@@ -1028,6 +1109,7 @@ def _voice_sync_findings(
                             f"(content: '{content.strip()}') has no keyword match "
                             f"in narration — local voice keeps scene-level timing, but the "
                             f"beat may feel less intentional unless the narration names the same concept."
+                            f"{detail_suffix}"
                         )
                     findings.append(
                         CheckFinding(
@@ -1042,7 +1124,7 @@ def _voice_sync_findings(
 
 
 def _audit_document(doc: Any, *, theme_search_roots: list[Path] | None = None) -> list[str]:
-    findings, _recommended_edits = _audit_document_report(
+    _raw_findings, findings, _recommended_edits = _audit_document_report(
         doc,
         theme_search_roots=theme_search_roots,
     )
@@ -1055,7 +1137,11 @@ def _audit_document_report(
     theme_search_roots: list[Path] | None = None,
     voice: bool = False,
     voice_provider: str | None = None,
-) -> tuple[list[str], list[dict[str, str | int | float | bool | None]]]:
+) -> tuple[
+    list[CheckFinding],
+    list[str],
+    list[dict[str, str | int | float | bool | None]],
+]:
     graph, _theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
     findings: list[CheckFinding] = []
     findings.extend(_layout_audit_findings(graph))
@@ -1123,6 +1209,7 @@ def _audit_document_report(
         )
 
     findings.extend(_repetitive_scaffold_findings(doc.scenes))
+    findings.extend(_continuity_content_findings(doc))
 
     if voice:
         findings.extend(_voice_sync_findings(doc, voice_provider=voice_provider))
@@ -1131,7 +1218,7 @@ def _audit_document_report(
     recommended_edits = _recommended_edits_from_findings(findings)
     if not recommended_edits:
         recommended_edits = _recommend_edits_from_messages(serialized_findings)
-    return serialized_findings, recommended_edits
+    return findings, serialized_findings, recommended_edits
 
 
 def _layout_audit_findings(graph: Any) -> list[CheckFinding]:
@@ -1607,11 +1694,14 @@ def _scene_visibility_findings(
                         ),
                         recommended_edit=RecommendedEdit(
                             scene_id=scene_id,
-                            action="add_visibility_animation",
+                            action="enable_layout_group_visibility",
                             object_id=ancestor_id,
-                            field=f"scenes[{scene_index}].animations",
-                            suggested_value=None,
-                            reason="Add a `fade-in` on this group so its children can appear.",
+                            field=f"scenes[{scene_index}].objects",
+                            suggested_value=True,
+                            reason=(
+                                "For layout-only parent groups, set `visible: true`; otherwise add a "
+                                "`fade-in` on the group so its children can appear."
+                            ),
                         ),
                     )
                 )
@@ -1767,6 +1857,81 @@ def _scene_double_reveal_findings(
     return findings
 
 
+def _continuity_content_findings(doc: Any) -> list[CheckFinding]:
+    if not getattr(doc.meta, "continuity", False):
+        return []
+
+    findings: list[CheckFinding] = []
+    previous_scene_content: dict[str, tuple[str, str | None]] | None = None
+    previous_scene_id: str | None = None
+
+    for scene_index, scene_spec in enumerate(doc.scenes):
+        scene_id = scene_spec.id or f"scene_{scene_index}"
+        current_content = _collect_scene_content_map(getattr(scene_spec, "objects", None) or [])
+        if previous_scene_content is not None and previous_scene_id is not None:
+            for object_id, (content, object_type) in current_content.items():
+                prior = previous_scene_content.get(object_id)
+                if prior is None:
+                    continue
+                prior_content, prior_type = prior
+                if not content or not prior_content:
+                    continue
+                if content == prior_content and object_type == prior_type:
+                    continue
+                similarity = SequenceMatcher(None, prior_content.lower(), content.lower()).ratio()
+                overlap = _token_overlap_ratio(
+                    _tokenize_for_overlap(prior_content),
+                    _tokenize_for_overlap(content),
+                )
+                if similarity >= 0.45 or overlap >= 0.5:
+                    continue
+                findings.append(
+                    CheckFinding(
+                        severity="warning",
+                        scene_id=scene_id,
+                        kind="continuity",
+                        message=(
+                            f"Object `{object_id}` is reused from scene `{previous_scene_id}` but its content "
+                            f"changes sharply from '{prior_content}' to '{content}'. That may break continuity morphing."
+                        ),
+                        recommended_edit=RecommendedEdit(
+                            scene_id=scene_id,
+                            action="split_continuity_id",
+                            object_id=object_id,
+                            field=f"scenes[{scene_index}].objects",
+                            suggested_value=None,
+                            reason=(
+                                "Keep the same ID only when the object is truly the same visual state. "
+                                "Rename it or keep the content closer if you want a continuity morph."
+                            ),
+                        ),
+                    )
+                )
+        previous_scene_content = current_content
+        previous_scene_id = scene_id
+
+    return findings
+
+
+def _collect_scene_content_map(objects: list[Any]) -> dict[str, tuple[str, str | None]]:
+    content_map: dict[str, tuple[str, str | None]] = {}
+
+    def walk(nodes: list[Any]) -> None:
+        for node in nodes:
+            object_id = getattr(node, "id", None)
+            if object_id:
+                content_value = getattr(node, "content", None)
+                if isinstance(content_value, str) and content_value.strip():
+                    object_type = getattr(node, "type", None)
+                    if hasattr(object_type, "value"):
+                        object_type = object_type.value
+                    content_map[object_id] = (content_value.strip(), object_type)
+            walk(getattr(node, "children", None) or [])
+
+    walk(objects)
+    return content_map
+
+
 def _has_effective_reveal_path(object_id: str, timeline: list[Any]) -> bool:
     visibility_actions = {
         "appear",
@@ -1914,6 +2079,31 @@ def _serialize_findings(findings: list[CheckFinding]) -> list[str]:
             ),
         )
     ]
+
+
+def _finding_category(finding: CheckFinding) -> str:
+    if finding.severity.lower() == "error":
+        return "blocking"
+    if finding.kind.startswith("voice_sync"):
+        return "voice_sync"
+    if finding.kind.startswith("continuity"):
+        return "continuity"
+    return "quality"
+
+
+def _group_serialized_findings(findings: list[CheckFinding]) -> dict[str, list[str]]:
+    grouped = {"blocking": [], "quality": [], "voice_sync": [], "continuity": []}
+    for finding in sorted(
+        findings,
+        key=lambda item: (
+            0 if item.severity.lower() == "error" else 1,
+            item.scene_id or "",
+            item.kind,
+            item.message,
+        ),
+    ):
+        grouped[_finding_category(finding)].append(finding.to_message())
+    return grouped
 
 
 def _recommended_edits_from_findings(
@@ -2072,6 +2262,73 @@ def _dedupe_recommended_edits(edits: list[RecommendedEdit]) -> list[RecommendedE
         seen.add(key)
         deduped.append(edit)
     return deduped
+
+
+def _apply_safe_write_back_fixes(
+    doc: Any,
+    findings: list[CheckFinding],
+) -> tuple[Any, list[dict[str, Any]]]:
+    raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
+    applied_fixes: list[dict[str, Any]] = []
+
+    target_ids = {
+        finding.recommended_edit.object_id
+        for finding in findings
+        if finding.kind == "visibility"
+        and finding.recommended_edit is not None
+        and finding.recommended_edit.action == "enable_layout_group_visibility"
+        and finding.recommended_edit.object_id
+    }
+    if not target_ids:
+        return doc, applied_fixes
+
+    for scene_index, scene in enumerate(raw_doc.get("scenes", []) or []):
+        scene_id = scene.get("id") or f"scene_{scene_index}"
+        for obj in scene.get("objects", []) or []:
+            applied_fixes.extend(
+                _enable_safe_group_visibility(obj, scene_id=scene_id, target_ids=target_ids)
+            )
+
+    if not applied_fixes:
+        return doc, applied_fixes
+    return parse_string(json.dumps(raw_doc), format="json"), applied_fixes
+
+
+def _enable_safe_group_visibility(
+    obj: dict[str, Any],
+    *,
+    scene_id: str,
+    target_ids: set[str],
+) -> list[dict[str, Any]]:
+    applied: list[dict[str, Any]] = []
+    object_id = obj.get("id")
+    children = obj.get("children")
+    if (
+        object_id in target_ids
+        and obj.get("type") == "group"
+        and isinstance(children, list)
+        and children
+        and not obj.get("content")
+        and obj.get("visible") is not True
+    ):
+        obj["visible"] = True
+        applied.append(
+            {
+                "scene_id": scene_id,
+                "object_id": object_id,
+                "action": "enable_layout_group_visibility",
+                "field": "visible",
+                "value": True,
+                "reason": "Enabled `visible: true` on a layout-only parent group so animated children can appear.",
+            }
+        )
+
+    for child in children or []:
+        if isinstance(child, dict):
+            applied.extend(
+                _enable_safe_group_visibility(child, scene_id=scene_id, target_ids=target_ids)
+            )
+    return applied
 
 
 def _collect_object_refs(objects: list[Any], *, prefix: str) -> list[ObjectRef]:

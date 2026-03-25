@@ -536,9 +536,21 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             else "Kaivra doctor found local setup issues."
         )
     if name == "plan_animation":
+        questions = result.get("questions") or []
+        surfaced_topics = ", ".join(
+            question.get("id", "")
+            for question in questions
+            if isinstance(question, dict) and question.get("id")
+        )
+        topic_clause = (
+            f" Ask about {surfaced_topics}."
+            if surfaced_topics
+            else " Ask about audience, detail level, voice mode, pattern, theme, and structure."
+        )
         return (
             "Animation plan ready. Present the questions to the user, "
-            "collect their preferences, then write the animation JSON directly. "
+            "collect their preferences, then write the animation JSON directly."
+            f"{topic_clause} "
             "If voice is enabled, remind them to mirror on-screen keywords in "
             "narration and add spoken_forms for tricky names. "
             "Prefer persistent document-level state when concepts carry across scenes. "
@@ -547,10 +559,13 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
     if name == "add_theme":
         return f"Theme saved at {result['file_path']}."
     if name == "check_animation":
-        warnings = result.get("warnings") or []
-        blocking = result.get("blocking_issues") or []
+        grouped = result.get("finding_groups") or {}
+        blocking = grouped.get("blocking") or result.get("blocking_issues") or []
+        quality = grouped.get("quality") or result.get("warnings") or []
+        voice_sync = grouped.get("voice_sync") or []
+        continuity = grouped.get("continuity") or []
         recommended = result.get("recommended_edits") or []
-        warning_count = len(warnings)
+        warning_count = len(quality) + len(voice_sync) + len(continuity)
         blocking_count = len(blocking)
 
         parts: list[str] = []
@@ -569,17 +584,34 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             for issue in blocking:
                 parts.append(f"- {issue}")
 
-        # Warnings
-        if warnings:
-            parts.append("\n**Warnings:**")
-            for w in warnings:
+        if quality:
+            parts.append("\n**Quality checks:**")
+            for w in quality:
                 parts.append(f"- {w}")
+
+        if voice_sync:
+            parts.append("\n**Voice sync:**")
+            for warning in voice_sync:
+                parts.append(f"- {warning}")
+
+        if continuity:
+            parts.append("\n**Continuity:**")
+            for warning in continuity:
+                parts.append(f"- {warning}")
 
         # Recommended edits
         if recommended:
             parts.append("\n**Recommended edits:**")
             for edit in recommended:
-                parts.append(f"- {edit}")
+                if isinstance(edit, dict):
+                    action = edit.get("action", "edit")
+                    field = edit.get("field")
+                    reason = edit.get("reason")
+                    field_part = f" on {field}" if field else ""
+                    reason_part = f" ({reason})" if reason else ""
+                    parts.append(f"- {action}{field_part}{reason_part}")
+                else:
+                    parts.append(f"- {edit}")
 
         return "\n".join(parts)
     if name == "preview_animation":

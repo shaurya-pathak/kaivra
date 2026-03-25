@@ -99,18 +99,48 @@ def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_refe
 def test_check_animation_summary_mentions_warning_count() -> None:
     summary = _summarize_tool_result(
         "check_animation",
-        {"valid": True, "warnings": ["warning one", "warning two"]},
+        {
+            "valid": True,
+            "finding_groups": {
+                "blocking": [],
+                "quality": ["warning one"],
+                "voice_sync": ["voice warning"],
+                "continuity": ["continuity warning"],
+            },
+            "recommended_edits": [
+                {
+                    "action": "enable_layout_group_visibility",
+                    "field": "scenes[0].objects",
+                    "reason": "Set visible on layout-only group.",
+                }
+            ],
+        },
     )
-    assert "Animation validated with 2 warning(s)." in summary
+    assert "Animation validated with 3 warning(s)." in summary
     assert "- warning one" in summary
-    assert "- warning two" in summary
+    assert "**Voice sync:**" in summary
+    assert "- voice warning" in summary
+    assert "**Continuity:**" in summary
+    assert "- continuity warning" in summary
+    assert "enable_layout_group_visibility on scenes[0].objects" in summary
 
 
 def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
-    summary = _summarize_tool_result("plan_animation", {"status": "ok"})
+    summary = _summarize_tool_result(
+        "plan_animation",
+        {
+            "status": "ok",
+            "questions": [
+                {"id": "audience"},
+                {"id": "detail_level"},
+                {"id": "voice_mode"},
+            ],
+        },
+    )
 
     assert "mirror on-screen keywords" in summary
     assert "spoken_forms" in summary
+    assert "audience, detail_level, voice_mode" in summary
 
 
 def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> None:
