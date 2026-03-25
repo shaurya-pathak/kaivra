@@ -239,7 +239,7 @@ def test_resolve_theme_search_roots_prefers_nearest_ancestor_theme_dir(tmp_path)
     assert roots == [workspace / "themes", cwd / "themes"]
 
 
-def test_voice_render_preserves_explicit_subtitles_setting(tmp_path, monkeypatch):
+def test_elevenlabs_voice_render_preserves_explicit_subtitles_setting(tmp_path, monkeypatch):
     doc = _narrated_doc(show_subtitles=True)
     seen_subtitles: list[bool] = []
 
@@ -259,11 +259,56 @@ def test_voice_render_preserves_explicit_subtitles_setting(tmp_path, monkeypatch
         doc,
         output_path=tmp_path / "narrated.mp4",
         voice=True,
-        voice_provider="dummy",
+        voice_provider="elevenlabs",
     )
 
     assert result.artifact_path == str(tmp_path / "narrated.mp4")
     assert seen_subtitles == [True]
+
+
+def test_local_voice_render_forces_subtitles_off_and_spokenizes_narration(tmp_path, monkeypatch):
+    seen: list[tuple[bool, str | None]] = []
+
+    monkeypatch.setattr(
+        orchestration,
+        "_render_with_voice",
+        lambda _doc, **_kwargs: (
+            seen.append((_doc.meta.show_subtitles, _doc.scenes[1].narration))
+            or orchestration.RenderArtifact(
+                artifact_path=str(tmp_path / "narrated.mp4"),
+                duration_seconds=1.0,
+            )
+        ),
+    )
+
+    local_doc = parse_string(
+        json.dumps(
+            {
+                "version": "1.2",
+                "meta": {"title": "Narrated", "theme": "modern", "show_subtitles": True},
+                "scenes": [
+                    {
+                        "id": "intro",
+                        "duration": "3s",
+                        "narration": "GET /users/42: fetch profile & settings",
+                        "objects": [{"id": "title", "type": "text", "content": "Narrated"}],
+                        "animations": [{"action": "appear", "target": "title", "at": "0s"}],
+                    }
+                ],
+            }
+        ),
+        format="json",
+    )
+
+    result = orchestration.render_document_artifact(
+        local_doc,
+        output_path=tmp_path / "narrated.mp4",
+        voice=True,
+        voice_provider="local",
+    )
+
+    assert result.artifact_path == str(tmp_path / "narrated.mp4")
+    assert seen == [(False, "GET slash users slash 42. fetch profile and settings.")]
 
 
 def test_web_preview_html_includes_transition_and_highlight_preview_logic() -> None:

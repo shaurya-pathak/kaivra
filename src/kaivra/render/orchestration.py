@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -85,7 +86,7 @@ def render_document_artifact(
     doc = _apply_video_bookends(doc)
 
     if voice:
-        doc = _apply_voice_subtitle_defaults(doc)
+        doc = _apply_voice_render_defaults(doc, voice_provider=voice_provider)
         return _render_with_voice(
             doc,
             output_path=artifact_path,
@@ -206,8 +207,26 @@ def resolve_theme_search_roots(
     return roots
 
 
-def _apply_voice_subtitle_defaults(doc: Any) -> Any:
-    """Hide subtitles by default for voice renders unless the user opted in."""
+def _apply_voice_render_defaults(doc: Any, *, voice_provider: str | None) -> Any:
+    """Apply provider-aware defaults before generating voice audio."""
+    provider_name = resolve_voice_provider_name(voice_provider)
+    doc = _apply_voice_subtitle_defaults(doc, provider_name=provider_name)
+    if provider_name == "local":
+        doc = _apply_local_voice_narration_defaults(doc)
+    return doc
+
+
+def _apply_voice_subtitle_defaults(doc: Any, *, provider_name: str) -> Any:
+    """Hide subtitles for voice renders, with stricter defaults for local preview voice."""
+    if provider_name == "local":
+        if doc.meta.show_subtitles is False:
+            return doc
+        return doc.model_copy(
+            update={
+                "meta": doc.meta.model_copy(update={"show_subtitles": False}),
+            }
+        )
+
     if doc.meta.subtitles_were_explicitly_set():
         return doc
     return doc.model_copy(
@@ -215,6 +234,37 @@ def _apply_voice_subtitle_defaults(doc: Any) -> Any:
             "meta": doc.meta.model_copy(update={"show_subtitles": False}),
         }
     )
+
+
+def _apply_local_voice_narration_defaults(doc: Any) -> Any:
+    """Normalize authored narration into more speakable text for local TTS."""
+    updated_scenes = [
+        scene.model_copy(
+            update={
+                "narration": _spokenize_local_narration(scene.narration)
+                if scene.narration
+                else scene.narration
+            }
+        )
+        for scene in doc.scenes
+    ]
+    return doc.model_copy(update={"scenes": updated_scenes})
+
+
+def _spokenize_local_narration(text: str) -> str:
+    """Turn symbol-heavy or written-style narration into more speakable English."""
+    spoken = " ".join(text.split())
+    spoken = re.sub(r"\be\.g\.\b", "for example", spoken, flags=re.IGNORECASE)
+    spoken = re.sub(r"\bi\.e\.\b", "that is", spoken, flags=re.IGNORECASE)
+    spoken = spoken.replace("&", " and ")
+    spoken = spoken.replace("+", " plus ")
+    spoken = spoken.replace("%", " percent")
+    spoken = spoken.replace("/", " slash ")
+    spoken = re.sub(r"\s*[:;]\s*", ". ", spoken)
+    spoken = re.sub(r"\s{2,}", " ", spoken).strip()
+    if spoken and spoken[-1] not in ".!?":
+        spoken += "."
+    return spoken
 
 
 def _retime_document(doc: Any, audio_timing_data: AudioTimingData) -> Any:
