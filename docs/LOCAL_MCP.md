@@ -99,7 +99,9 @@ The MCP is intentionally small and opinionated:
 5. `preview_animation` writes an HTML preview and a PNG still.
 6. `render_animation` writes the final PNG, MP4, or WebM artifact.
 
-The MCP is tuned for visual explainers: prefer `visual_explainer` for narrated flows, build scene-specific diagrams from boxes, connectors, groups, and tokens, and use connector `draw` animations to show flow. Reuse the same `id` and the same content when a value carries from one scene into the next so continuity can create a smooth carry-over. Prefer `fade-in` for smooth reveals, and use `appear` when you want an intentional instant snap-in. Revealing a group will also reveal descendants that do not have their own visibility animation.
+`animations/` is a local workspace and is gitignored by default. If a draft graduates into a curated repo example, move it into `examples/` intentionally. Keep throwaway or alternate example variants under `examples/local/`.
+
+The MCP is tuned for visual explainers: prefer `visual_explainer` for narrated flows, build scene-specific diagrams from boxes, connectors, groups, and tokens, and use connector `draw` animations to show flow. Prefer persistent document-level objects when labels, chapter trackers, or shared state should stay on screen across scenes. Reuse the same `id` and the same content when a value carries from one scene into the next so continuity can create a smooth carry-over. Prefer `fade-in` for smooth reveals, and use `appear` when you want an intentional instant snap-in. Revealing a group will also reveal descendants that do not have their own visibility animation.
 
 `add_theme` accepts a theme name, an optional `base_theme`, and an `overrides` object whose keys match the `ThemeSpec` fields, such as `accent`, `background_color`, `box_fill`, or `box_border`.
 

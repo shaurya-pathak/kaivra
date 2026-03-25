@@ -1,0 +1,799 @@
+{
+  "version": "1.2",
+  "meta": {
+    "title": "How an API Works",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "material",
+    "show_subtitles": false,
+    "pacing": "educational",
+    "continuity": true,
+    "continuity_duration": "0.8s",
+    "glow_release_padding": "1.0s",
+    "video_bookends": true
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "chapters",
+      "position": "bottom",
+      "layout": {
+        "type": "carousel",
+        "gap": "large",
+        "direction": "horizontal",
+        "align": "center",
+        "curve": 16,
+        "active_scale": 1.16,
+        "inactive_scale": 0.92
+      },
+      "children": [
+        {
+          "type": "token",
+          "id": "step_request",
+          "content": "1  Request"
+        },
+        {
+          "type": "token",
+          "id": "step_validate",
+          "content": "2  Validate"
+        },
+        {
+          "type": "token",
+          "id": "step_logic",
+          "content": "3  Work"
+        },
+        {
+          "type": "token",
+          "id": "step_response",
+          "content": "4  Respond"
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "client_request",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Let's walk one request all the way through. Imagine the app needs the profile for user forty-two, so it sends GET slash users slash forty-two to the users API. GET means read, the path picks the exact record, the auth header identifies the caller, and for this example there is no body because we are only fetching data.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "request_scene",
+          "visible": true,
+          "children": [
+            {
+              "type": "text",
+              "id": "request_title",
+              "content": "1. The client packages a request",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "request_flow",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "client_box",
+                  "content": "Client"
+                },
+                {
+                  "type": "box",
+                  "id": "request_summary",
+                  "content": "GET /users/42"
+                },
+                {
+                  "type": "box",
+                  "id": "endpoint_card",
+                  "content": "Users API"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "request_parts",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "method_token",
+                  "content": "GET means read"
+                },
+                {
+                  "type": "token",
+                  "id": "header_token",
+                  "content": "Bearer token"
+                },
+                {
+                  "type": "token",
+                  "id": "body_token",
+                  "content": "No body for GET"
+                }
+              ]
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "direction": "vertical",
+            "gap": "large",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "client_to_request",
+          "from": "client_box",
+          "to": "request_summary"
+        },
+        {
+          "type": "connector",
+          "id": "request_to_endpoint",
+          "from": "request_summary",
+          "to": "endpoint_card"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_request",
+          "at": "0s",
+          "duration": "10.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_request",
+          "at": "0.1s",
+          "duration": "0.8s",
+          "scale_factor": 1.12
+        },
+        {
+          "action": "fade-in",
+          "target": "request_title",
+          "at": "0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "client_box",
+          "at": "0.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "request_summary",
+          "at": "1.4s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "client_to_request",
+          "at": "2.1s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "endpoint_card",
+          "at": "2.7s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "request_to_endpoint",
+          "at": "3.4s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "method_token",
+          "at": "4.3s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "fade-in",
+          "target": "header_token",
+          "at": "4.9s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "fade-in",
+          "target": "body_token",
+          "at": "5.5s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "highlight",
+          "target": "request_summary",
+          "at": "6.5s",
+          "duration": "1.8s",
+          "style": "glow",
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "validation_and_auth",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "When that GET slash users slash forty-two request reaches the server, the API does not jump straight to the database. First it checks the bearer token to confirm who is calling, then it validates that the route and request shape make sense. This matters because bad or unauthorized requests get stopped early with a fast 401 or 400 instead of wasting deeper work.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "validation_scene",
+          "visible": true,
+          "children": [
+            {
+              "type": "text",
+              "id": "validation_title",
+              "content": "2. The server validates the request",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "validation_flow",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "request_summary",
+                  "content": "GET /users/42"
+                },
+                {
+                  "type": "box",
+                  "id": "auth_box",
+                  "content": "Check bearer token"
+                },
+                {
+                  "type": "box",
+                  "id": "validation_box",
+                  "content": "Check route and shape"
+                },
+                {
+                  "type": "box",
+                  "id": "handler_ready",
+                  "content": "Pass to handler"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "error_tokens",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "auth_fail_token",
+                  "content": "401 if token fails"
+                },
+                {
+                  "type": "token",
+                  "id": "validation_fail_token",
+                  "content": "400 if route is wrong"
+                }
+              ]
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "direction": "vertical",
+            "gap": "large",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "request_to_auth",
+          "from": "request_summary",
+          "to": "auth_box"
+        },
+        {
+          "type": "connector",
+          "id": "auth_to_validation",
+          "from": "auth_box",
+          "to": "validation_box"
+        },
+        {
+          "type": "connector",
+          "id": "validation_to_handler",
+          "from": "validation_box",
+          "to": "handler_ready"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_validate",
+          "at": "0s",
+          "duration": "10.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_validate",
+          "at": "0.1s",
+          "duration": "0.8s",
+          "scale_factor": 1.12
+        },
+        {
+          "action": "fade-in",
+          "target": "validation_title",
+          "at": "0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "request_summary",
+          "at": "0.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "request_to_auth",
+          "at": "1.5s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "auth_box",
+          "at": "2.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "auth_box",
+          "at": "2.9s",
+          "duration": "1.3s",
+          "style": "glow",
+          "color": "warning"
+        },
+        {
+          "action": "draw",
+          "target": "auth_to_validation",
+          "at": "4.1s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "validation_box",
+          "at": "4.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "validation_box",
+          "at": "5.5s",
+          "duration": "1.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "draw",
+          "target": "validation_to_handler",
+          "at": "6.8s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "handler_ready",
+          "at": "7.4s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "auth_fail_token",
+          "at": "8.4s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "fade-in",
+          "target": "validation_fail_token",
+          "at": "9.0s",
+          "duration": "0.7s"
+        }
+      ]
+    },
+    {
+      "id": "business_logic",
+      "duration": "12s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Now the request is trusted, so the users handler can do the actual work. This is the step that turns a generic HTTP request into the exact product result the app needs. In our example, the handler asks what fields this caller may see, loads user forty-two from the database, and shapes that record into a clean API payload instead of leaking raw database details.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "logic_scene",
+          "visible": true,
+          "children": [
+            {
+              "type": "text",
+              "id": "logic_title",
+              "content": "3. The application does the real work",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "logic_flow",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "handler_ready",
+                  "content": "Users handler"
+                },
+                {
+                  "type": "box",
+                  "id": "service_box",
+                  "content": "Choose safe fields"
+                },
+                {
+                  "type": "box",
+                  "id": "database_box",
+                  "content": "Load user 42"
+                },
+                {
+                  "type": "box",
+                  "id": "payload_box",
+                  "content": "API payload\n{id:42,name:\"Ava\"}"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "logic_notes",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "service_note",
+                  "content": "Permissions"
+                },
+                {
+                  "type": "token",
+                  "id": "database_note",
+                  "content": "Database row"
+                }
+              ]
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "direction": "vertical",
+            "gap": "large",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "handler_to_service",
+          "from": "handler_ready",
+          "to": "service_box"
+        },
+        {
+          "type": "connector",
+          "id": "service_to_database",
+          "from": "service_box",
+          "to": "database_box"
+        },
+        {
+          "type": "connector",
+          "id": "database_to_payload",
+          "from": "database_box",
+          "to": "payload_box"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_logic",
+          "at": "0s",
+          "duration": "10.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_logic",
+          "at": "0.1s",
+          "duration": "0.8s",
+          "scale_factor": 1.12
+        },
+        {
+          "action": "fade-in",
+          "target": "logic_title",
+          "at": "0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "handler_ready",
+          "at": "0.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "handler_to_service",
+          "at": "1.5s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "service_box",
+          "at": "2.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "service_note",
+          "at": "2.9s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "service_to_database",
+          "at": "3.8s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "database_box",
+          "at": "4.4s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "database_box",
+          "at": "5.2s",
+          "duration": "1.3s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "fade-in",
+          "target": "database_note",
+          "at": "6.3s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "database_to_payload",
+          "at": "7.0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "payload_box",
+          "at": "7.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "payload_box",
+          "at": "8.6s",
+          "duration": "1.6s",
+          "style": "glow",
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "response_to_client",
+      "duration": "12s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Finally, the API turns that payload into an HTTP response. In our example, it sends back two hundred okay plus JSON for user forty-two, and the client reads that contract to render Ava's profile. If the status had been an error instead, the same client could show a retry or failure state.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "response_scene",
+          "visible": true,
+          "children": [
+            {
+              "type": "text",
+              "id": "response_title",
+              "content": "4. The API sends a structured response",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "response_flow",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "large",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "payload_box",
+                  "content": "API payload\n{id:42,name:\"Ava\"}"
+                },
+                {
+                  "type": "box",
+                  "id": "response_box",
+                  "content": "200 OK + JSON"
+                },
+                {
+                  "type": "box",
+                  "id": "client_result",
+                  "content": "Render Ava profile"
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "response_tokens",
+              "visible": true,
+              "layout": {
+                "type": "flow",
+                "direction": "horizontal",
+                "gap": "medium",
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "token",
+                  "id": "status_token",
+                  "content": "Was it success?"
+                },
+                {
+                  "type": "token",
+                  "id": "json_token",
+                  "content": "What data came back?"
+                }
+              ]
+            }
+          ],
+          "layout": {
+            "type": "stack",
+            "direction": "vertical",
+            "gap": "large",
+            "align": "center"
+          }
+        },
+        {
+          "type": "connector",
+          "id": "payload_to_response",
+          "from": "payload_box",
+          "to": "response_box"
+        },
+        {
+          "type": "connector",
+          "id": "response_to_client_ui",
+          "from": "response_box",
+          "to": "client_result"
+        }
+      ],
+      "animations": [
+        {
+          "action": "highlight",
+          "target": "step_response",
+          "at": "0s",
+          "duration": "10.5s",
+          "style": "glow",
+          "color": "accent"
+        },
+        {
+          "action": "scale",
+          "target": "step_response",
+          "at": "0.1s",
+          "duration": "0.8s",
+          "scale_factor": 1.12
+        },
+        {
+          "action": "fade-in",
+          "target": "response_title",
+          "at": "0s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "payload_box",
+          "at": "0.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "draw",
+          "target": "payload_to_response",
+          "at": "1.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "response_box",
+          "at": "2.1s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "status_token",
+          "at": "3.0s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "fade-in",
+          "target": "json_token",
+          "at": "3.6s",
+          "duration": "0.7s"
+        },
+        {
+          "action": "draw",
+          "target": "response_to_client_ui",
+          "at": "4.6s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "fade-in",
+          "target": "client_result",
+          "at": "5.2s",
+          "duration": "0.8s"
+        },
+        {
+          "action": "highlight",
+          "target": "response_box",
+          "at": "6.2s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "success"
+        },
+        {
+          "action": "highlight",
+          "target": "client_result",
+          "at": "7.8s",
+          "duration": "1.4s",
+          "style": "glow",
+          "color": "accent"
+        }
+      ]
+    }
+  ]
+}

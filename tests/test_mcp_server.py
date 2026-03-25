@@ -29,6 +29,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "Narration sync" in instructions
     assert "spoken_forms" in instructions
     assert "scene-level timing" in instructions
+    assert "persistent document-level objects" in instructions
 
     assert (
         server.handle_message(
@@ -65,28 +66,34 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     )[0]
     resource_names = {resource["name"] for resource in resources_response["result"]["resources"]}
     assert "authoring_profile" in resource_names
+    assert "example_api_how_it_works" in resource_names
+    assert "example_forward_propagation" in resource_names
 
 
 def test_resource_guidance_promotes_visual_explainers_and_examples_as_shape_references() -> None:
     authoring = read_resource("kaivra://authoring-profile")["contents"][0]["text"]
     pattern_catalog = read_resource("kaivra://pattern-catalog")["contents"][0]["text"]
     examples = read_resource("kaivra://example-catalog")["contents"][0]["text"]
+    api_example = read_resource("kaivra://example/api_how_it_works")["contents"][0]["text"]
 
     assert "visual_explainer" in authoring
-    assert "Rewrite" in authoring
     assert "educational" in authoring
     assert "fade-in" in authoring
     assert "same `id` and `content`" in authoring
     assert "draw" in authoring
     assert "carousel" in authoring
     assert "template" in authoring
+    assert "visible: true" in authoring
+    assert "persistent objects" in authoring
     assert "Voice Sync Checklist" in authoring
     assert "positional matching" in authoring
     assert "algorithm_walkthrough" in pattern_catalog
-    assert "Rewrite scene objects before shipping" in pattern_catalog
-    assert "BAD: Scaffold scene" in examples
+    assert "authoring patterns, not generated scaffolds" in pattern_catalog
+    assert "BAD: Generic repeated scene" in examples
     assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
+    assert '"version": "1.2"' in examples
+    assert '"title": "How an API Works"' in api_example
 
 
 def test_check_animation_summary_mentions_warning_count() -> None:

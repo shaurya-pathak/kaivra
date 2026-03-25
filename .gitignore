@@ -26,6 +26,13 @@ output/
 tmp/
 artifacts/
 
+# Local authoring workspaces
+animations/*.json
+!animations/binary-search-explainer.json
+examples/local/*
+!examples/local/.gitkeep
+!examples/local/README.md
+
 # OS
 .DS_Store
 Thumbs.db

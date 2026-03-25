@@ -154,12 +154,15 @@ The MCP exposes a compact workflow:
 
 - `doctor_kaivra`
 - `add_theme`
-- `start_animation`
+- `plan_animation`
 - `check_animation`
 - `preview_animation`
 - `render_animation`
 
 It writes starter files to `animations/`, custom themes to `themes/`, previews to `artifacts/previews/`, and final renders to `artifacts/renders/`.
+
+`animations/` is treated as a local authoring workspace and its JSON drafts are gitignored by default. Promote polished files into the curated `examples/` tree when you want them tracked in the repo. For scratch example variants that should stay local, use `examples/local/`.
+Prefer persistent document-level objects when labels, chapter trackers, or shared state should carry across scenes; use continuity morphs for scene-local elements that evolve from beat to beat.
 
 More setup detail lives in `docs/LOCAL_MCP.md`.
 

@@ -10,10 +10,9 @@ CURRENT_DSL_VERSION = "1.2"
 DSL_CHANGELOG: list[tuple[str, str]] = [
     (
         "1.2",
-        "Added: voice_provider passthrough in start_animation, "
-        "scene-level stack layout on scaffolds, beat-titled scaffold badges, "
-        "improved MCP prompt structure and layout guidance, "
-        "invisible parent group audit in check_animation.",
+        "Added: plan_animation questionnaire guidance, spoken_forms aliases, "
+        "provider-aware voice sync diagnostics, scene voice lead-in, "
+        "and invisible parent group audit in check_animation.",
     ),
     (
         "1.1",

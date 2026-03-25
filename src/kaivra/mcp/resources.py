@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from kaivra.dsl.schema import DocumentSpec
@@ -37,6 +38,20 @@ RESOURCE_DEFINITIONS = [
         "mimeType": "text/markdown",
     },
     {
+        "uri": "kaivra://example/api_how_it_works",
+        "name": "example_api_how_it_works",
+        "title": "Reference Example: How an API Works",
+        "description": "Full reference example JSON for a narrated API explainer.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "kaivra://example/forward_propagation",
+        "name": "example_forward_propagation",
+        "title": "Reference Example: Forward Propagation",
+        "description": "Full reference example JSON for a narrated neural-network explainer.",
+        "mimeType": "application/json",
+    },
+    {
         "uri": "kaivra://document-schema",
         "name": "document_schema",
         "title": "Document Schema",
@@ -58,6 +73,8 @@ def read_resource(uri: str) -> dict[str, Any]:
         "kaivra://pattern-catalog": _pattern_catalog(),
         "kaivra://theme-catalog": _theme_catalog(),
         "kaivra://example-catalog": _example_catalog(),
+        "kaivra://example/api_how_it_works": _reference_example_text("api_how_it_works.json"),
+        "kaivra://example/forward_propagation": _reference_example_text("forward_propagation.json"),
         "kaivra://document-schema": json.dumps(DocumentSpec.model_json_schema(), indent=2),
     }
     if uri not in content_map:
@@ -86,7 +103,7 @@ def _authoring_profile() -> str:
 
 ## Scene Construction
 
-- Set `template: "one-column"` (or `"two-column"`) on every scene.
+- Prefer `template: "one-column"` (or `"two-column"`) on every scene for top-level framing.
 - Build scenes from `box`, `group`, `connector`, `token`, and short `text` headings.
 - Use `draw` on connectors to animate flow and causality.
 - Each scene should have enough objects to fully illustrate the concept.
@@ -95,16 +112,18 @@ def _authoring_profile() -> str:
 
 **This is critical.** Flat object lists with the default `center` layout stack everything on the same point, producing massive overlaps.
 
-- Set scene-level `layout.type` to `"stack"` so top-level objects flow vertically.
+- If you are not using a scene template, set scene-level `layout.type` to `"stack"` so top-level objects flow vertically.
 - Wrap related objects in `group` containers with `layout.type: "flow"` (horizontal rows) or `"stack"` (vertical columns).
 - Available layout types: `center`, `grid`, `flow`, `stack`, `split`, `absolute`, `carousel`.
 - Use `gap: "small" | "medium" | "large"` on groups to control spacing.
 - Use `direction: "horizontal" | "vertical"` on flow/stack layouts.
+- Use scene-level `layout` with a template only when you intentionally want to override the template defaults.
 
 **Connector overlap:** The engine does not auto-route connectors. If `check_animation` flags crossover warnings, reorder objects within their group so connected nodes are adjacent, or split objects into smaller groups to keep connector paths clear.
 
 ## Document-Level Objects
 
+- Prefer persistent objects in the top-level `objects` array whenever labels, legends, chapter rails, or shared state should carry across scenes.
 - Persistent objects in the top-level `objects` array appear in every scene (when `include_persistent_objects: true`).
 - For multi-scene explainers, add a carousel chapter tracker: a group of tokens with `layout.type: "carousel"` and `position: "bottom"`. In each scene, `highlight` + `scale` the active step token so the viewer knows where they are.
 
@@ -114,6 +133,7 @@ def _authoring_profile() -> str:
 - Start scene objects hidden (`auto_visible: false`) and reveal them with staggered `fade-in` timings that track the narration.
 - Use `draw` on connectors to animate them in. Connectors without `draw` appear instantly.
 - `fade-in` on a group ID reveals the group and all its children. You don't need separate animations for children unless you want them staggered.
+- Layout-only container groups under `auto_visible: false` should usually set `visible: true` unless you plan to animate the group itself.
 
 ## Narration
 
@@ -144,6 +164,7 @@ Narration: "First, the backend component handles incoming traffic..."
 
 ## Continuity
 
+- Prefer persistent document-level state first, then continuity morphs for scene-local objects that evolve from beat to beat.
 - Reuse the same `id` and `content` across consecutive scenes when a value carries forward. The engine morphs it into its new position automatically.
 - When a data structure spans scenes (array, graph, pipeline), keep the same object IDs. Recreating with new IDs each scene kills the smooth morph.
 - When a concept repeats the same operation, show one concrete worked example, then generalize.
@@ -161,7 +182,7 @@ def _pattern_catalog() -> str:
 
 ## `visual_explainer`
 
-Default for narrated concept explainers. Rewrite the scaffold scenes with topic-specific diagrams.
+Default for narrated concept explainers. Use it as a composition pattern and author topic-specific scenes directly.
 
 ## `algorithm_walkthrough`
 
@@ -175,7 +196,7 @@ Systems or pipeline explanation with sidebar/main-content structure and visible 
 
 Contrasting states, revisions, or outcomes.
 
-All patterns produce starter scaffolds. Rewrite scene objects before shipping. Keep beats short — one idea per beat.
+These patterns are authoring patterns, not generated scaffolds. Write scene objects directly, keep beats short, and make each scene structurally specific to the topic.
 """
 
 
@@ -213,16 +234,16 @@ Use these as shape references, not templates. Borrow the composition, then rewri
 
 ## Full Reference Examples
 
-Read these complete, polished animations before rewriting scaffolds. They demonstrate every v1.1 pattern working together:
+Read these complete, polished animations before authoring your own JSON. They demonstrate supported v1.2 patterns working together:
 
 - **`examples/reference/api_how_it_works.json`** — 4-scene narrated explainer (How an API Works). Shows carousel chapter tracker, horizontal flow layouts, connector draws, continuity morphs across scenes, and conversational narration. Material theme, educational pacing.
 - **`examples/reference/forward_propagation.json`** — 6-scene narrated explainer (Forward Propagation in a Neural Network). Shows worked-example arithmetic, stacked layouts, highlight colors (accent/success/warning), and deep continuity where computed values carry across scenes. Material theme, educational pacing.
 
-Read one of these files before rewriting your scaffold — they are the quality bar.
+Read one of these files before authoring a new animation — they are the quality bar.
 
-## BAD: Scaffold scene (do NOT ship this)
+## BAD: Generic repeated scene (do NOT ship this)
 
-Every scene looks the same — generic "Signal In → Active Idea → Result" lane with only labels changed. This is the raw starter output and must be rewritten.
+Every scene looks the same — generic "Signal In → Active Idea → Result" lane with only labels changed. This kind of repeated structure needs to be rewritten into topic-specific scenes.
 
 ```json
 {
@@ -289,7 +310,7 @@ Each scene has its own unique diagram built from the actual content being explai
 }
 ```
 
-Notice: unique objects showing actual computations, connectors between real elements, staggered reveals matching narration, no generic lane template.
+Notice: unique objects showing actual computations, connectors between real elements, staggered reveals matching narration, no generic repeated lane.
 
 ## GOOD: Non-technical scene (Water Cycle example)
 
@@ -358,7 +379,7 @@ Shows document-level carousel, continuity carry-over, fade-in reveals, and conne
 
 ```json
 {
-  "version": "1.1",
+  "version": "1.2",
   "meta": {
     "title": "Example Explainer",
     "resolution": [1920, 1080], "fps": 30, "theme": "modern",
@@ -421,7 +442,13 @@ Shows document-level carousel, continuity carry-over, fade-in reveals, and conne
 
 Key patterns in this example:
 - **Carousel**: document-level group with `layout.type: "carousel"` — each scene highlights its step
+- **Persistent state**: the chapter rail lives at document scope and stays stable across scenes
 - **Continuity**: `result_val` has the same id and content in both scenes — the engine morphs it smoothly
 - **fade-in** for all reveals, **draw** for connectors — no bare `appear`
 - **template: "one-column"** and **auto_visible: false** on every scene
 """
+
+
+def _reference_example_text(filename: str) -> str:
+    root = Path(__file__).resolve().parents[3]
+    return (root / "examples" / "reference" / filename).read_text(encoding="utf-8")
