@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import wave
 from pathlib import Path
 
 from kaivra.audio import mux
@@ -83,3 +84,24 @@ def test_mux_audio_uses_output_codec_for_mp4_and_webm(tmp_path: Path, monkeypatc
 
     assert ["-c:a", "aac", "-b:a", "192k"] == commands[0][8:12]
     assert ["-c:a", "libopus", "-b:a", "128k"] == commands[1][8:12]
+
+
+def test_prepend_silence_to_wav_increases_duration_and_preserves_audio(tmp_path: Path) -> None:
+    source = tmp_path / "source.wav"
+    output = tmp_path / "prefixed.wav"
+
+    with wave.open(str(source), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(10)
+        wf.writeframes(b"\x01\x00" * 4)
+
+    mux.prepend_silence_to_wav(str(source), str(output), 0.3)
+
+    with wave.open(str(output), "rb") as wf:
+        assert wf.getframerate() == 10
+        assert wf.getnframes() == 7
+        frames = wf.readframes(7)
+
+    assert frames[:6] == b"\x00" * 6
+    assert frames[6:] == b"\x01\x00" * 4

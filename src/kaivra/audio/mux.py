@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+import wave
 from pathlib import Path
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     "measure_audio_duration",
     "mux_audio",
     "normalize_audio_to_wav",
+    "prepend_silence_to_wav",
 ]
 
 
@@ -153,3 +155,29 @@ def concat_audio(audio_paths: list[str], output_path: str) -> None:
             raise RuntimeError(f"ffmpeg concat failed (exit {proc.returncode}):\n{proc.stderr}")
     finally:
         Path(list_path).unlink(missing_ok=True)
+
+
+def prepend_silence_to_wav(input_path: str, output_path: str, seconds: float) -> None:
+    """Write a WAV with leading silence inserted before the source audio."""
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    if seconds <= 0:
+        shutil.copy2(input_path, output_path)
+        return
+
+    with wave.open(input_path, "rb") as source:
+        frame_rate = source.getframerate()
+        if frame_rate <= 0:
+            raise RuntimeError(f"Generated WAV has invalid sample rate: {frame_rate}")
+        channels = source.getnchannels()
+        sample_width = source.getsampwidth()
+        silence_frames = int(round(seconds * frame_rate))
+        silence = b"\x00" * silence_frames * channels * sample_width
+
+        with wave.open(output_path, "wb") as target:
+            target.setparams(source.getparams())
+            target.writeframes(silence)
+            while True:
+                chunk = source.readframes(4096)
+                if not chunk:
+                    break
+                target.writeframes(chunk)

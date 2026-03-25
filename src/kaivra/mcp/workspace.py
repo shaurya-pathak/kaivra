@@ -213,7 +213,9 @@ class KaivraWorkspace:
                 "Present these questions conversationally to the user.  "
                 "Collect their answers, then use them to author the animation "
                 "JSON directly.  Skip questions the user has already answered "
-                "or that are not relevant."
+                "or that are not relevant.  If the user chooses a voice mode, "
+                "explicitly remind them to mirror on-screen keywords in the narration "
+                "so reveals can line up cleanly."
             ),
             "questions": [
                 {
@@ -355,8 +357,10 @@ class KaivraWorkspace:
                         "as on-screen object content or IDs. The engine matches spoken "
                         "words to animation targets semantically — saying 'the server "
                         "boots' will sync the reveal to an object with content 'Server'. "
-                        "Local (Sherpa) renders use uniform duration scaling (no word-level "
-                        "sync); ElevenLabs renders get precise word-level alignment."
+                        "For tricky brand names or acronyms, add object.spoken_forms like "
+                        "['co pilot', 'cobalt'] so checks and cue matching still recognize "
+                        "the intended target. ElevenLabs uses word-level cues; local "
+                        "(Sherpa) uses scene-level timing with the same semantic checks."
                     ),
                 },
             ],
@@ -973,13 +977,10 @@ def _voice_sync_findings(
 ) -> list[CheckFinding]:
     """Check that narration keywords overlap with animation target content.
 
-    Only meaningful for ElevenLabs renders where word-level cue alignment
-    is used. For local (draft) renders the retimer uses positional
-    fallback, so these warnings are intentionally suppressed.
+    These warnings are useful for both providers: ElevenLabs gets more precise
+    cue alignment, while local renders still benefit from narration that names
+    the same concepts in the same order as the visuals.
     """
-    if voice_provider == "local":
-        return []
-
     findings: list[CheckFinding] = []
     sync_actions = REVEAL_ACTIONS | EMPHASIS_ACTIONS
 
@@ -1025,8 +1026,8 @@ def _voice_sync_findings(
                         message = (
                             f"{action} targeting '{target_id}' "
                             f"(content: '{content.strip()}') has no keyword match "
-                            f"in narration — voice retiming may fall back to positional "
-                            f"matching instead of semantic alignment."
+                            f"in narration — local voice keeps scene-level timing, but the "
+                            f"beat may feel less intentional unless the narration names the same concept."
                         )
                     findings.append(
                         CheckFinding(

@@ -47,6 +47,10 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
         steps.append(("normalize", Path(input_path).suffix, Path(output_path).suffix))
         Path(output_path).write_bytes(b"wav")
 
+    def fake_prepend(_input_path: str, output_path: str, seconds: float) -> None:
+        steps.append(("leadin", Path(output_path).name, seconds))
+        Path(output_path).write_bytes(b"wav+silence")
+
     def fake_build_render_graph(_doc, **_kwargs):
         steps.append(("retime", _doc.meta.show_subtitles, [scene.id for scene in _doc.scenes]))
         timing_data = _kwargs.get("audio_timing_data")
@@ -80,7 +84,12 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
 
     monkeypatch.setattr(orchestration, "ProviderRegistry", DummyRegistry)
     monkeypatch.setattr(orchestration, "normalize_audio_to_wav", fake_normalize)
-    monkeypatch.setattr(orchestration, "measure_audio_duration", lambda _path: 2.25)
+    monkeypatch.setattr(orchestration, "prepend_silence_to_wav", fake_prepend)
+    monkeypatch.setattr(
+        orchestration,
+        "measure_audio_duration",
+        lambda path: 2.9 if "intro_leadin" in Path(path).name else 2.25,
+    )
     monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
     monkeypatch.setattr(orchestration, "export_video", fake_export_video)
     monkeypatch.setattr(orchestration, "concat_audio", fake_concat)
@@ -109,6 +118,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
         ["__kaivra_video_intro__", "intro", "__kaivra_video_outro__"],
     ) in steps
     assert ("normalize", ".mp3", ".wav") in steps
+    assert ("leadin", "narrated_intro_leadin.wav", 0.65) in steps
     assert ("cues", 1, "Hello") in steps
     assert ("concat", [".wav", ".wav", ".wav"], ".wav") in steps
     assert ("mux", ".wav", ".mp4") in steps
@@ -123,7 +133,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     assert retimed["scenes"][0]["id"] == "__kaivra_video_intro__"
     # Bookend scenes keep their authored duration when TTS audio is shorter.
     assert retimed["scenes"][0]["duration"] == "3.8s"
-    assert retimed["scenes"][1]["duration"] == "2.8s"
+    assert retimed["scenes"][1]["duration"] == "3.45s"
     assert retimed["scenes"][-1]["id"] == "__kaivra_video_outro__"
     assert retimed["scenes"][-1]["duration"] == "3.4s"
 

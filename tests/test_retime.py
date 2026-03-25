@@ -308,3 +308,45 @@ def test_scene_duration_never_shrinks_below_authored():
     assert scene["animations"][0]["at"] == "2s"
     assert scene["animations"][0]["duration"] == "4s"
     assert scene["animations"][1]["at"] == "7s"
+
+
+def test_semantic_matching_uses_spoken_forms_aliases():
+    """spoken_forms let cue matching handle alternate pronunciations/transcripts."""
+    document = {
+        "version": "1.2",
+        "meta": {"title": "Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "demo",
+                "duration": "8s",
+                "objects": [
+                    {
+                        "type": "box",
+                        "id": "copilot_box",
+                        "content": "Copilot",
+                        "spoken_forms": ["co pilot", "cobalt"],
+                    }
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "copilot_box", "at": "1s", "duration": "0.5s"},
+                ],
+            }
+        ],
+    }
+
+    timing_data = AudioTimingData(
+        scenes={
+            "demo": SceneAudioTiming(
+                id="demo",
+                duration_seconds=8.0,
+                cues=(
+                    AudioCue(start_seconds=3.2, duration_seconds=0.7, text="cobalt opens the report"),
+                ),
+            )
+        }
+    )
+
+    retimed = retime_document_to_audio_timings(document, timing_data)
+    scene = retimed["scenes"][0]
+
+    assert scene["animations"][0]["at"] == "3.2s"

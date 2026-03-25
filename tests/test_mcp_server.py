@@ -27,7 +27,8 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "Template vs layout" in instructions
     assert "Connector overlap" in instructions
     assert "Narration sync" in instructions
-    assert "uniform duration scaling" in instructions
+    assert "spoken_forms" in instructions
+    assert "scene-level timing" in instructions
 
     assert (
         server.handle_message(
@@ -133,10 +134,13 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
     check_tool = next(
         tool for tool in tools_response["result"]["tools"] if tool["name"] == "check_animation"
     )
+    plan_tool = next(tool for tool in tools_response["result"]["tools"] if tool["name"] == "plan_animation")
     assert "voice" in render_tool["inputSchema"]["properties"]
     assert "voice_provider" in render_tool["inputSchema"]["properties"]
     assert "voice_id" in render_tool["inputSchema"]["properties"]
     assert "voice_provider" in check_tool["inputSchema"]["properties"]
+    assert "mirror on-screen keywords" in plan_tool["description"]
+    assert "spoken_forms" in plan_tool["description"]
 
     captured: dict[str, object] = {}
 

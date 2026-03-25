@@ -123,11 +123,12 @@ def _authoring_profile() -> str:
 
 ## Voice Sync Checklist
 
-When authoring for voice, especially ElevenLabs:
+When authoring for voice:
 
 - **Mirror on-screen labels in narration.** If a box says "Load Balancer", say "the load balancer distributes" in narration — not "the distributor sends". The engine matches spoken words to animation targets by content overlap.
 - **Order narration to match reveal order.** Mention concepts in the same sequence as their `at` timings so reveals land naturally.
-- **Run `check_animation` with `voice: true` and `voice_provider: "elevenlabs"`** to catch targets with no keyword overlap before rendering.
+- **Run `check_animation` with `voice: true`** to catch targets with no keyword overlap before rendering.
+- **Add `spoken_forms` for tricky names.** If a label is often spoken or transcribed differently, give the object aliases like `"spoken_forms": ["co pilot", "cobalt"]` so checks and cue matching still recognize it.
 
 ### Good
 Object: `{ "id": "server", "content": "Server" }`
@@ -139,7 +140,7 @@ Object: `{ "id": "server", "content": "Server" }`
 Narration: "First, the backend component handles incoming traffic..."
 → No word overlap — reveal falls back to positional matching (less precise).
 
-**Note:** Substring matching works — "failure" matches "fail", "servers" matches "server". Local (Sherpa) renders use duration-scaled positional timing without word-level cues, so these tips primarily improve ElevenLabs renders.
+**Note:** Substring matching works — "failure" matches "fail", "servers" matches "server". ElevenLabs uses word-level cues; local (Sherpa) keeps scene-level timing but still benefits from the same keyword overlap and `spoken_forms` aliases.
 
 ## Continuity
 

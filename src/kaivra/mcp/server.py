@@ -193,8 +193,9 @@ class KaivraMCPServer:
                 "Narration sync: the engine matches spoken words to animation targets by content and ID. "
                 "Use the same words in narration that appear on screen — e.g., if an object has content 'Server', "
                 "say 'the server boots' in narration so the reveal lands on that word. "
-                "ElevenLabs renders get precise word-level alignment; local (Sherpa) renders use uniform "
-                "duration scaling as a draft preview — keyword overlap still helps ordering but is not required."
+                "For tricky names, add object.spoken_forms aliases such as ['co pilot', 'cobalt']. "
+                "ElevenLabs renders get precise word-level alignment; local (Sherpa) keeps scene-level timing "
+                "with a short narration lead-in, and the same keyword overlap still improves clarity."
             ),
         }
 
@@ -304,7 +305,7 @@ def _build_tools() -> list[ToolDefinition]:
         ToolDefinition(
             name="plan_animation",
             title="Plan Animation",
-            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. Present the questions conversationally, then use the answers to author the JSON directly.",
+            description="Interactive planning step — returns a structured questionnaire for the user to answer before creating an animation. Ask about voice mode (ElevenLabs, local, captions only), detail level, audience, visual theme, and structure. If voice is enabled, remind the user to mirror on-screen keywords in narration and use spoken_forms aliases for tricky pronunciations before authoring the JSON directly.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -337,9 +338,9 @@ def _build_tools() -> list[ToolDefinition]:
                         "enum": ["elevenlabs", "local"],
                         "description": (
                             "Optional voice provider hint for sync auditing. "
-                            "Use 'elevenlabs' for word-level sync checks; "
-                            "'local' suppresses those warnings because local renders "
-                            "use duration scaling without word-level cues."
+                            "Use this to tailor the warning text. Both providers benefit "
+                            "from keyword-overlap checks; ElevenLabs gets word-level cues, "
+                            "while local voice uses scene-level timing."
                         ),
                     },
                 },
@@ -398,7 +399,7 @@ def _build_tools() -> list[ToolDefinition]:
                         "description": (
                             "Voice synthesis provider. 'elevenlabs' gives high-quality AI narration "
                             "with precise word-level alignment; 'local' uses offline Sherpa TTS with "
-                            "duration-scaled draft timing."
+                            "scene-level timing and a short narration lead-in."
                         ),
                     },
                     "voice_id": {"type": "string"},

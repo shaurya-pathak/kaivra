@@ -861,8 +861,8 @@ def test_voice_sync_findings_flag_unmatched_targets(tmp_path: Path) -> None:
     assert not any("'traffic'" in f for f in voice_findings)
 
 
-def test_voice_sync_findings_suppressed_for_local_voice(tmp_path: Path) -> None:
-    """Local voice uses draft timing, so keyword-match warnings stay quiet."""
+def test_voice_sync_findings_warn_for_local_voice(tmp_path: Path) -> None:
+    """Local voice still benefits from keyword-match warnings during authoring."""
     workspace = KaivraWorkspace(tmp_path)
     doc = {
         "version": "1.2",
@@ -890,7 +890,8 @@ def test_voice_sync_findings_suppressed_for_local_voice(tmp_path: Path) -> None:
     )
 
     voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
-    assert voice_findings == []
+    assert any("'server'" in f for f in voice_findings)
+    assert any("scene-level timing" in f for f in voice_findings)
 
 
 def test_voice_sync_findings_absent_without_voice_flag(tmp_path: Path) -> None:

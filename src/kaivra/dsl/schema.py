@@ -214,6 +214,13 @@ class ObjectSpec(BaseModel):
         None, description="Unique identifier for this object (auto-generated if omitted)"
     )
     content: str | None = Field(None, description="Text content displayed inside the object")
+    spoken_forms: list[str] | None = Field(
+        None,
+        description=(
+            "Optional narration/pronunciation aliases used for voice-sync matching, "
+            "for example ['co pilot', 'cobalt'] for on-screen text 'Copilot'."
+        ),
+    )
     style: str | None = Field(
         None,
         description="Visual style preset: 'heading', 'section-heading', 'body', 'caption', 'code'",

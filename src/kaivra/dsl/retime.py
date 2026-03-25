@@ -466,7 +466,7 @@ def _normalize_targets(target: Any) -> list[str]:
 def _build_content_index(
     *object_lists: list[dict[str, Any]] | None,
 ) -> dict[str, str]:
-    """Map object id → searchable text (id words + content, lowercased)."""
+    """Map object id -> searchable text (id words, content, spoken aliases)."""
     index: dict[str, str] = {}
     for obj_list in object_lists:
         for obj in obj_list or []:
@@ -482,9 +482,14 @@ def _index_object(obj: dict[str, Any], index: dict[str, str]) -> None:
     content = obj.get("content", "")
     if not isinstance(content, str):
         content = ""
+    spoken_forms = obj.get("spoken_forms")
+    if isinstance(spoken_forms, list):
+        aliases = " ".join(item for item in spoken_forms if isinstance(item, str))
+    else:
+        aliases = ""
     # Split camelCase / snake_case id into words for matching.
     id_words = re.sub(r"([a-z])([A-Z])", r"\1 \2", obj_id).replace("_", " ").replace("-", " ")
-    index[obj_id] = f"{id_words} {content}".lower().strip()
+    index[obj_id] = f"{id_words} {content} {aliases}".lower().strip()
     for child in obj.get("children", []) or []:
         if isinstance(child, dict):
             _index_object(child, index)
@@ -518,7 +523,8 @@ def _semantic_score(cue_text: str, target_content: str) -> float:
 
 
 def _normalize_for_match(text: str) -> str:
-    return re.sub(r"[^\w\s]", "", text.lower()).strip()
+    text = re.sub(r"[-_/]", " ", text.lower())
+    return re.sub(r"[^\w\s]", "", text).strip()
 
 
 def _collect_object_ids(objects: list[dict[str, Any]] | None) -> set[str]:

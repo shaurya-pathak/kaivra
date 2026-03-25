@@ -15,8 +15,9 @@ from kaivra.audio.mux import (
     measure_audio_duration,
     mux_audio,
     normalize_audio_to_wav,
+    prepend_silence_to_wav,
 )
-from kaivra.audio.timings import AudioTimingData, SceneAudioTiming, load_audio_timing_data
+from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming, load_audio_timing_data
 from kaivra.dsl.parser import parse_string
 from kaivra.dsl.retime import retime_document_to_audio_timings
 from kaivra.render.cairo_renderer import CairoRenderer
@@ -27,6 +28,7 @@ from kaivra.themes.registry import get_theme
 ProgressReporter = Callable[[float, str], None]
 _VIDEO_INTRO_SCENE_ID = "__kaivra_video_intro__"
 _VIDEO_OUTRO_SCENE_ID = "__kaivra_video_outro__"
+_VOICE_SCENE_LEAD_IN_SECONDS = 0.65
 _VOICE_SCENE_HOLD_SECONDS = 0.55
 _VOICE_BOOKEND_HOLD_SECONDS = 0.8
 
@@ -395,6 +397,26 @@ def _voice_scene_duration(scene_id: str, audio_duration_seconds: float) -> float
     return max(0.0, float(audio_duration_seconds) + hold_seconds)
 
 
+def _voice_scene_lead_in(scene_id: str) -> float:
+    if scene_id in {_VIDEO_INTRO_SCENE_ID, _VIDEO_OUTRO_SCENE_ID}:
+        return 0.0
+    return _VOICE_SCENE_LEAD_IN_SECONDS
+
+
+def _offset_audio_cues(cues: tuple[AudioCue, ...], seconds: float) -> tuple[AudioCue, ...]:
+    if seconds <= 0:
+        return cues
+    return tuple(
+        AudioCue(
+            start_seconds=cue.start_seconds + seconds,
+            duration_seconds=cue.duration_seconds,
+            text=cue.text,
+            kind=cue.kind,
+        )
+        for cue in cues
+    )
+
+
 def _render_with_voice(
     doc: Any,
     *,
@@ -418,7 +440,8 @@ def _render_with_voice(
 
     generate_kwargs = {"voice_id": voice_id} if voice_id is not None else {}
     generated_paths: list[Path] = []
-    normalized_paths: list[Path] = []
+    concat_inputs: list[Path] = []
+    temp_audio_paths: list[Path] = []
     scene_timings: dict[str, SceneAudioTiming] = {}
     with tempfile.NamedTemporaryFile(
         prefix=f"{output_path.stem}_silent_",
@@ -445,13 +468,27 @@ def _render_with_voice(
                 f"Normalizing audio for scene {scene.id}.",
             )
             normalize_audio_to_wav(result.audio_path, str(normalized_path))
-            normalized_paths.append(normalized_path)
+            temp_audio_paths.append(normalized_path)
 
-            measured_duration = measure_audio_duration(str(normalized_path))
+            lead_in_seconds = _voice_scene_lead_in(scene.id)
+            prepared_audio_path = normalized_path
+            if lead_in_seconds > 0:
+                prepared_audio_path = output_path.with_name(
+                    f"{output_path.stem}_{scene.id}_leadin.wav"
+                )
+                prepend_silence_to_wav(
+                    str(normalized_path),
+                    str(prepared_audio_path),
+                    lead_in_seconds,
+                )
+                temp_audio_paths.append(prepared_audio_path)
+
+            concat_inputs.append(prepared_audio_path)
+            measured_duration = measure_audio_duration(str(prepared_audio_path))
             scene_timings[scene.id] = SceneAudioTiming(
                 id=scene.id,
                 duration_seconds=_voice_scene_duration(scene.id, measured_duration),
-                cues=result.cues,
+                cues=_offset_audio_cues(result.cues, lead_in_seconds),
             )
 
         timing_data = AudioTimingData(scenes=scene_timings)
@@ -481,13 +518,13 @@ def _render_with_voice(
             progress_callback=video_progress,
         )
         _emit_progress(progress, 0.88, "Concatenating narration audio.")
-        concat_audio([str(path) for path in normalized_paths], str(concat_path))
+        concat_audio([str(path) for path in concat_inputs], str(concat_path))
         _emit_progress(progress, 0.95, "Muxing narration onto the rendered video.")
         mux_audio(str(silent_path), str(concat_path), str(output_path))
     finally:
         silent_path.unlink(missing_ok=True)
         concat_path.unlink(missing_ok=True)
-        for path in {*generated_paths, *normalized_paths}:
+        for path in {*generated_paths, *temp_audio_paths}:
             path.unlink(missing_ok=True)
 
     _emit_progress(progress, 1.0, "Narrated render complete.")

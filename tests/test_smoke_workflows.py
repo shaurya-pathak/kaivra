@@ -94,6 +94,9 @@ def test_quick_render_smoke_with_voice_renders_mp4(tmp_path: Path, monkeypatch) 
     def fake_normalize(_input_path: str, output_path: str) -> None:
         Path(output_path).write_bytes(b"wav")
 
+    def fake_prepend(_input_path: str, output_path: str, _seconds: float) -> None:
+        Path(output_path).write_bytes(b"wav+silence")
+
     def fake_export_video(_graph, _theme, output: str, **kwargs) -> None:
         callback = kwargs.get("progress_callback")
         if callback is not None:
@@ -109,6 +112,7 @@ def test_quick_render_smoke_with_voice_renders_mp4(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr("kaivra.cli._run_preflight_for_render", lambda *args, **kwargs: None)
     monkeypatch.setattr(orchestration, "ProviderRegistry", DummyRegistry)
     monkeypatch.setattr(orchestration, "normalize_audio_to_wav", fake_normalize)
+    monkeypatch.setattr(orchestration, "prepend_silence_to_wav", fake_prepend)
     monkeypatch.setattr(orchestration, "measure_audio_duration", lambda _path: 1.8)
     monkeypatch.setattr(orchestration, "export_video", fake_export_video)
     monkeypatch.setattr(orchestration, "concat_audio", fake_concat)
