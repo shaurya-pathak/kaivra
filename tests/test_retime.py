@@ -340,7 +340,9 @@ def test_semantic_matching_uses_spoken_forms_aliases():
                 id="demo",
                 duration_seconds=8.0,
                 cues=(
-                    AudioCue(start_seconds=3.2, duration_seconds=0.7, text="cobalt opens the report"),
+                    AudioCue(
+                        start_seconds=3.2, duration_seconds=0.7, text="cobalt opens the report"
+                    ),
                 ),
             )
         }
