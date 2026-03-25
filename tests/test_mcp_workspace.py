@@ -279,6 +279,51 @@ def test_check_animation_skips_explanatory_warning_when_scene_explains_why(
     assert not any("explanatory_narration" in warning for warning in checked["warnings"])
 
 
+def test_check_animation_skips_explanatory_warning_for_outcome_language_with_tracker_tokens(
+    tmp_path: Path,
+) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "version": "1.2",
+            "meta": {"theme": "modern", "continuity": True},
+            "objects": [
+                {
+                    "id": "chapters",
+                    "type": "group",
+                    "layout": {"type": "carousel"},
+                    "children": [
+                        {"id": "step_one", "type": "token", "token_id": 1, "content": "Intro"},
+                        {"id": "step_two", "type": "token", "token_id": 2, "content": "Outcome"},
+                    ],
+                }
+            ],
+            "scenes": [
+                {
+                    "id": "outcome_scene",
+                    "duration": "8s",
+                    "template": "one-column",
+                    "narration": (
+                        "The result is faster diagnosis and cleaner handoffs, instead of waiting "
+                        "for a manual reset before anyone can move forward."
+                    ),
+                    "objects": [
+                        {"id": "result_box", "type": "box", "content": "Faster diagnosis"},
+                    ],
+                    "animations": [
+                        {"action": "fade-in", "target": "result_box", "duration": "0.5s"},
+                        {"action": "highlight", "target": "step_two", "duration": "0.4s"},
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is True
+    assert not any("explanatory_narration" in warning for warning in checked["warnings"])
+
+
 def test_check_animation_warns_when_hidden_object_has_no_reveal_animation(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     checked = _check_animation(
@@ -950,6 +995,53 @@ def test_voice_sync_findings_warn_for_local_voice(tmp_path: Path) -> None:
     assert any("scene-level timing" in f for f in voice_findings)
 
 
+def test_voice_sync_findings_skip_connectors_and_tracker_tokens(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    doc = {
+        "version": "1.2",
+        "meta": {"title": "Sync Test", "theme": "modern"},
+        "objects": [
+            {
+                "id": "chapters",
+                "type": "group",
+                "layout": {"type": "carousel"},
+                "children": [
+                    {"type": "token", "id": "step_intro", "token_id": 1, "content": "Intro"},
+                ],
+            }
+        ],
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "8s",
+                "template": "one-column",
+                "narration": "The backend component handles incoming traffic.",
+                "objects": [
+                    {"type": "box", "id": "server", "content": "Server"},
+                    {"type": "box", "id": "client", "content": "Client"},
+                    {"type": "connector", "id": "server_link", "from": "client", "to": "server"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "server", "duration": "0.5s"},
+                    {"action": "draw", "target": "server_link", "duration": "0.4s"},
+                    {"action": "highlight", "target": "step_intro", "duration": "0.4s"},
+                ],
+            }
+        ],
+    }
+
+    result = workspace.check_animation(
+        dsl_json=json.dumps(doc),
+        voice=True,
+        voice_provider="local",
+    )
+
+    voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
+    assert any("'server'" in f for f in voice_findings)
+    assert not any("server_link" in f for f in voice_findings)
+    assert not any("step_intro" in f for f in voice_findings)
+
+
 def test_voice_sync_findings_absent_without_voice_flag(tmp_path: Path) -> None:
     """check_animation without voice=True should not emit voice_sync findings."""
     workspace = KaivraWorkspace(tmp_path)
@@ -1014,3 +1106,37 @@ def test_check_animation_warns_when_continuity_id_changes_content_too_much(tmp_p
         edit["action"] == "split_continuity_id" and edit["object_id"] == "status"
         for edit in result["recommended_edits"]
     )
+
+
+def test_check_animation_skips_continuity_warning_for_scene_titles(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    result = _check_animation(
+        workspace,
+        {
+            "version": "1.2",
+            "meta": {"theme": "modern", "continuity": True},
+            "scenes": [
+                {
+                    "id": "scene_a",
+                    "duration": "5s",
+                    "template": "one-column",
+                    "objects": [
+                        {"type": "text", "id": "title", "content": "Diagnose The Failure"},
+                    ],
+                    "animations": [{"action": "fade-in", "target": "title", "duration": "0.3s"}],
+                },
+                {
+                    "id": "scene_b",
+                    "duration": "5s",
+                    "template": "one-column",
+                    "objects": [
+                        {"type": "text", "id": "title", "content": "Remediate Test Automation"},
+                    ],
+                    "animations": [{"action": "fade-in", "target": "title", "duration": "0.3s"}],
+                },
+            ],
+        },
+    )
+
+    assert result["valid"] is True
+    assert not result["finding_groups"]["continuity"]

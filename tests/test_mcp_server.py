@@ -130,6 +130,21 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
         "plan_animation",
         {
             "status": "ok",
+            "suggested_meta": {
+                "title": "Queues",
+                "theme": "modern",
+                "pacing": "balanced",
+                "continuity": True,
+                "show_subtitles": False,
+            },
+            "draft_defaults": {
+                "audience": "general audience",
+                "detail_level": "balanced",
+                "voice_mode": "captions",
+                "pattern": "visual_explainer",
+                "theme": "modern",
+                "num_beats": "auto",
+            },
             "questions": [
                 {"id": "audience"},
                 {"id": "detail_level"},
@@ -140,7 +155,12 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
 
     assert "mirror on-screen keywords" in summary
     assert "spoken_forms" in summary
-    assert "audience, detail_level, voice_mode" in summary
+    assert "Questions to collect:" in summary
+    assert "- audience:" in summary
+    assert "- detail_level:" in summary
+    assert "- voice_mode:" in summary
+    assert "Draft defaults:" in summary
+    assert "Prefer persistent document-level state" in summary
 
 
 def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> None:

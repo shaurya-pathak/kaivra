@@ -536,26 +536,46 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
             else "Kaivra doctor found local setup issues."
         )
     if name == "plan_animation":
-        questions = result.get("questions") or []
-        surfaced_topics = ", ".join(
-            question.get("id", "")
-            for question in questions
+        questions = [
+            question
+            for question in (result.get("questions") or [])
             if isinstance(question, dict) and question.get("id")
+        ]
+        suggested_meta = result.get("suggested_meta") or {}
+        draft_defaults = result.get("draft_defaults") or {}
+        lines = [
+            "Animation plan ready. If the user already gave enough direction, assume the draft defaults and start writing the JSON immediately.",
+            "",
+            "Suggested meta:",
+            f"- title: {suggested_meta.get('title', 'Untitled Animation')}",
+            f"- theme: {suggested_meta.get('theme', 'modern')}",
+            f"- pacing: {suggested_meta.get('pacing', 'balanced')}",
+            f"- continuity: {suggested_meta.get('continuity', True)}",
+            f"- show_subtitles: {suggested_meta.get('show_subtitles', False)}",
+            "",
+            "Draft defaults:",
+            f"- audience: {draft_defaults.get('audience', 'general audience')}",
+            f"- detail_level: {draft_defaults.get('detail_level', 'balanced')}",
+            f"- voice_mode: {draft_defaults.get('voice_mode', 'captions')}",
+            f"- pattern: {draft_defaults.get('pattern', 'visual_explainer')}",
+            f"- theme: {draft_defaults.get('theme', 'modern')}",
+            f"- num_beats: {draft_defaults.get('num_beats', 'auto')}",
+            "",
+            "Questions to collect:",
+        ]
+        for question in questions:
+            default = question.get("default")
+            default_suffix = f" (default: {default})" if default is not None else ""
+            lines.append(f"- {question['id']}: {question.get('question', '')}{default_suffix}")
+        lines.extend(
+            [
+                "",
+                "If voice is enabled, mirror on-screen keywords in narration and add spoken_forms for tricky names.",
+                "Prefer persistent document-level state when concepts carry across scenes.",
+                "Read kaivra://example/api_how_it_works for the quality bar.",
+            ]
         )
-        topic_clause = (
-            f" Ask about {surfaced_topics}."
-            if surfaced_topics
-            else " Ask about audience, detail level, voice mode, pattern, theme, and structure."
-        )
-        return (
-            "Animation plan ready. Present the questions to the user, "
-            "collect their preferences, then write the animation JSON directly."
-            f"{topic_clause} "
-            "If voice is enabled, remind them to mirror on-screen keywords in "
-            "narration and add spoken_forms for tricky names. "
-            "Prefer persistent document-level state when concepts carry across scenes. "
-            "Read kaivra://example/api_how_it_works for the quality bar."
-        )
+        return "\n".join(lines)
     if name == "add_theme":
         return f"Theme saved at {result['file_path']}."
     if name == "check_animation":

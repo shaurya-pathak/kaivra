@@ -64,11 +64,17 @@ _EXPLANATION_MARKERS = (
     "because",
     "so that",
     "so we can",
+    "so the",
     "this means",
     "that means",
     "which means",
+    "the result is",
+    "result is",
+    "instead of",
+    "whether to",
     "lets us",
     "let's us",
+    "allows",
     "helps",
     "matters",
     "purpose",
@@ -76,6 +82,8 @@ _EXPLANATION_MARKERS = (
     "turns",
     "controls",
     "keeps",
+    "prevents",
+    "avoid",
     "convert",
     "compress",
     "pool",
@@ -95,6 +103,7 @@ _MECHANICAL_SCENE_MARKERS = (
     "probability",
     "pre-activation",
 )
+_COMMON_HEADING_IDS = {"title", "subtitle", "heading", "scene_title", "scene_heading"}
 
 DEFAULT_LOCAL_MODEL_NAME = "vits-piper-en_US-amy-low"
 DEFAULT_LOCAL_MODEL_DIR = Path.home() / ".kaivra" / "models" / DEFAULT_LOCAL_MODEL_NAME
@@ -234,6 +243,14 @@ class KaivraWorkspace:
                 "continuity": True,
                 "show_subtitles": False,
             },
+            "draft_defaults": {
+                "audience": "general audience",
+                "detail_level": "balanced",
+                "voice_mode": "captions",
+                "pattern": "visual_explainer",
+                "theme": "modern",
+                "num_beats": "auto",
+            },
             "questions": [
                 {
                     "id": "topic",
@@ -369,6 +386,11 @@ class KaivraWorkspace:
                 "Prefer document-level persistent objects whenever labels, legends, chapter rails, or shared state carry across scenes.",
                 "Use continuity morphs for scene-local objects that evolve from one beat to the next.",
                 "If a chapter tracker or repeated label appears in more than one scene, try to lift it into top-level objects first.",
+            ],
+            "agent_quickstart": [
+                "If the user has already given enough direction, do not block on every question. Assume the draft defaults and start writing the JSON immediately.",
+                "Use template: one-column for straightforward explainers, then add groups for rows, columns, or connector neighborhoods.",
+                "Prefer persistent document-level objects first when labels, chapter rails, legends, or shared state appear in multiple scenes.",
             ],
             "narration_assist": {
                 "goal": "Write spoken English that names the same on-screen concepts in the same order as their reveals.",
@@ -1059,18 +1081,35 @@ def _voice_sync_findings(
         if doc.objects:
             object_lists.append([obj.model_dump(exclude_none=True) for obj in doc.objects])
         content_index = _build_content_index(*object_lists) if object_lists else {}
+        object_meta = _build_object_metadata_index(*object_lists) if object_lists else {}
         if not content_index:
             continue
 
+        seen_targets: set[tuple[str, str, str]] = set()
         for anim in scene_spec.animations or []:
             action = anim.action if hasattr(anim, "action") else None
             if action not in sync_actions:
+                continue
+            action_value = getattr(action, "value", action)
+            if not isinstance(action_value, str):
                 continue
 
             targets = anim.target if isinstance(anim.target, list) else [anim.target]
             for target_id in targets:
                 if target_id is None:
                     continue
+                target_key = (scene_id, action_value, target_id)
+                if target_key in seen_targets:
+                    continue
+                seen_targets.add(target_key)
+
+                target_meta = object_meta.get(target_id, {})
+                target_type = target_meta.get("type")
+                if target_type == "connector":
+                    continue
+                if action_value in EMPHASIS_ACTIONS and target_type == "token":
+                    continue
+
                 content = content_index.get(target_id, "")
                 if not content:
                     continue
@@ -1098,14 +1137,14 @@ def _voice_sync_findings(
                     detail_suffix = (" " + " ".join(detail_parts)) if detail_parts else ""
                     if voice_provider == "elevenlabs":
                         message = (
-                            f"{action} targeting '{target_id}' "
+                            f"{action_value} targeting '{target_id}' "
                             f"(content: '{content.strip()}') has no keyword match "
                             f"in narration — ElevenLabs will fall back to positional "
                             f"matching instead of precise word-level sync.{detail_suffix}"
                         )
                     else:
                         message = (
-                            f"{action} targeting '{target_id}' "
+                            f"{action_value} targeting '{target_id}' "
                             f"(content: '{content.strip()}') has no keyword match "
                             f"in narration — local voice keeps scene-level timing, but the "
                             f"beat may feel less intentional unless the narration names the same concept."
@@ -1874,6 +1913,13 @@ def _continuity_content_findings(doc: Any) -> list[CheckFinding]:
                 if prior is None:
                     continue
                 prior_content, prior_type = prior
+                if _should_skip_continuity_warning(
+                    object_id=object_id,
+                    object_type=object_type,
+                    prior_content=prior_content,
+                    content=content,
+                ):
+                    continue
                 if not content or not prior_content:
                     continue
                 if content == prior_content and object_type == prior_type:
@@ -1913,6 +1959,19 @@ def _continuity_content_findings(doc: Any) -> list[CheckFinding]:
     return findings
 
 
+def _should_skip_continuity_warning(
+    *,
+    object_id: str,
+    object_type: str | None,
+    prior_content: str,
+    content: str,
+) -> bool:
+    if object_type == "text" and object_id in _COMMON_HEADING_IDS:
+        if len(prior_content.split()) <= 6 and len(content.split()) <= 6:
+            return True
+    return False
+
+
 def _collect_scene_content_map(objects: list[Any]) -> dict[str, tuple[str, str | None]]:
     content_map: dict[str, tuple[str, str | None]] = {}
 
@@ -1930,6 +1989,29 @@ def _collect_scene_content_map(objects: list[Any]) -> dict[str, tuple[str, str |
 
     walk(objects)
     return content_map
+
+
+def _build_object_metadata_index(
+    *object_lists: list[dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    metadata: dict[str, dict[str, Any]] = {}
+    for obj_list in object_lists:
+        for obj in obj_list or []:
+            if isinstance(obj, dict):
+                _index_object_metadata(obj, metadata)
+    return metadata
+
+
+def _index_object_metadata(obj: dict[str, Any], metadata: dict[str, dict[str, Any]]) -> None:
+    obj_id = obj.get("id")
+    if isinstance(obj_id, str) and obj_id:
+        metadata[obj_id] = {
+            "type": obj.get("type"),
+            "layout": obj.get("layout"),
+        }
+    for child in obj.get("children", []) or []:
+        if isinstance(child, dict):
+            _index_object_metadata(child, metadata)
 
 
 def _has_effective_reveal_path(object_id: str, timeline: list[Any]) -> bool:
@@ -2625,7 +2707,7 @@ def _has_explanatory_language(narration: str) -> bool:
 def _scene_needs_explanatory_narration(scene_refs: list[ObjectRef], narration: str) -> bool:
     scene_text = " ".join(filter(None, (_object_ref_text(ref) for ref in scene_refs)))
     combined = f"{scene_text} {narration}".lower()
-    if re.search(r"\d", combined) and re.search(r"[=+*/-]", combined):
+    if re.search(r"\d+(?:\.\d+)?\s*[=+*/-]\s*\d+(?:\.\d+)?", combined):
         return True
     return any(marker in combined for marker in _MECHANICAL_SCENE_MARKERS)
 
