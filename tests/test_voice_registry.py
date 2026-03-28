@@ -9,6 +9,7 @@ from kaivra.audio.base import (
     ProviderRegistry,
     VoiceProvider,
     resolve_voice_provider_name,
+    validate_voice_provider_setup,
 )
 
 
@@ -91,4 +92,19 @@ def test_resolve_voice_provider_name_prefers_explicit_value(monkeypatch):
 
 def test_resolve_voice_provider_name_falls_back_to_builtin_default(monkeypatch):
     monkeypatch.delenv("KAIVRA_VOICE_PROVIDER", raising=False)
-    assert resolve_voice_provider_name(None) == "elevenlabs"
+    assert resolve_voice_provider_name(None) == "openai"
+
+
+def test_validate_voice_provider_setup_accepts_openai_when_configured(monkeypatch):
+    ep = _make_entry_point("openai", DummyProvider)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    with patch("kaivra.audio.base.importlib.metadata.entry_points", return_value=[ep]):
+        assert validate_voice_provider_setup("openai") == "openai"
+
+
+def test_validate_voice_provider_setup_requires_openai_key(monkeypatch):
+    ep = _make_entry_point("openai", DummyProvider)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with patch("kaivra.audio.base.importlib.metadata.entry_points", return_value=[ep]):
+        with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+            validate_voice_provider_setup("openai")

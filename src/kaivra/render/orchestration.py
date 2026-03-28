@@ -10,7 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from kaivra.audio.base import ProviderRegistry, resolve_voice_provider_name
+from kaivra.audio.base import (
+    ProviderRegistry,
+    resolve_voice_provider_name,
+    validate_voice_provider_setup,
+)
 from kaivra.audio.mux import (
     concat_audio,
     measure_audio_duration,
@@ -478,7 +482,7 @@ def _render_with_voice(
     progress: ProgressReporter | None,
 ) -> RenderArtifact:
     registry = ProviderRegistry()
-    provider_name = resolve_voice_provider_name(voice_provider)
+    provider_name = validate_voice_provider_setup(voice_provider)
     _emit_progress(progress, 0.05, f"Discovering voice provider: {provider_name}.")
     registry.discover()
     provider_cls = registry.get(provider_name)

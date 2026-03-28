@@ -45,7 +45,7 @@ If you want local or provider-backed narration, install the editable voice packa
 make install-voice-local
 ```
 
-That install exposes the built-in `local` and `elevenlabs` providers through Kaivra's provider discovery hooks. Use `--voice-provider` or `KAIVRA_VOICE_PROVIDER` when you want to force one.
+That install exposes the built-in `openai`, `local`, and `elevenlabs` providers through Kaivra's provider discovery hooks. Use `--voice-provider` or `KAIVRA_VOICE_PROVIDER` when you want to force one. If you omit `voice_provider`, Kaivra defaults to `openai` for cloud narration.
 
 If you want the default local Sherpa bundle after that:
 
@@ -109,7 +109,12 @@ The MCP is tuned for narrated process explainers: prefer `process_explainer` for
 
 If you edit JSON directly, use `meta.show_subtitles` when you want narration text rendered on screen. Older `meta.show_narration` files still load, but `show_subtitles` is the preferred field name now.
 
-For local narration, the recommended loop is:
+For default cloud narration, the recommended loop is:
+
+1. `export OPENAI_API_KEY=your-key`
+2. `kaivra quick-render <file> --voice`
+
+For offline local narration, the recommended loop is:
 
 1. `kaivra doctor`
 2. `kaivra download-model`

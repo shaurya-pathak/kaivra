@@ -1100,6 +1100,38 @@ def test_voice_sync_findings_warn_for_local_voice(tmp_path: Path) -> None:
     assert any("scene-level timing" in f for f in voice_findings)
 
 
+def test_voice_sync_findings_warn_for_openai_voice(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    doc = {
+        "version": "1.2",
+        "meta": {"title": "Sync Test", "theme": "modern"},
+        "scenes": [
+            {
+                "id": "intro",
+                "duration": "8s",
+                "template": "one-column",
+                "narration": "The backend component handles incoming traffic.",
+                "objects": [
+                    {"type": "box", "id": "server", "content": "Server"},
+                ],
+                "animations": [
+                    {"action": "fade-in", "target": "server", "at": "0s", "duration": "0.5s"},
+                ],
+            }
+        ],
+    }
+
+    result = workspace.check_animation(
+        dsl_json=json.dumps(doc),
+        voice=True,
+        voice_provider="openai",
+    )
+
+    voice_findings = [f for f in result["audit_findings"] if "voice_sync" in f]
+    assert any("'server'" in f for f in voice_findings)
+    assert any("OpenAI voice keeps scene-level timing" in f for f in voice_findings)
+
+
 def test_voice_sync_findings_skip_connectors_and_tracker_tokens(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     doc = {

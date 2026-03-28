@@ -138,6 +138,61 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     assert retimed["scenes"][-1]["duration"] == "3.4s"
 
 
+def test_openai_voice_pipeline_uses_scene_level_timing_without_word_cues(tmp_path, monkeypatch):
+    doc = _narrated_doc()
+    raw_audio = tmp_path / "intro.wav"
+    raw_audio.write_bytes(b"raw")
+    captured_cue_counts: list[int] = []
+
+    class DummyProvider:
+        def generate(self, scene_id: str, _text: str, **kwargs) -> AudioResult:
+            return AudioResult(
+                audio_path=str(raw_audio),
+                duration_seconds=1.0,
+                scene_id=scene_id,
+                cues=(),
+            )
+
+    class DummyRegistry:
+        def discover(self) -> None:
+            return None
+
+        def get(self, name: str):
+            assert name == "openai"
+            return DummyProvider
+
+    def fake_normalize(_input_path: str, output_path: str) -> None:
+        Path(output_path).write_bytes(b"wav")
+
+    def fake_prepend(_input_path: str, output_path: str, _seconds: float) -> None:
+        Path(output_path).write_bytes(b"wav+silence")
+
+    def fake_build_render_graph(_doc, **kwargs):
+        timing_data = kwargs.get("audio_timing_data")
+        if timing_data is not None:
+            captured_cue_counts.append(len(timing_data.scenes["intro"].cues))
+        return SimpleNamespace(total_duration=2.25), object()
+
+    monkeypatch.setattr(orchestration, "ProviderRegistry", DummyRegistry)
+    monkeypatch.setattr(orchestration, "validate_voice_provider_setup", lambda provider: provider)
+    monkeypatch.setattr(orchestration, "normalize_audio_to_wav", fake_normalize)
+    monkeypatch.setattr(orchestration, "prepend_silence_to_wav", fake_prepend)
+    monkeypatch.setattr(orchestration, "measure_audio_duration", lambda _path: 2.25)
+    monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
+    monkeypatch.setattr(orchestration, "export_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "concat_audio", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "mux_audio", lambda *_args, **_kwargs: None)
+
+    orchestration.render_document_artifact(
+        doc,
+        output_path=tmp_path / "narrated.mp4",
+        voice=True,
+        voice_provider="openai",
+    )
+
+    assert captured_cue_counts == [0]
+
+
 def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):
     doc = _narrated_doc()
     seen_scene_ids: list[list[str]] = []

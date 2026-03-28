@@ -48,7 +48,7 @@ Voice is intentionally packaged separately so the core renderer stays lightweigh
 make install-voice-local
 ```
 
-That installs `packages/kaivra-voice` in editable mode plus the Sherpa local dependency set. It exposes the built-in `local` and `elevenlabs` providers through Kaivra's discovery hooks.
+That installs `packages/kaivra-voice` in editable mode plus the Sherpa local dependency set. It exposes the built-in `openai`, `local`, and `elevenlabs` providers through Kaivra's discovery hooks, with `openai` as the default cloud voice path for narrated renders.
 
 ### 5. Verify the install
 
@@ -68,6 +68,13 @@ kaivra quick-render examples/algorithms/bubble_sort.json
 That validates, audits, and renders a quick PNG into `artifacts/quick-renders/`.
 
 ### 7. Optional: render a first narrated sample
+
+```bash
+export OPENAI_API_KEY=your-key
+kaivra quick-render examples/explainers/agentic_debug_agent_explainer.json --voice
+```
+
+For the offline local alternative:
 
 ```bash
 kaivra doctor
@@ -201,7 +208,7 @@ If you are using the Python API, use `register_theme("mint-breeze", {...})` for 
 
 Kaivra keeps the core package lightweight, and voice support lives in the local editable package at `packages/kaivra-voice`.
 
-Providers are discovered from installed `kaivra.voice_providers` entry points. After `make install-voice-local`, Kaivra can resolve `local` and `elevenlabs` automatically. Use `--voice-provider` or `KAIVRA_VOICE_PROVIDER` to pick the default provider.
+Providers are discovered from installed `kaivra.voice_providers` entry points. After `make install-voice-local`, Kaivra can resolve `openai`, `local`, and `elevenlabs` automatically. Use `--voice-provider` or `KAIVRA_VOICE_PROVIDER` to pick the default provider. If you omit both during a voiced render, Kaivra now defaults to `openai`.
 
 If you see a "Voice providers are not installed" error, fix it with one of these repo-root commands:
 
@@ -209,6 +216,12 @@ If you see a "Voice providers are not installed" error, fix it with one of these
 make install-voice-local
 # or
 uv pip install --python .venv/bin/python -e "./packages/kaivra-voice[local]"
+```
+
+For default cloud narration after `make install-voice-local`, set `OPENAI_API_KEY` and run:
+
+```bash
+kaivra quick-render examples/explainers/agentic_debug_agent_explainer.json --voice
 ```
 
 For local Sherpa narration after `make install-voice-local`, download the default model bundle with:
