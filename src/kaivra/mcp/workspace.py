@@ -460,6 +460,11 @@ class KaivraWorkspace:
             },
             "reference_examples": [
                 {
+                    "uri": "kaivra://example/perspectiv_medcase_process_explainer",
+                    "why": "Shows the best current quality bar for a narrated process explainer with persistent state and dense topic-specific visuals.",
+                    "excerpt": _reference_example_excerpt("perspectiv_medcase_process_explainer.json"),
+                },
+                {
                     "uri": "kaivra://example/api_how_it_works",
                     "why": "Shows the quality bar for a narrated process explainer with a clear why -> flow -> outcome arc.",
                     "excerpt": _reference_example_excerpt("api_how_it_works.json"),
@@ -498,7 +503,8 @@ class KaivraWorkspace:
                     "when": "always",
                     "text": (
                         "If your MCP client only shows resource descriptors first, call resources/read "
-                        "on kaivra://example/api_how_it_works to fetch the full JSON example body."
+                        "on kaivra://example/perspectiv_medcase_process_explainer or "
+                        "kaivra://example/api_how_it_works to fetch the full JSON example body."
                     ),
                 },
             ],

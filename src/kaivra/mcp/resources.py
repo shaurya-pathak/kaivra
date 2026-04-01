@@ -52,6 +52,13 @@ RESOURCE_DEFINITIONS = [
         "mimeType": "application/json",
     },
     {
+        "uri": "kaivra://example/perspectiv_medcase_process_explainer",
+        "name": "example_perspectiv_medcase_process_explainer",
+        "title": "Reference Example: Perspectiv MedCase Process Explainer",
+        "description": "Full reference example JSON for a narrated system process explainer.",
+        "mimeType": "application/json",
+    },
+    {
         "uri": "kaivra://document-schema",
         "name": "document_schema",
         "title": "Document Schema",
@@ -75,6 +82,9 @@ def read_resource(uri: str) -> dict[str, Any]:
         "kaivra://example-catalog": _example_catalog(),
         "kaivra://example/api_how_it_works": _reference_example_text("api_how_it_works.json"),
         "kaivra://example/forward_propagation": _reference_example_text("forward_propagation.json"),
+        "kaivra://example/perspectiv_medcase_process_explainer": _reference_example_text(
+            "perspectiv_medcase_process_explainer.json"
+        ),
         "kaivra://document-schema": json.dumps(DocumentSpec.model_json_schema(), indent=2),
     }
     if uri not in content_map:
@@ -252,12 +262,13 @@ Use these as shape references, not templates. Borrow the composition, then rewri
 
 Read these complete, polished animations before authoring your own JSON. They demonstrate supported v1.2 patterns working together:
 
+- **`examples/reference/perspectiv_medcase_process_explainer.json`** — 6-scene narrated process explainer (How Perspectiv MedCase Works). Shows a persistent carousel chapter tracker, one-column framing, state-flow visuals, persistent objects, continuity, staged connector draws, and user-facing narration. Use this as the primary quality bar for narrated system/process explainers.
 - **`examples/reference/api_how_it_works.json`** — 4-scene narrated explainer (How an API Works). Shows carousel chapter tracker, horizontal flow layouts, connector draws, continuity morphs across scenes, and conversational narration. Material theme, educational pacing.
 - **`examples/reference/forward_propagation.json`** — 6-scene narrated explainer (Forward Propagation in a Neural Network). Shows worked-example arithmetic, stacked layouts, highlight colors (accent/success/warning), and deep continuity where computed values carry across scenes. Material theme, educational pacing.
 
 Read one of these files before authoring a new animation — they are the quality bar.
 
-If your MCP client shows only resource descriptors at first, call `resources/read` on `kaivra://example/api_how_it_works` or `kaivra://example/forward_propagation` to fetch the actual JSON example body.
+If your MCP client shows only resource descriptors at first, call `resources/read` on `kaivra://example/perspectiv_medcase_process_explainer`, `kaivra://example/api_how_it_works`, or `kaivra://example/forward_propagation` to fetch the actual JSON example body.
 
 ## BAD: Generic repeated scene (do NOT ship this)
 

@@ -175,7 +175,8 @@ class KaivraMCPServer:
                 "Start with plan_animation when user preferences are still missing. If the user already gave enough direction, "
                 "assume the draft defaults and start writing the JSON immediately. "
                 "After planning, write the animation JSON directly — do NOT use a scaffold. "
-                "Read MCP example resources like kaivra://example/api_how_it_works or kaivra://example/forward_propagation "
+                "Read MCP example resources like kaivra://example/perspectiv_medcase_process_explainer, "
+                "kaivra://example/api_how_it_works, or kaivra://example/forward_propagation "
                 "(or the matching files under examples/reference/) for the quality bar. If your client only shows "
                 "resource descriptors first, call resources/read on those example URIs to fetch the actual JSON body. "
                 "Default narrated explainers to the process_explainer pattern: start with why it matters, then show the state flow, then close with the outcome. "
@@ -596,7 +597,7 @@ def _summarize_tool_result(name: str, result: dict[str, Any]) -> str:
                 "If audience is layperson, strip file paths, repo-internal names, and jargon from narration completely.",
                 "Prefer process_explainer for narrated explainers: why it matters -> state flow -> outcome.",
                 "Prefer persistent document-level state when concepts carry across scenes.",
-                "Read kaivra://example/api_how_it_works for the quality bar.",
+                "Read kaivra://example/perspectiv_medcase_process_explainer for the best current process-explainer quality bar.",
             ]
         )
         return "\n".join(lines)

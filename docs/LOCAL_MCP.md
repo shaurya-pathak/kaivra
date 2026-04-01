@@ -105,6 +105,8 @@ The MCP is intentionally small and opinionated:
 
 The MCP is tuned for narrated process explainers: prefer `process_explainer` for narrated flows, use `visual_explainer` when one strong concept diagram is the right core visual, and build scene-specific diagrams from boxes, connectors, groups, and tokens. Use connector `draw` animations to show flow. Prefer persistent document-level objects when labels, chapter trackers, or shared state should stay on screen across scenes. Reuse the same `id` and the same content when a value carries from one scene into the next so continuity can create a smooth carry-over. Prefer `fade-in` for smooth reveals, and use `appear` when you want an intentional instant snap-in. Write narration in clear spoken English and avoid filenames, repo paths, and internal component inventories unless the user explicitly wants implementation detail. Revealing a group will also reveal descendants that do not have their own visibility animation.
 
+For the strongest current narrated process example, read `examples/reference/perspectiv_medcase_process_explainer.json` or fetch `kaivra://example/perspectiv_medcase_process_explainer` through MCP.
+
 `add_theme` accepts a theme name, an optional `base_theme`, and an `overrides` object whose keys match the `ThemeSpec` fields, such as `accent`, `background_color`, `box_fill`, or `box_border`.
 
 If you edit JSON directly, use `meta.show_subtitles` when you want narration text rendered on screen. Older `meta.show_narration` files still load, but `show_subtitles` is the preferred field name now.

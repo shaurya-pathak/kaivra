@@ -1,0 +1,558 @@
+{
+  "version": "1.2",
+  "meta": {
+    "title": "How Perspectiv MedCase Works",
+    "resolution": [1920, 1080],
+    "fps": 30,
+    "theme": "material",
+    "audience": "mixed",
+    "pacing": "educational",
+    "show_subtitles": false,
+    "continuity": true,
+    "continuity_duration": "0.9s",
+    "glow_release_padding": "1.0s",
+    "video_bookends": true
+  },
+  "objects": [
+    {
+      "type": "group",
+      "id": "chapters",
+      "position": "bottom",
+      "layout": {
+        "type": "carousel",
+        "gap": "medium",
+        "direction": "horizontal",
+        "align": "center",
+        "curve": 16,
+        "active_scale": 1.16,
+        "inactive_scale": 0.92
+      },
+      "children": [
+        { "type": "token", "id": "step_problem", "content": "1  Problem" },
+        { "type": "token", "id": "step_intake", "content": "2  Intake" },
+        { "type": "token", "id": "step_reason", "content": "3  Reason" },
+        { "type": "token", "id": "step_tools", "content": "4  Tools" },
+        { "type": "token", "id": "step_guide", "content": "5  Guide" },
+        { "type": "token", "id": "step_outcome", "content": "6  Outcome" }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "problem_first",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Start with the problem. One case arrives, but the evidence is scattered across notes, images, and labs. MedCase pulls those pieces into one guided answer so the learner can focus on reasoning instead of stitching the case together alone.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "problem_scene",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "text",
+              "id": "problem_title",
+              "content": "1. One case, too many disconnected pieces",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "problem_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "learner_box",
+                  "content": "Learner UI"
+                },
+                {
+                  "type": "box",
+                  "id": "case_card",
+                  "content": "Case request",
+                  "spoken_forms": ["case request", "patient case"]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "evidence_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "box", "id": "note_card", "content": "Clinical note" },
+                {
+                  "type": "box",
+                  "id": "image_card",
+                  "content": "Imaging",
+                  "spoken_forms": ["imaging panel"]
+                },
+                {
+                  "type": "box",
+                  "id": "lab_card",
+                  "content": "Lab panel",
+                  "spoken_forms": ["lab panel", "lab results"]
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "id": "guided_answer",
+              "content": "Guided answer"
+            },
+            {
+              "type": "token",
+              "id": "pain_token",
+              "content": "Scattered evidence slows the learner down"
+            }
+          ]
+        },
+        { "type": "connector", "id": "pr1", "from": "learner_box", "to": "case_card" },
+        { "type": "connector", "id": "pr2", "from": "note_card", "to": "guided_answer" },
+        { "type": "connector", "id": "pr3", "from": "image_card", "to": "guided_answer" },
+        { "type": "connector", "id": "pr4", "from": "lab_card", "to": "guided_answer" }
+      ],
+      "animations": [
+        { "action": "highlight", "target": "step_problem", "at": "0s", "duration": "14.6s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_problem", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 },
+        { "action": "fade-in", "target": "problem_title", "at": "0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "learner_box", "at": "0.6s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "case_card", "at": "1.2s", "duration": "0.6s" },
+        { "action": "draw", "target": "pr1", "at": "1.8s", "duration": "0.6s" },
+        { "action": "fade-in", "target": ["note_card", "image_card", "lab_card"], "at": "2.6s", "duration": "0.7s", "stagger": "0.2s" },
+        { "action": "draw", "target": ["pr2", "pr3", "pr4"], "at": "4.0s", "duration": "0.7s", "stagger": "0.15s" },
+        { "action": "fade-in", "target": "guided_answer", "at": "4.9s", "duration": "0.7s" },
+        { "action": "fade-in", "target": "pain_token", "at": "5.9s", "duration": "0.7s" },
+        { "action": "highlight", "target": ["note_card", "image_card", "lab_card"], "at": "7.0s", "duration": "2.0s", "style": "glow", "color": "warning", "stagger": "0.2s" },
+        { "action": "highlight", "target": "guided_answer", "at": "9.2s", "duration": "1.8s", "style": "glow", "color": "success" }
+      ]
+    },
+    {
+      "id": "intake_flow",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "At intake, the learner request becomes one live case session inside the MedCase engine. That session carries the history, vitals, and learning goal forward, so every later reasoning step and tool call stays anchored to the same state.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "intake_scene",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "text",
+              "id": "intake_title",
+              "content": "2. Intake turns one request into one live session",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "intake_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "learner_box", "content": "Learner UI" },
+                {
+                  "type": "box",
+                  "id": "case_card",
+                  "content": "Case request",
+                  "spoken_forms": ["case request", "patient case"]
+                },
+                {
+                  "type": "box",
+                  "id": "session_box",
+                  "content": "Case session"
+                },
+                {
+                  "type": "box",
+                  "id": "engine_box",
+                  "content": "MedCase engine",
+                  "spoken_forms": ["MedCase engine", "orchestrator"]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "session_detail_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "detail_history", "content": "History" },
+                { "type": "token", "id": "detail_vitals", "content": "Vitals" },
+                { "type": "token", "id": "detail_goal", "content": "Learning goal" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "in1", "from": "learner_box", "to": "case_card" },
+        { "type": "connector", "id": "in2", "from": "case_card", "to": "session_box" },
+        { "type": "connector", "id": "in3", "from": "session_box", "to": "engine_box" }
+      ],
+      "animations": [
+        { "action": "highlight", "target": "step_intake", "at": "0s", "duration": "14.6s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_intake", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 },
+        { "action": "fade-in", "target": "intake_title", "at": "0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "learner_box", "at": "0.5s", "duration": "0.6s" },
+        { "action": "highlight", "target": "case_card", "at": "0.7s", "duration": "1.2s", "style": "glow", "color": "accent" },
+        { "action": "draw", "target": "in1", "at": "1.0s", "duration": "0.5s" },
+        { "action": "fade-in", "target": "session_box", "at": "1.4s", "duration": "0.6s" },
+        { "action": "draw", "target": "in2", "at": "1.9s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "engine_box", "at": "2.6s", "duration": "0.6s" },
+        { "action": "draw", "target": "in3", "at": "3.1s", "duration": "0.6s" },
+        { "action": "fade-in", "target": ["detail_history", "detail_vitals", "detail_goal"], "at": "4.0s", "duration": "0.7s", "stagger": "0.2s" },
+        { "action": "highlight", "target": "session_box", "at": "5.4s", "duration": "1.8s", "style": "glow", "color": "success" },
+        { "action": "highlight", "target": ["detail_history", "detail_vitals", "detail_goal"], "at": "7.5s", "duration": "2.0s", "style": "glow", "color": "accent", "stagger": "0.2s" },
+        { "action": "pulse", "target": "engine_box", "at": "9.8s", "duration": "1.0s" }
+      ]
+    },
+    {
+      "id": "reasoning_loop",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Inside the MedCase engine, the session splits into two useful views: case context and model reasoning. The context keeps symptoms, images, and labs organized, and model reasoning turns those facts into the next best question, hypothesis, or explanation.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "reason_scene",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "text",
+              "id": "reason_title",
+              "content": "3. The engine organizes context before it reasons",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "reason_core",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "context_stack",
+                  "visible": true,
+                  "layout": { "type": "stack", "direction": "vertical", "gap": "small", "align": "center" },
+                  "children": [
+                    { "type": "box", "id": "case_card", "content": "Case request" },
+                    { "type": "box", "id": "context_box", "content": "Case context" }
+                  ]
+                },
+                { "type": "box", "id": "engine_box", "content": "MedCase engine", "spoken_forms": ["MedCase engine", "orchestrator"] },
+                {
+                  "type": "group",
+                  "id": "reason_stack",
+                  "visible": true,
+                  "layout": { "type": "stack", "direction": "vertical", "gap": "small", "align": "center" },
+                  "children": [
+                    {
+                      "type": "box",
+                      "id": "model_box",
+                      "content": "Model reasoning"
+                    },
+                    {
+                      "type": "box",
+                      "id": "next_step_box",
+                      "content": "Next best step"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "context_tokens",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "ctx_symptoms", "content": "Symptoms" },
+                { "type": "token", "id": "ctx_images", "content": "Images" },
+                { "type": "token", "id": "ctx_labs", "content": "Labs" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "rs1", "from": "case_card", "to": "context_box" },
+        { "type": "connector", "id": "rs2", "from": "context_box", "to": "engine_box" },
+        { "type": "connector", "id": "rs3", "from": "engine_box", "to": "model_box" },
+        { "type": "connector", "id": "rs4", "from": "model_box", "to": "next_step_box" }
+      ],
+      "animations": [
+        { "action": "highlight", "target": "step_reason", "at": "0s", "duration": "14.6s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_reason", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 },
+        { "action": "fade-in", "target": "reason_title", "at": "0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "context_box", "at": "0.9s", "duration": "0.6s" },
+        { "action": "draw", "target": "rs1", "at": "1.4s", "duration": "0.5s" },
+        { "action": "fade-in", "target": ["ctx_symptoms", "ctx_images", "ctx_labs"], "at": "2.1s", "duration": "0.7s", "stagger": "0.18s" },
+        { "action": "draw", "target": "rs2", "at": "3.4s", "duration": "0.5s" },
+        { "action": "highlight", "target": "engine_box", "at": "4.0s", "duration": "1.7s", "style": "glow", "color": "accent" },
+        { "action": "draw", "target": "rs3", "at": "5.1s", "duration": "0.5s" },
+        { "action": "fade-in", "target": "model_box", "at": "5.4s", "duration": "0.6s" },
+        { "action": "draw", "target": "rs4", "at": "6.3s", "duration": "0.5s" },
+        { "action": "fade-in", "target": "next_step_box", "at": "6.6s", "duration": "0.6s" },
+        { "action": "highlight", "target": ["context_box", "model_box", "next_step_box"], "at": "7.8s", "duration": "2.3s", "style": "glow", "color": "success", "stagger": "0.2s" },
+        { "action": "pulse", "target": "next_step_box", "at": "10.7s", "duration": "1.0s" }
+      ]
+    },
+    {
+      "id": "tool_mesh",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "When the MedCase engine needs fresh evidence, it calls medical tools instead of guessing. The ECG, imaging, lab, and FHIR tools each return structured evidence that the engine can quote back to the learner.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "tool_scene",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "text",
+              "id": "tool_title",
+              "content": "4. Tools gather evidence the model can trust",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "tool_row_top",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "ecg_tool",
+                  "content": "ECG tool",
+                  "spoken_forms": ["E C G tool", "EKG tool"]
+                },
+                {
+                  "type": "box",
+                  "id": "imaging_tool",
+                  "content": "Imaging tool",
+                  "spoken_forms": ["imaging tool"]
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "id": "engine_box",
+              "content": "MedCase engine",
+              "spoken_forms": ["MedCase engine", "orchestrator"]
+            },
+            {
+              "type": "group",
+              "id": "tool_row_bottom",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                {
+                  "type": "box",
+                  "id": "lab_tool",
+                  "content": "Lab tool",
+                  "spoken_forms": ["lab tool", "lab results"]
+                },
+                {
+                  "type": "box",
+                  "id": "fhir_tool",
+                  "content": "FHIR tool",
+                  "spoken_forms": ["F H I R tool", "FHIR"]
+                }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "evidence_return_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "small", "align": "center" },
+              "children": [
+                { "type": "token", "id": "ret_trace", "content": "Rhythm trace" },
+                { "type": "token", "id": "ret_image", "content": "Annotated image" },
+                { "type": "token", "id": "ret_lab", "content": "Structured labs" },
+                { "type": "token", "id": "ret_fhir", "content": "FHIR snippet" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "tm1", "from": "engine_box", "to": "ecg_tool" },
+        { "type": "connector", "id": "tm2", "from": "engine_box", "to": "imaging_tool" },
+        { "type": "connector", "id": "tm3", "from": "engine_box", "to": "lab_tool" },
+        { "type": "connector", "id": "tm4", "from": "engine_box", "to": "fhir_tool" }
+      ],
+      "animations": [
+        { "action": "highlight", "target": "step_tools", "at": "0s", "duration": "14.6s", "style": "glow", "color": "accent" },
+        { "action": "fade-in", "target": "engine_box", "at": "0.7s", "duration": "0.6s" },
+        { "action": "scale", "target": "step_tools", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 },
+        { "action": "fade-in", "target": "tool_title", "at": "0s", "duration": "0.8s" },
+        { "action": "pulse", "target": "engine_box", "at": "0.8s", "duration": "0.9s" },
+        { "action": "fade-in", "target": ["ecg_tool", "imaging_tool"], "at": "1.6s", "duration": "0.7s", "stagger": "0.2s" },
+        { "action": "draw", "target": ["tm1", "tm2"], "at": "2.5s", "duration": "0.7s", "stagger": "0.12s" },
+        { "action": "fade-in", "target": ["lab_tool", "fhir_tool"], "at": "3.3s", "duration": "0.7s", "stagger": "0.2s" },
+        { "action": "draw", "target": ["tm3", "tm4"], "at": "4.2s", "duration": "0.7s", "stagger": "0.12s" },
+        { "action": "highlight", "target": ["ecg_tool", "imaging_tool", "lab_tool", "fhir_tool"], "at": "5.4s", "duration": "2.1s", "style": "glow", "color": "accent", "stagger": "0.22s" },
+        { "action": "fade-in", "target": ["ret_trace", "ret_image", "ret_lab", "ret_fhir"], "at": "7.8s", "duration": "0.7s", "stagger": "0.16s" },
+        { "action": "highlight", "target": ["ret_trace", "ret_image", "ret_lab", "ret_fhir"], "at": "9.2s", "duration": "1.8s", "style": "glow", "color": "success", "stagger": "0.16s" },
+        { "action": "highlight", "target": "engine_box", "at": "11.4s", "duration": "1.3s", "style": "glow", "color": "success" }
+      ]
+    },
+    {
+      "id": "guided_ui",
+      "duration": "15s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Now the learner sees the benefit. The UI shows a guided answer, an ECG trace, an image note, a lab trend, and a progress path from question to evidence to next step.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "guided_scene",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "text",
+              "id": "guide_title",
+              "content": "5. The UI turns reasoning into guided learning",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "guide_main_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+              "children": [
+                { "type": "box", "id": "learner_box", "content": "Learner UI" },
+                { "type": "box", "id": "guided_answer", "content": "Guided answer" },
+                { "type": "box", "id": "progress_box", "content": "Progress path" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "artifact_row",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "small", "align": "center" },
+              "children": [
+                { "type": "token", "id": "artifact_trace", "content": "ECG trace" },
+                { "type": "token", "id": "artifact_image", "content": "Image note" },
+                { "type": "token", "id": "artifact_lab", "content": "Lab trend" }
+              ]
+            },
+            {
+              "type": "group",
+              "id": "progress_tokens",
+              "visible": true,
+              "layout": { "type": "flow", "direction": "horizontal", "gap": "medium", "align": "center" },
+              "children": [
+                { "type": "token", "id": "pg_question", "content": "Question" },
+                { "type": "token", "id": "pg_evidence", "content": "Evidence" },
+                { "type": "token", "id": "pg_next", "content": "Next step" }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "gu1", "from": "learner_box", "to": "guided_answer" },
+        { "type": "connector", "id": "gu2", "from": "guided_answer", "to": "progress_box" }
+      ],
+      "animations": [
+        { "action": "highlight", "target": "step_guide", "at": "0s", "duration": "14.6s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_guide", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 },
+        { "action": "fade-in", "target": "guide_title", "at": "0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": "learner_box", "at": "0.5s", "duration": "0.6s" },
+        { "action": "fade-in", "target": "guided_answer", "at": "1.0s", "duration": "0.6s" },
+        { "action": "highlight", "target": "guided_answer", "at": "0.8s", "duration": "1.6s", "style": "glow", "color": "success" },
+        { "action": "draw", "target": "gu1", "at": "1.9s", "duration": "0.5s" },
+        { "action": "fade-in", "target": "progress_box", "at": "2.5s", "duration": "0.6s" },
+        { "action": "draw", "target": "gu2", "at": "3.0s", "duration": "0.5s" },
+        { "action": "fade-in", "target": ["artifact_trace", "artifact_image", "artifact_lab"], "at": "3.9s", "duration": "0.7s", "stagger": "0.18s" },
+        { "action": "fade-in", "target": ["pg_question", "pg_evidence", "pg_next"], "at": "5.4s", "duration": "0.7s", "stagger": "0.18s" },
+        { "action": "highlight", "target": ["artifact_trace", "artifact_image", "artifact_lab"], "at": "6.8s", "duration": "1.8s", "style": "glow", "color": "accent", "stagger": "0.18s" },
+        { "action": "highlight", "target": ["pg_question", "pg_evidence", "pg_next"], "at": "8.9s", "duration": "1.8s", "style": "glow", "color": "success", "stagger": "0.18s" },
+        { "action": "pulse", "target": "progress_box", "at": "10.9s", "duration": "1.0s" }
+      ]
+    },
+    {
+      "id": "end_to_end",
+      "duration": "16s",
+      "template": "one-column",
+      "auto_visible": false,
+      "include_persistent_objects": true,
+      "narration": "Put the whole process together. The learner UI sends one case request into the MedCase engine. The engine reasons, calls tools when it needs evidence, and returns a guided answer with a visible progress path. The result is one clear learning loop from question to answer.",
+      "objects": [
+        {
+          "type": "group",
+          "id": "outcome_scene",
+          "visible": true,
+          "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+          "children": [
+            {
+              "type": "text",
+              "id": "outcome_title",
+              "content": "6. One guided loop from question to answer",
+              "style": "heading"
+            },
+            {
+              "type": "group",
+              "id": "stack_a",
+              "visible": true,
+              "layout": { "type": "stack", "direction": "vertical", "gap": "large", "align": "center" },
+              "children": [
+                {
+                  "type": "group",
+                  "id": "top_chain",
+                  "visible": true,
+                  "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+                  "children": [
+                    { "type": "box", "id": "learner_box", "content": "Learner UI" },
+                    { "type": "box", "id": "case_card", "content": "Case request" },
+                    { "type": "box", "id": "engine_box", "content": "MedCase engine", "spoken_forms": ["MedCase engine", "orchestrator"] },
+                    { "type": "box", "id": "guided_answer", "content": "Guided answer" }
+                  ]
+                },
+                {
+                  "type": "group",
+                  "id": "bottom_chain",
+                  "visible": true,
+                  "layout": { "type": "flow", "direction": "horizontal", "gap": "large", "align": "center" },
+                  "children": [
+                    { "type": "token", "id": "end_model", "content": "Model reasoning" },
+                    { "type": "token", "id": "end_tools", "content": "Medical tools" },
+                    { "type": "token", "id": "progress_box", "content": "Progress path" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        { "type": "connector", "id": "ee1", "from": "learner_box", "to": "case_card" },
+        { "type": "connector", "id": "ee2", "from": "case_card", "to": "engine_box" },
+        { "type": "connector", "id": "ee3", "from": "engine_box", "to": "guided_answer" },
+        { "type": "connector", "id": "ee4", "from": "engine_box", "to": "end_model" },
+        { "type": "connector", "id": "ee5", "from": "engine_box", "to": "end_tools" },
+        { "type": "connector", "id": "ee6", "from": "guided_answer", "to": "progress_box" }
+      ],
+      "animations": [
+        { "action": "highlight", "target": "step_outcome", "at": "0s", "duration": "15.4s", "style": "glow", "color": "accent" },
+        { "action": "scale", "target": "step_outcome", "at": "0.1s", "duration": "0.8s", "scale_factor": 1.12 },
+        { "action": "fade-in", "target": "outcome_title", "at": "0s", "duration": "0.8s" },
+        { "action": "fade-in", "target": ["learner_box", "case_card", "engine_box", "guided_answer"], "at": "0.6s", "duration": "0.7s", "stagger": "0.18s" },
+        { "action": "draw", "target": ["ee1", "ee2", "ee3"], "at": "0.9s", "duration": "0.7s", "stagger": "0.18s" },
+        { "action": "highlight", "target": ["learner_box", "case_card", "engine_box", "guided_answer"], "at": "2.3s", "duration": "2.0s", "style": "glow", "color": "accent", "stagger": "0.2s" },
+        { "action": "fade-in", "target": ["end_model", "end_tools"], "at": "4.8s", "duration": "0.7s", "stagger": "0.2s" },
+        { "action": "draw", "target": ["ee4", "ee5"], "at": "5.6s", "duration": "0.6s", "stagger": "0.14s" },
+        { "action": "fade-in", "target": "progress_box", "at": "6.8s", "duration": "0.6s" },
+        { "action": "draw", "target": "ee6", "at": "7.4s", "duration": "0.5s" },
+        { "action": "highlight", "target": ["end_model", "end_tools", "progress_box"], "at": "8.3s", "duration": "2.0s", "style": "glow", "color": "success", "stagger": "0.18s" },
+        { "action": "highlight", "target": "guided_answer", "at": "10.8s", "duration": "1.6s", "style": "glow", "color": "success" },
+        { "action": "pulse", "target": "engine_box", "at": "12.0s", "duration": "1.0s" }
+      ]
+    }
+  ]
+}

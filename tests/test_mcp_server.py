@@ -71,6 +71,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "authoring_profile" in resource_names
     assert "example_api_how_it_works" in resource_names
     assert "example_forward_propagation" in resource_names
+    assert "example_perspectiv_medcase_process_explainer" in resource_names
 
 
 def test_resource_guidance_promotes_process_explainers_and_examples_as_shape_references() -> None:
@@ -78,6 +79,9 @@ def test_resource_guidance_promotes_process_explainers_and_examples_as_shape_ref
     pattern_catalog = read_resource("kaivra://pattern-catalog")["contents"][0]["text"]
     examples = read_resource("kaivra://example-catalog")["contents"][0]["text"]
     api_example = read_resource("kaivra://example/api_how_it_works")["contents"][0]["text"]
+    medcase_example = read_resource("kaivra://example/perspectiv_medcase_process_explainer")[
+        "contents"
+    ][0]["text"]
 
     assert "process_explainer" in authoring
     assert "educational" in authoring
@@ -100,9 +104,11 @@ def test_resource_guidance_promotes_process_explainers_and_examples_as_shape_ref
     assert "BAD: Generic repeated scene" in examples
     assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
+    assert "perspectiv_medcase_process_explainer.json" in examples
     assert '"version": "1.2"' in examples
     assert "resources/read" in examples
     assert '"title": "How an API Works"' in api_example
+    assert '"title": "How Perspectiv MedCase Works"' in medcase_example
 
 
 def test_check_animation_summary_mentions_warning_count() -> None:
@@ -161,6 +167,10 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
             ],
             "reference_examples": [
                 {
+                    "uri": "kaivra://example/perspectiv_medcase_process_explainer",
+                    "why": "Best current process-explainer reference",
+                },
+                {
                     "uri": "kaivra://example/api_how_it_works",
                     "why": "Problem-first explainer reference",
                 }
@@ -183,6 +193,7 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
     assert "Starter outline:" in summary
     assert "- problem: Why queues matter" in summary
     assert "Embedded reference examples:" in summary
+    assert "kaivra://example/perspectiv_medcase_process_explainer" in summary
     assert "kaivra://example/api_how_it_works" in summary
     assert "Prefer process_explainer" in summary
     assert "Prefer persistent document-level state" in summary
