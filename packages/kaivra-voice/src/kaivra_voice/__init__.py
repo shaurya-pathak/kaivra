@@ -1,8 +1,9 @@
 """Voice synthesis providers for kaivra animations."""
 
 from kaivra_voice.elevenlabs import ElevenLabsProvider
+from kaivra_voice.openai import OpenAIProvider
 
-__all__ = ["ElevenLabsProvider"]
+__all__ = ["ElevenLabsProvider", "OpenAIProvider"]
 
 try:
     _local_module = __import__("kaivra_voice.local", fromlist=["LocalProvider"])

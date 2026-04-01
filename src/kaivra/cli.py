@@ -138,7 +138,7 @@ def mcp_install(client: str):
 @click.option(
     "--voice-provider",
     default=None,
-    help="Voice provider name (default: KAIVRA_VOICE_PROVIDER or elevenlabs)",
+    help="Voice provider name (default: KAIVRA_VOICE_PROVIDER or openai)",
 )
 @click.option("--voice-id", default=None, help="Voice ID passed to the provider")
 def render(
@@ -169,6 +169,7 @@ def render(
         audio=audio,
         audio_timings=audio_timings,
         voice=voice,
+        voice_provider=voice_provider,
     )
     _render_to_output(
         input_file=input_file,
@@ -246,7 +247,7 @@ def schema():
 @click.option(
     "--voice-provider",
     default=None,
-    help="Voice provider name (default: KAIVRA_VOICE_PROVIDER or elevenlabs)",
+    help="Voice provider name (default: KAIVRA_VOICE_PROVIDER or openai)",
 )
 @click.option("--voice-id", default=None, help="Voice ID passed to the provider")
 def quick_render(
@@ -298,6 +299,7 @@ def quick_render(
         audio=audio,
         audio_timings=audio_timings,
         voice=voice,
+        voice_provider=voice_provider,
     )
     _render_to_output(
         input_file=str(input_path),
@@ -445,6 +447,7 @@ def _run_preflight_for_render(
     audio: str | None,
     audio_timings: str | None,
     voice: bool,
+    voice_provider: str | None = None,
 ) -> None:
     is_video = output_path.suffix.lower() in {".mp4", ".webm"}
     _run_preflight(
@@ -454,6 +457,11 @@ def _run_preflight_for_render(
         needs_ffmpeg=is_video or audio is not None or voice,
         needs_ffprobe=is_video or audio_timings is not None or voice,
     )
+    if voice:
+        try:
+            workspace.validate_voice_setup(voice_provider=voice_provider)
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc)) from exc
 
 
 def _validate_render_request(

@@ -51,6 +51,10 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
         steps.append(("leadin", Path(output_path).name, seconds))
         Path(output_path).write_bytes(b"wav+silence")
 
+    def fake_append(_input_path: str, output_path: str, seconds: float) -> None:
+        steps.append(("pad", Path(output_path).name, seconds))
+        Path(output_path).write_bytes(b"wav+tail")
+
     def fake_build_render_graph(_doc, **_kwargs):
         steps.append(("retime", _doc.meta.show_subtitles, [scene.id for scene in _doc.scenes]))
         timing_data = _kwargs.get("audio_timing_data")
@@ -64,7 +68,17 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
                     else None,
                 )
             )
-        return SimpleNamespace(total_duration=2.25), object()
+        return (
+            SimpleNamespace(
+                total_duration=7.4,
+                scenes=[
+                    SimpleNamespace(id="__kaivra_video_intro__", duration=2.25),
+                    SimpleNamespace(id="intro", duration=2.9),
+                    SimpleNamespace(id="__kaivra_video_outro__", duration=2.25),
+                ],
+            ),
+            object(),
+        )
 
     def fake_export_video(_graph, _theme, output_path: str, **kwargs) -> None:
         callback = kwargs.get("progress_callback")
@@ -85,6 +99,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     monkeypatch.setattr(orchestration, "ProviderRegistry", DummyRegistry)
     monkeypatch.setattr(orchestration, "normalize_audio_to_wav", fake_normalize)
     monkeypatch.setattr(orchestration, "prepend_silence_to_wav", fake_prepend)
+    monkeypatch.setattr(orchestration, "append_silence_to_wav", fake_append)
     monkeypatch.setattr(
         orchestration,
         "measure_audio_duration",
@@ -105,7 +120,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     )
 
     assert result.artifact_path == str(tmp_path / "narrated.mp4")
-    assert result.duration_seconds == 2.25
+    assert result.duration_seconds == 7.4
     assert result.retimed_document_path == str(tmp_path / "narrated.retimed.json")
     assert Path(result.retimed_document_path).exists()
     assert ("provider", "dummy") in steps
@@ -122,6 +137,7 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     assert ("cues", 1, "Hello") in steps
     assert ("concat", [".wav", ".wav", ".wav"], ".wav") in steps
     assert ("mux", ".wav", ".mp4") in steps
+    assert not [step for step in steps if step[0] == "pad"]
     assert "Discovering voice provider: dummy." in progress_messages
     assert "Generating voice for scene intro." in progress_messages
     assert "Normalizing audio for scene intro." in progress_messages
@@ -136,6 +152,149 @@ def test_render_document_artifact_voice_pipeline_normalizes_and_concats_wav(tmp_
     assert retimed["scenes"][1]["duration"] == "3.45s"
     assert retimed["scenes"][-1]["id"] == "__kaivra_video_outro__"
     assert retimed["scenes"][-1]["duration"] == "3.4s"
+
+
+def test_openai_voice_pipeline_uses_scene_level_timing_without_word_cues(tmp_path, monkeypatch):
+    doc = _narrated_doc()
+    raw_audio = tmp_path / "intro.wav"
+    raw_audio.write_bytes(b"raw")
+    captured_cue_counts: list[int] = []
+
+    class DummyProvider:
+        def generate(self, scene_id: str, _text: str, **kwargs) -> AudioResult:
+            return AudioResult(
+                audio_path=str(raw_audio),
+                duration_seconds=1.0,
+                scene_id=scene_id,
+                cues=(),
+            )
+
+    class DummyRegistry:
+        def discover(self) -> None:
+            return None
+
+        def get(self, name: str):
+            assert name == "openai"
+            return DummyProvider
+
+    def fake_normalize(_input_path: str, output_path: str) -> None:
+        Path(output_path).write_bytes(b"wav")
+
+    def fake_prepend(_input_path: str, output_path: str, _seconds: float) -> None:
+        Path(output_path).write_bytes(b"wav+silence")
+
+    def fake_build_render_graph(_doc, **kwargs):
+        timing_data = kwargs.get("audio_timing_data")
+        if timing_data is not None:
+            captured_cue_counts.append(len(timing_data.scenes["intro"].cues))
+        return (
+            SimpleNamespace(
+                total_duration=6.75,
+                scenes=[
+                    SimpleNamespace(id="__kaivra_video_intro__", duration=2.25),
+                    SimpleNamespace(id="intro", duration=2.25),
+                    SimpleNamespace(id="__kaivra_video_outro__", duration=2.25),
+                ],
+            ),
+            object(),
+        )
+
+    monkeypatch.setattr(orchestration, "ProviderRegistry", DummyRegistry)
+    monkeypatch.setattr(orchestration, "validate_voice_provider_setup", lambda provider: provider)
+    monkeypatch.setattr(orchestration, "normalize_audio_to_wav", fake_normalize)
+    monkeypatch.setattr(orchestration, "prepend_silence_to_wav", fake_prepend)
+    monkeypatch.setattr(orchestration, "append_silence_to_wav", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "measure_audio_duration", lambda _path: 2.25)
+    monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
+    monkeypatch.setattr(orchestration, "export_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "concat_audio", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "mux_audio", lambda *_args, **_kwargs: None)
+
+    orchestration.render_document_artifact(
+        doc,
+        output_path=tmp_path / "narrated.mp4",
+        voice=True,
+        voice_provider="openai",
+    )
+
+    assert captured_cue_counts == [0]
+
+
+def test_voice_pipeline_pads_audio_to_match_retimed_video_duration(tmp_path, monkeypatch):
+    doc = _narrated_doc()
+    raw_audio = tmp_path / "intro.wav"
+    raw_audio.write_bytes(b"raw")
+    padded_calls: list[tuple[str, float]] = []
+
+    class DummyProvider:
+        def generate(self, scene_id: str, _text: str, **_kwargs) -> AudioResult:
+            return AudioResult(
+                audio_path=str(raw_audio),
+                duration_seconds=3.0,
+                scene_id=scene_id,
+                cues=(),
+            )
+
+    class DummyRegistry:
+        def discover(self) -> None:
+            return None
+
+        def get(self, _name: str):
+            return DummyProvider
+
+    def fake_normalize(_input_path: str, output_path: str) -> None:
+        Path(output_path).write_bytes(b"wav")
+
+    def fake_prepend(_input_path: str, output_path: str, _seconds: float) -> None:
+        Path(output_path).write_bytes(b"wav+silence")
+
+    def fake_append(_input_path: str, output_path: str, seconds: float) -> None:
+        padded_calls.append((Path(output_path).name, seconds))
+        Path(output_path).write_bytes(b"wav+padded")
+
+    def fake_measure(path: str) -> float:
+        name = Path(path).name
+        if "intro_padded" in name:
+            return 15.0
+        if "intro_leadin" in name:
+            return 3.2
+        return 3.0
+
+    def fake_build_render_graph(_doc, **_kwargs):
+        return (
+            SimpleNamespace(
+                total_duration=21.8,
+                scenes=[
+                    SimpleNamespace(id="__kaivra_video_intro__", duration=3.4),
+                    SimpleNamespace(id="intro", duration=15.0),
+                    SimpleNamespace(id="__kaivra_video_outro__", duration=3.4),
+                ],
+            ),
+            object(),
+        )
+
+    monkeypatch.setattr(orchestration, "ProviderRegistry", DummyRegistry)
+    monkeypatch.setattr(orchestration, "validate_voice_provider_setup", lambda provider: provider)
+    monkeypatch.setattr(orchestration, "normalize_audio_to_wav", fake_normalize)
+    monkeypatch.setattr(orchestration, "prepend_silence_to_wav", fake_prepend)
+    monkeypatch.setattr(orchestration, "append_silence_to_wav", fake_append)
+    monkeypatch.setattr(orchestration, "measure_audio_duration", fake_measure)
+    monkeypatch.setattr(orchestration, "build_render_graph", fake_build_render_graph)
+    monkeypatch.setattr(orchestration, "export_video", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "concat_audio", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(orchestration, "mux_audio", lambda *_args, **_kwargs: None)
+
+    orchestration.render_document_artifact(
+        doc,
+        output_path=tmp_path / "narrated.mp4",
+        voice=True,
+        voice_provider="local",
+    )
+
+    assert any(
+        name == "narrated_intro_padded.wav" and abs(seconds - 11.8) < 1e-6
+        for name, seconds in padded_calls
+    )
 
 
 def test_video_render_injects_intro_and_outro_bookends(tmp_path, monkeypatch):

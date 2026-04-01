@@ -105,3 +105,24 @@ def test_prepend_silence_to_wav_increases_duration_and_preserves_audio(tmp_path:
 
     assert frames[:6] == b"\x00" * 6
     assert frames[6:] == b"\x01\x00" * 4
+
+
+def test_append_silence_to_wav_increases_duration_and_preserves_audio(tmp_path: Path) -> None:
+    source = tmp_path / "source.wav"
+    output = tmp_path / "suffixed.wav"
+
+    with wave.open(str(source), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(10)
+        wf.writeframes(b"\x01\x00" * 4)
+
+    mux.append_silence_to_wav(str(source), str(output), 0.3)
+
+    with wave.open(str(output), "rb") as wf:
+        assert wf.getframerate() == 10
+        assert wf.getnframes() == 7
+        frames = wf.readframes(7)
+
+    assert frames[:8] == b"\x01\x00" * 4
+    assert frames[8:] == b"\x00" * 6

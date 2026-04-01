@@ -21,6 +21,7 @@ from difflib import SequenceMatcher, get_close_matches
 from pathlib import Path
 from typing import Any
 
+from kaivra.audio.base import validate_voice_provider_setup
 from kaivra.dsl.parser import parse_file, parse_string
 from kaivra.dsl.retime import (
     EMPHASIS_ACTIONS,
@@ -329,6 +330,10 @@ class KaivraWorkspace:
                     "question": "How should narration be delivered?",
                     "options": [
                         {
+                            "value": "openai",
+                            "label": "OpenAI voice — lower-cost AI narration (requires API key)",
+                        },
+                        {
                             "value": "elevenlabs",
                             "label": "ElevenLabs voice — high-quality AI narration (requires API key)",
                         },
@@ -341,6 +346,11 @@ class KaivraWorkspace:
                     ],
                     "default": "captions",
                     "maps_to_resolved": {
+                        "openai": {
+                            "include_narration": True,
+                            "show_subtitles": True,
+                            "voice_provider": "openai",
+                        },
                         "elevenlabs": {
                             "include_narration": True,
                             "show_subtitles": True,
@@ -463,7 +473,7 @@ class KaivraWorkspace:
             "notes": [
                 {
                     "id": "voice_sync_tip",
-                    "when": "voice_mode is 'elevenlabs' or 'local'",
+                    "when": "voice_mode is 'openai' or 'elevenlabs' or 'local'",
                     "text": (
                         "Voice sync tip: use the same keywords in narration that appear "
                         "as on-screen object content or IDs. The engine matches spoken "
@@ -471,8 +481,8 @@ class KaivraWorkspace:
                         "boots' will sync the reveal to an object with content 'Server'. "
                         "For tricky brand names or acronyms, add object.spoken_forms like "
                         "['co pilot', 'cobalt'] so checks and cue matching still recognize "
-                        "the intended target. ElevenLabs uses word-level cues; local "
-                        "(Sherpa) uses scene-level timing with the same semantic checks."
+                        "the intended target. ElevenLabs uses word-level cues; OpenAI and "
+                        "local (Sherpa) use scene-level timing with the same semantic checks."
                     ),
                 },
                 {
@@ -691,6 +701,8 @@ class KaivraWorkspace:
         )
         if voice and (audio_abs or audio_timings_abs):
             raise ValueError("voice cannot be combined with audio_path or audio_timings_path.")
+        if voice:
+            self.validate_voice_setup(voice_provider=voice_provider)
 
         output_paths = self._workspace_paths_for_document(resolved_path)
         output_paths.renders_dir.mkdir(parents=True, exist_ok=True)
@@ -719,6 +731,10 @@ class KaivraWorkspace:
             "retimed_document_path": result.retimed_document_path,
             "source_file_path": str(resolved_path),
         }
+
+    def validate_voice_setup(self, *, voice_provider: str | None) -> str:
+        """Validate that the selected voice provider is installed and configured."""
+        return validate_voice_provider_setup(voice_provider)
 
     def preflight_command(
         self,
@@ -976,6 +992,7 @@ class KaivraWorkspace:
             "checks": checks,
             "issues": issues,
             "mcp_command": mcp_command,
+            "default_voice_provider": "openai",
             "local_voice": {
                 "model_name": DEFAULT_LOCAL_MODEL_NAME,
                 "model_dir": str(DEFAULT_LOCAL_MODEL_DIR),
@@ -984,7 +1001,11 @@ class KaivraWorkspace:
             "next_steps": [
                 "Run `kaivra mcp-install --client auto` after the doctor is green.",
                 (
-                    "For local narration, run `kaivra download-model`, then "
+                    "For the default cloud narration path, set `OPENAI_API_KEY`, then "
+                    "`kaivra quick-render examples/explainers/agentic_debug_agent_explainer.json --voice`."
+                ),
+                (
+                    "For offline local narration, run `kaivra download-model`, then "
                     "`KAIVRA_VOICE_PROVIDER=local kaivra quick-render "
                     "examples/explainers/agentic_debug_agent_explainer.json --voice`."
                 ),
@@ -1118,6 +1139,10 @@ def format_doctor_report(report: dict[str, Any]) -> str:
             "- Suggested Claude Code config:",
             report["claude_code"]["config_json"],
             "",
+            "Voice Defaults:",
+            f"- Default cloud provider: {report['default_voice_provider']}",
+            "- OpenAI API key env: OPENAI_API_KEY",
+            "",
             "Local Voice:",
             f"- Default model name: {report['local_voice']['model_name']}",
             f"- Default model dir: {report['local_voice']['model_dir']}",
@@ -1145,9 +1170,9 @@ def _voice_sync_findings(
 ) -> list[CheckFinding]:
     """Check that narration keywords overlap with animation target content.
 
-    These warnings are useful for both providers: ElevenLabs gets more precise
-    cue alignment, while local renders still benefit from narration that names
-    the same concepts in the same order as the visuals.
+    These warnings are useful for every provider: ElevenLabs gets more precise
+    cue alignment, while OpenAI and local renders still benefit from narration
+    that names the same concepts in the same order as the visuals.
     """
     findings: list[CheckFinding] = []
     sync_actions = REVEAL_ACTIONS | EMPHASIS_ACTIONS
@@ -1226,6 +1251,14 @@ def _voice_sync_findings(
                             f"(content: '{content.strip()}') has no keyword match "
                             f"in narration — ElevenLabs will fall back to positional "
                             f"matching instead of precise word-level sync.{detail_suffix}"
+                        )
+                    elif voice_provider == "openai":
+                        message = (
+                            f"{action_value} targeting '{target_id}' "
+                            f"(content: '{content.strip()}') has no keyword match "
+                            f"in narration — OpenAI voice keeps scene-level timing, so the "
+                            f"beat may feel less intentional unless the narration names the same concept."
+                            f"{detail_suffix}"
                         )
                     else:
                         message = (

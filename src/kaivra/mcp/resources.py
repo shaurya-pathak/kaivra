@@ -164,7 +164,7 @@ Object: `{ "id": "server", "content": "Server" }`
 Narration: "First, the backend component handles incoming traffic..."
 → No word overlap — reveal falls back to positional matching (less precise).
 
-**Note:** Substring matching works — "failure" matches "fail", "servers" matches "server". ElevenLabs uses word-level cues; local (Sherpa) keeps scene-level timing but still benefits from the same keyword overlap and `spoken_forms` aliases.
+**Note:** Substring matching works — "failure" matches "fail", "servers" matches "server". ElevenLabs uses word-level cues; OpenAI and local (Sherpa) keep scene-level timing but still benefit from the same keyword overlap and `spoken_forms` aliases.
 
 ## Continuity
 

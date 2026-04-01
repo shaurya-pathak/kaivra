@@ -17,6 +17,7 @@ def test_doctor_command_prints_report() -> None:
     parsed = json.loads(result.output)
     assert "ok" in parsed
     assert "checks" in parsed
+    assert parsed["default_voice_provider"] == "openai"
 
 
 def test_download_model_help() -> None:
@@ -25,6 +26,14 @@ def test_download_model_help() -> None:
     assert result.exit_code == 0
     assert "--model-name" in result.output
     assert "~/.kaivra/models/<model-name>" in result.output
+
+
+def test_quick_render_help_mentions_openai_default_provider() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["quick-render", "--help"])
+    assert result.exit_code == 0
+    assert "KAIVRA_VOICE_PROVIDER" in result.output
+    assert "openai" in result.output
 
 
 def test_audit_help_mentions_layout_only_flag() -> None:

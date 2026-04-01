@@ -11,6 +11,7 @@ license = "MIT"
 dependencies = [
     "kaivra>=0.1.0",
     "elevenlabs>=1.0",
+    "openai>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +23,7 @@ dev = [
 ]
 
 [project.entry-points."kaivra.voice_providers"]
+openai = "kaivra_voice.openai:OpenAIProvider"
 elevenlabs = "kaivra_voice.elevenlabs:ElevenLabsProvider"
 local = "kaivra_voice.local:LocalProvider"
 

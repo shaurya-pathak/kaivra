@@ -29,6 +29,7 @@ def test_server_initialization_and_tool_call(tmp_path: Path) -> None:
     assert "Narration sync" in instructions
     assert "spoken_forms" in instructions
     assert "scene-level timing" in instructions
+    assert "OpenAI" in instructions
     assert "persistent document-level objects" in instructions
     assert "assume the draft defaults" in instructions
     assert "resources/read" in instructions
@@ -231,12 +232,15 @@ def test_render_tool_exposes_voice_fields_and_emits_progress(tmp_path: Path) -> 
     assert "voice_provider" in render_tool["inputSchema"]["properties"]
     assert "voice_id" in render_tool["inputSchema"]["properties"]
     assert "voice_provider" in check_tool["inputSchema"]["properties"]
+    assert "openai" in render_tool["inputSchema"]["properties"]["voice_provider"]["enum"]
+    assert "openai" in check_tool["inputSchema"]["properties"]["voice_provider"]["enum"]
     assert "narration timing guidance" in check_tool["description"]
     assert "assume the defaults" in plan_tool["description"]
     assert "embedded example excerpts" in plan_tool["description"]
     assert "mirror on-screen keywords" in plan_tool["description"]
     assert "spoken_forms" in plan_tool["description"]
     assert "process_explainer" in plan_tool["description"]
+    assert "OpenAI" in plan_tool["description"]
 
     captured: dict[str, object] = {}
 

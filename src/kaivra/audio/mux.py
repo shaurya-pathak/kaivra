@@ -9,6 +9,7 @@ import wave
 from pathlib import Path
 
 __all__ = [
+    "append_silence_to_wav",
     "concat_audio",
     "measure_audio_duration",
     "mux_audio",
@@ -181,3 +182,29 @@ def prepend_silence_to_wav(input_path: str, output_path: str, seconds: float) ->
                 if not chunk:
                     break
                 target.writeframes(chunk)
+
+
+def append_silence_to_wav(input_path: str, output_path: str, seconds: float) -> None:
+    """Write a WAV with trailing silence appended after the source audio."""
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    if seconds <= 0:
+        shutil.copy2(input_path, output_path)
+        return
+
+    with wave.open(input_path, "rb") as source:
+        frame_rate = source.getframerate()
+        if frame_rate <= 0:
+            raise RuntimeError(f"Generated WAV has invalid sample rate: {frame_rate}")
+        channels = source.getnchannels()
+        sample_width = source.getsampwidth()
+        silence_frames = int(round(seconds * frame_rate))
+        silence = b"\x00" * silence_frames * channels * sample_width
+
+        with wave.open(output_path, "wb") as target:
+            target.setparams(source.getparams())
+            while True:
+                chunk = source.readframes(4096)
+                if not chunk:
+                    break
+                target.writeframes(chunk)
+            target.writeframes(silence)
