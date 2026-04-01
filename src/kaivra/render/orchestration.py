@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import tempfile
 from collections.abc import Callable, Iterable
@@ -16,6 +17,7 @@ from kaivra.audio.base import (
     validate_voice_provider_setup,
 )
 from kaivra.audio.mux import (
+    append_silence_to_wav,
     concat_audio,
     measure_audio_duration,
     mux_audio,
@@ -36,6 +38,7 @@ _VIDEO_OUTRO_SCENE_ID = "__kaivra_video_outro__"
 _VOICE_SCENE_LEAD_IN_SECONDS = 0.65
 _VOICE_SCENE_HOLD_SECONDS = 0.55
 _VOICE_BOOKEND_HOLD_SECONDS = 0.8
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -494,7 +497,7 @@ def _render_with_voice(
 
     generate_kwargs = {"voice_id": voice_id} if voice_id is not None else {}
     generated_paths: list[Path] = []
-    concat_inputs: list[Path] = []
+    prepared_audio_per_scene: dict[str, Path] = {}
     temp_audio_paths: list[Path] = []
     scene_timings: dict[str, SceneAudioTiming] = {}
     with tempfile.NamedTemporaryFile(
@@ -537,7 +540,7 @@ def _render_with_voice(
                 )
                 temp_audio_paths.append(prepared_audio_path)
 
-            concat_inputs.append(prepared_audio_path)
+            prepared_audio_per_scene[scene.id] = prepared_audio_path
             measured_duration = measure_audio_duration(str(prepared_audio_path))
             scene_timings[scene.id] = SceneAudioTiming(
                 id=scene.id,
@@ -571,7 +574,42 @@ def _render_with_voice(
             log_progress=False,
             progress_callback=video_progress,
         )
+
+        retimed_scene_durations = {
+            scene.id: scene.duration for scene in getattr(graph, "scenes", [])
+        }
+        concat_inputs: list[Path] = []
+        sync_rows: list[tuple[str, float, float]] = []
+        scene_audio_order = [
+            scene.id
+            for scene in getattr(graph, "scenes", [])
+            if scene.id in prepared_audio_per_scene
+        ]
+        if not scene_audio_order:
+            scene_audio_order = list(prepared_audio_per_scene)
+
+        for scene_id in scene_audio_order:
+            prepared_audio_path = prepared_audio_per_scene[scene_id]
+            audio_duration = measure_audio_duration(str(prepared_audio_path))
+            video_duration = retimed_scene_durations.get(scene_id, audio_duration)
+            pad_seconds = video_duration - audio_duration
+
+            final_audio_path = prepared_audio_path
+            if pad_seconds > 0.01:
+                final_audio_path = output_path.with_name(f"{output_path.stem}_{scene_id}_padded.wav")
+                append_silence_to_wav(
+                    str(prepared_audio_path),
+                    str(final_audio_path),
+                    pad_seconds,
+                )
+                temp_audio_paths.append(final_audio_path)
+                audio_duration = measure_audio_duration(str(final_audio_path))
+
+            concat_inputs.append(final_audio_path)
+            sync_rows.append((scene_id, video_duration, audio_duration))
+
         _emit_progress(progress, 0.88, "Concatenating narration audio.")
+        _log_voice_sync(sync_rows)
         concat_audio([str(path) for path in concat_inputs], str(concat_path))
         _emit_progress(progress, 0.95, "Muxing narration onto the rendered video.")
         mux_audio(str(silent_path), str(concat_path), str(output_path))
@@ -593,3 +631,25 @@ def _emit_progress(progress: ProgressReporter | None, value: float, message: str
     if progress is None:
         return
     progress(value, message)
+
+
+def _log_voice_sync(scene_sync_rows: list[tuple[str, float, float]]) -> None:
+    if not scene_sync_rows:
+        return
+
+    total_video = sum(video_duration for _, video_duration, _ in scene_sync_rows)
+    total_audio = sum(audio_duration for _, _, audio_duration in scene_sync_rows)
+    logger.info(
+        "Voice sync check: total_audio=%.2fs total_video=%.2fs drift=%.2fs",
+        total_audio,
+        total_video,
+        total_audio - total_video,
+    )
+    for scene_id, video_duration, audio_duration in scene_sync_rows:
+        logger.info(
+            "  scene %-24s video=%.2fs audio_clip=%.2fs drift=%.2fs",
+            scene_id,
+            video_duration,
+            audio_duration,
+            audio_duration - video_duration,
+        )
