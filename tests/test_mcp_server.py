@@ -100,7 +100,9 @@ def test_resource_guidance_promotes_process_explainers_and_examples_as_shape_ref
     assert "process_explainer" in pattern_catalog
     assert "algorithm_walkthrough" in pattern_catalog
     assert "authoring patterns, not generated scaffolds" in pattern_catalog
-    assert "why it matters → state enters the system → step-by-step flow → outcome" in pattern_catalog
+    assert (
+        "why it matters → state enters the system → step-by-step flow → outcome" in pattern_catalog
+    )
     assert "BAD: Generic repeated scene" in examples
     assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
@@ -173,7 +175,7 @@ def test_plan_animation_summary_mentions_voice_sync_guidance() -> None:
                 {
                     "uri": "kaivra://example/api_how_it_works",
                     "why": "Problem-first explainer reference",
-                }
+                },
             ],
             "questions": [
                 {"id": "audience"},

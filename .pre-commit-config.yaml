@@ -5,18 +5,22 @@ repos:
     hooks:
       - id: kaivra-repo-hygiene
         name: kaivra repo hygiene
-        entry: .venv/bin/python scripts/repo_hygiene.py
+        entry: .venv/bin/python scripts/repo_hygiene.py --check .
         language: system
+        pass_filenames: false
+        always_run: true
       - id: kaivra-ruff-format
         name: kaivra ruff format
-        entry: .venv/bin/ruff format
+        entry: .venv/bin/ruff format --check .
         language: system
-        types_or: [python, pyi]
+        pass_filenames: false
+        always_run: true
       - id: kaivra-ruff-check
         name: kaivra ruff check
-        entry: .venv/bin/ruff check --fix --exit-non-zero-on-fix
+        entry: .venv/bin/ruff check .
         language: system
-        types_or: [python, pyi]
+        pass_filenames: false
+        always_run: true
       - id: kaivra-containerized-pytest
         name: kaivra containerized pytest
         entry: scripts/run_containerized_tests.sh

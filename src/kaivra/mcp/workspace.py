@@ -462,7 +462,9 @@ class KaivraWorkspace:
                 {
                     "uri": "kaivra://example/perspectiv_medcase_process_explainer",
                     "why": "Shows the best current quality bar for a narrated process explainer with persistent state and dense topic-specific visuals.",
-                    "excerpt": _reference_example_excerpt("perspectiv_medcase_process_explainer.json"),
+                    "excerpt": _reference_example_excerpt(
+                        "perspectiv_medcase_process_explainer.json"
+                    ),
                 },
                 {
                     "uri": "kaivra://example/api_how_it_works",

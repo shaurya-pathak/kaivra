@@ -596,7 +596,9 @@ def _render_with_voice(
 
             final_audio_path = prepared_audio_path
             if pad_seconds > 0.01:
-                final_audio_path = output_path.with_name(f"{output_path.stem}_{scene_id}_padded.wav")
+                final_audio_path = output_path.with_name(
+                    f"{output_path.stem}_{scene_id}_padded.wav"
+                )
                 append_silence_to_wav(
                     str(prepared_audio_path),
                     str(final_audio_path),
