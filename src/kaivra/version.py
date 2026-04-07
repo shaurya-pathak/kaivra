@@ -3,16 +3,11 @@
 from __future__ import annotations
 
 # Bump this when the DSL schema changes in ways LLMs should know about.
-CURRENT_DSL_VERSION = "1.3"
+CURRENT_DSL_VERSION = "1.2"
 
 # Short changelog an LLM can scan to understand what changed.
 # Keep entries terse — this may be injected into tool responses.
 DSL_CHANGELOG: list[tuple[str, str]] = [
-    (
-        "1.3",
-        "Changed: relative motion translations replace pixel offsets, and the unused "
-        "absolute layout mode was removed.",
-    ),
     (
         "1.2",
         "Added: plan_animation questionnaire guidance, spoken_forms aliases, "
