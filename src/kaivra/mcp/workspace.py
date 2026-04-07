@@ -1441,7 +1441,9 @@ def _preflight_high_level_animation_findings(doc: Any) -> list[CheckFinding]:
             scene_spec.objects,
             prefix=f"scenes[{scene_index}].objects",
         )
-        object_map = {ref.object_id: ref.spec for ref in persistent_refs + scene_refs if ref.object_id}
+        object_map = {
+            ref.object_id: ref.spec for ref in persistent_refs + scene_refs if ref.object_id
+        }
         for animation_index, anim in enumerate(scene_spec.animations):
             findings.extend(
                 _high_level_animation_findings(
@@ -1521,7 +1523,10 @@ def _scene_duration_findings(*, scene_spec: Any, scene: Any) -> list[CheckFindin
         (keyframe.start_time + keyframe.duration for keyframe in getattr(scene, "timeline", [])),
         default=0.0,
     )
-    if getattr(scene_spec, "duration", "auto") != "auto" and max_timeline_end > scene.duration + 0.01:
+    if (
+        getattr(scene_spec, "duration", "auto") != "auto"
+        and max_timeline_end > scene.duration + 0.01
+    ):
         findings.append(
             CheckFinding(
                 severity="warning",

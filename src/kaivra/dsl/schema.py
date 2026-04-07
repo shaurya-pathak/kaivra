@@ -429,10 +429,18 @@ class AnimSpec(BaseModel):
                 )
         elif self.style is not None and self.action in {AnimAction.HIGHLIGHT, AnimAction.PULSE}:
             if self.style not in {"glow", "outline"}:
-                raise ValueError("Highlight and pulse animations only support style `glow` or `outline`.")
-        if self.order is not None and self.action not in {AnimAction.REVEAL, AnimAction.REVEAL_CHILDREN}:
+                raise ValueError(
+                    "Highlight and pulse animations only support style `glow` or `outline`."
+                )
+        if self.order is not None and self.action not in {
+            AnimAction.REVEAL,
+            AnimAction.REVEAL_CHILDREN,
+        }:
             raise ValueError("`order` is only supported for reveal and reveal-children animations.")
-        if self.step is not None and self.action not in {AnimAction.REVEAL, AnimAction.REVEAL_CHILDREN}:
+        if self.step is not None and self.action not in {
+            AnimAction.REVEAL,
+            AnimAction.REVEAL_CHILDREN,
+        }:
             raise ValueError("`step` is only supported for reveal and reveal-children animations.")
         return self
 

@@ -11,11 +11,6 @@ from kaivra.dsl.pacing import (
     get_pacing_profile,
     resolve_meta_duration,
 )
-from kaivra.dsl.timing import (
-    TimingConfig,
-    merge_timing_config,
-    resolve_duration_value,
-)
 from kaivra.dsl.schema import (
     AnimAction,
     AnimSpec,
@@ -29,6 +24,11 @@ from kaivra.dsl.schema import (
     ObjectType,
     SceneSpec,
     parse_duration,
+)
+from kaivra.dsl.timing import (
+    TimingConfig,
+    merge_timing_config,
+    resolve_duration_value,
 )
 from kaivra.layout.engine import LayoutEngine
 from kaivra.layout.strategies.carousel import carousel_scale_profile
@@ -89,7 +89,9 @@ def build_scene_graph(
     scenes = []
     prev_scene: ResolvedScene | None = None
     for scene_spec in doc.scenes:
-        scene_audio_timing = audio_timing_data.scenes.get(scene_spec.id) if audio_timing_data else None
+        scene_audio_timing = (
+            audio_timing_data.scenes.get(scene_spec.id) if audio_timing_data else None
+        )
         # Prepend persistent objects so they appear in every scene
         if doc.objects and scene_spec.include_persistent_objects:
             merged_objects = list(doc.objects) + list(scene_spec.objects)

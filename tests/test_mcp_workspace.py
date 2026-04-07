@@ -549,7 +549,9 @@ def test_check_animation_reports_narration_timing_without_rewriting_scene_durati
     assert checked["narration_timing"][0]["scene_id"] == "voice_scene"
     assert checked["narration_timing"][0]["needs_review"] is True
     assert float(checked["narration_timing"][0]["suggested_duration_seconds"]) >= 8.0
-    assert not any(fix["action"] == "stretch_scene_to_narration" for fix in checked["applied_fixes"])
+    assert not any(
+        fix["action"] == "stretch_scene_to_narration" for fix in checked["applied_fixes"]
+    )
     assert rewritten["scenes"][0]["duration"] == "4s"
 
 

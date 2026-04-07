@@ -249,7 +249,11 @@ def _document_uses_semantic_timing(doc: Any) -> bool:
                 return True
             for field_name in ("at", "duration", "stagger", "step"):
                 value = getattr(anim, field_name, None)
-                if isinstance(value, str) and value.strip() and not value.strip().endswith(("s", "ms")):
+                if (
+                    isinstance(value, str)
+                    and value.strip()
+                    and not value.strip().endswith(("s", "ms"))
+                ):
                     return True
     return False
 
