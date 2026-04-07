@@ -76,20 +76,39 @@ src/kaivra/
 
 ### DSL versioning
 
-The DSL version lives in `version.py` (`CURRENT_DSL_VERSION`). When you add or change DSL capabilities:
-1. Bump `CURRENT_DSL_VERSION` in `version.py` (e.g. `"1.2"` → `"1.3"`)
-2. Add a changelog entry to `DSL_CHANGELOG` in the same file
-3. Update the default version in `DocumentSpec` in `schema.py` to match
-4. Update `blueprints.py` if it references the version (it should use `CURRENT_DSL_VERSION`, not a hardcoded string)
-5. Update all `"version"` fields in test fixtures (`tests/*.py`) and example files (`examples/**/*.json`) to the new version — otherwise `check_animation` will emit version drift warnings that break assertions
+**Do NOT edit `version.py` directly in a PR.** Version bumps are automated via changesets to avoid merge conflicts.
+
+Instead, add a file to `changes/<short-feature-name>.md` with two things:
+
+```
+bump: minor
+Short description of what changed for the LLM changelog.
+```
+
+Use `bump: minor` for backward-compatible additions and `bump: major` for breaking changes.
+
+The CI `changeset` job will fail the PR if `src/kaivra/` or `tests/` files changed without a corresponding `changes/*.md` file.
+
+**Applying changesets (maintainer, before merging a batch of PRs):**
+```bash
+python scripts/apply_changesets.py          # dry run — shows what will happen
+python scripts/apply_changesets.py --write  # applies: bumps version.py, updates all example/test "version" fields, deletes changeset files
+```
+
+The script handles everything automatically:
+- Picks the highest bump level across all pending changesets (major > minor)
+- Bumps `CURRENT_DSL_VERSION` and prepends to `DSL_CHANGELOG` in `version.py`
+- Updates all `"version"` fields in `examples/**/*.json` and `tests/**/*.py`
+- Deletes the processed changeset files
 
 ### Checklists by feature type
 
-- **New object type**: Add to `ObjectType` enum in `schema.py` → add fields to `ObjectSpec` → add size estimator in `_sizing.py` → add draw method in `cairo_renderer.py` → add JS draw function in `web/exporter.py` → serialize new fields in `_serialize_node()` in `web/exporter.py` → update MCP prompt + tests → bump DSL version
-- **New animation**: Add to `AnimAction` enum in `schema.py` → handle in `timeline.py` `apply_animations_at_time` → handle in JS `applyAnimations` → update MCP prompt + tests → bump DSL version
-- **New layout**: Add to `LayoutType` enum → create strategy class in `layout/strategies/` → register in `layout/engine.py` → update MCP prompt + tests → bump DSL version
+- **New object type**: Add to `ObjectType` enum in `schema.py` → add fields to `ObjectSpec` → add size estimator in `_sizing.py` → add draw method in `cairo_renderer.py` → add JS draw function in `web/exporter.py` → serialize new fields in `_serialize_node()` in `web/exporter.py` → update MCP prompt + tests → add a changeset (`bump: minor`)
+- **New animation**: Add to `AnimAction` enum in `schema.py` → handle in `timeline.py` `apply_animations_at_time` → handle in JS `applyAnimations` → update MCP prompt + tests → add a changeset (`bump: minor`)
+- **New layout**: Add to `LayoutType` enum → create strategy class in `layout/strategies/` → register in `layout/engine.py` → update MCP prompt + tests → add a changeset (`bump: minor`)
 - **New theme**: Create file in `themes/` → register in `themes/registry.py`
-- **Renderer-only change** (e.g. connector routing, new draw logic): Update both `cairo_renderer.py` AND `web/exporter.py` → update MCP prompt if it affects how LLMs should author content → update tests → bump DSL version if it changes what LLMs can generate
+- **Renderer-only change** (e.g. connector routing, new draw logic): Update both `cairo_renderer.py` AND `web/exporter.py` → update MCP prompt if it affects how LLMs should author content → update tests → add a changeset if it changes what LLMs can generate
+- **Breaking DSL change** (removes/renames fields, changes behavior): add a changeset with `bump: major`
 
 ### Dual-renderer parity
 

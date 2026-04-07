@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE_TAG="${KAIVRA_PRECOMMIT_IMAGE:-kaivra-precommit:py313}"
+_WORKSPACE=""  # set in main(); referenced by the EXIT trap
 DOCKERFILE_PATH="$ROOT_DIR/docker/precommit.Dockerfile"
 BUILD_CONTEXT="$ROOT_DIR/docker"
 ENGINE_LABEL=""
@@ -82,6 +83,22 @@ main() {
         --file "$DOCKERFILE_PATH" \
         "$BUILD_CONTEXT"
 
+    # Stage the repo under $HOME so Colima (and any other runtime that restricts
+    # bind-mount paths) can always reach it. /tmp on macOS is a symlink to
+    # /private/tmp which Colima does not mount by default; $HOME is always
+    # included in Colima's mount set.
+    _WORKSPACE="$(mktemp -d "$HOME/.kaivra-precommit-XXXXXX")"
+    trap 'rm -rf "$_WORKSPACE"' EXIT
+
+    log "Staging workspace in ${_WORKSPACE}."
+    tar -C "$ROOT_DIR" \
+        --exclude='./.venv' \
+        --exclude='./__pycache__' \
+        --exclude='./.git' \
+        --exclude='./artifacts' \
+        --exclude='./.pre-commit-cache' \
+        -cf - . | tar -C "$_WORKSPACE" -xf -
+
     local user_args=()
     if command -v id >/dev/null 2>&1; then
         user_args=(--user "$(id -u):$(id -g)")
@@ -90,7 +107,7 @@ main() {
     log "Running full pytest suite inside the container."
     run_engine run --rm \
         "${user_args[@]}" \
-        --volume "$ROOT_DIR:/workspace" \
+        --volume "$_WORKSPACE:/workspace" \
         --workdir /workspace \
         --env HOME=/tmp/kaivra-home \
         --env UV_CACHE_DIR=/tmp/uv-cache \
