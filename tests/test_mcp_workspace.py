@@ -511,7 +511,9 @@ def test_check_animation_write_back_enables_layout_group_visibility(tmp_path: Pa
     assert not checked["finding_groups"]["blocking"]
 
 
-def test_check_animation_reports_narration_timing_and_can_stretch_scene(tmp_path: Path) -> None:
+def test_check_animation_reports_narration_timing_without_rewriting_scene_duration(
+    tmp_path: Path,
+) -> None:
     workspace = KaivraWorkspace(tmp_path)
     source_path = tmp_path / "animations" / "timing-fix.json"
     source_path.parent.mkdir(parents=True, exist_ok=True)
@@ -545,13 +547,10 @@ def test_check_animation_reports_narration_timing_and_can_stretch_scene(tmp_path
 
     assert checked["narration_timing"]
     assert checked["narration_timing"][0]["scene_id"] == "voice_scene"
-    assert checked["narration_timing"][0]["needs_review"] is False
+    assert checked["narration_timing"][0]["needs_review"] is True
     assert float(checked["narration_timing"][0]["suggested_duration_seconds"]) >= 8.0
-    assert any(
-        fix["action"] == "stretch_scene_to_narration" and fix["scene_id"] == "voice_scene"
-        for fix in checked["applied_fixes"]
-    )
-    assert rewritten["scenes"][0]["duration"] != "4s"
+    assert not any(fix["action"] == "stretch_scene_to_narration" for fix in checked["applied_fixes"])
+    assert rewritten["scenes"][0]["duration"] == "4s"
 
 
 def test_check_animation_warns_when_scene_crossfade_and_object_reveal_stack(

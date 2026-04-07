@@ -1,0 +1,33 @@
+{
+  "timing": {
+    "gaps": {
+      "none": "0s",
+      "short": "0.4s",
+      "medium": "0.8s",
+      "long": "1.2s"
+    },
+    "durations": {
+      "instant": "0s",
+      "short": "0.4s",
+      "medium": "0.8s",
+      "long": "1.2s"
+    },
+    "action_durations": {
+      "appear": "0s",
+      "disappear": "0s",
+      "fade-in": "0.5s",
+      "fade-out": "0.5s",
+      "move": "0.8s",
+      "move-to": "0.8s",
+      "swap": "0.8s",
+      "scale": "0.7s",
+      "draw": "0.9s",
+      "type": "1.0s",
+      "highlight": "1.0s",
+      "pulse": "1.0s",
+      "build": "1.0s",
+      "replace": "0.7s"
+    },
+    "tail_padding": "0.8s"
+  }
+}

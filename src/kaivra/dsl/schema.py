@@ -108,6 +108,20 @@ def parse_duration(value: str) -> float:
     return num if unit == "s" else num / 1000.0
 
 
+def _validate_timing_value(value: str | None) -> str | None:
+    """Accept duration literals and semantic timing expressions."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("Timing values must be strings.")
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("Timing values must not be empty.")
+    if stripped == "auto" or _DURATION_RE.match(stripped):
+        parse_duration(stripped)
+    return stripped
+
+
 # ---------------------------------------------------------------------------
 # Layout
 # ---------------------------------------------------------------------------
@@ -200,9 +214,7 @@ class MotionSpec(BaseModel):
     @field_validator("at", "duration", mode="before")
     @classmethod
     def validate_motion_durations(cls, v: str | None) -> str | None:
-        if v is not None:
-            parse_duration(v)
-        return v
+        return _validate_timing_value(v)
 
 
 # ---------------------------------------------------------------------------
@@ -295,10 +307,19 @@ class BuildPhase(BaseModel):
     duration: str = Field("1s", description="Duration of this phase")
     stagger: str | None = Field(None, description="Delay between targets in this phase")
 
+    @field_validator("at", "duration", "stagger", mode="before")
+    @classmethod
+    def validate_phase_durations(cls, v: str | None) -> str | None:
+        return _validate_timing_value(v)
+
 
 class AnimSpec(BaseModel):
     """Specification for an animation action."""
 
+    id: str | None = Field(
+        None,
+        description="Optional animation identifier used by semantic timing anchors.",
+    )
     action: AnimAction = Field(
         description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build, replace"
     )
@@ -313,10 +334,22 @@ class AnimSpec(BaseModel):
 
     # Timing
     at: str | None = Field(None, description="Start time, e.g. '0.5s' or '200ms'")
+    anchor: str | None = Field(
+        None,
+        description="Anchor to another animation ID, object ID, or scene boundary like 'scene_start'/'scene_end'.",
+    )
     after: str | None = Field(None, description="Start after another animation completes")
     duration: str = Field("0.5s", description="Animation duration, e.g. '1s' or '500ms'")
+    gap: str | None = Field(
+        None,
+        description="Relative offset token or duration applied after an anchor/cue, e.g. 'short'.",
+    )
     stagger: str | None = Field(
         None, description="Delay between targets when animating multiple objects"
+    )
+    cue: str | None = Field(
+        None,
+        description="Narration cue phrase to anchor against when external cue timings are supplied.",
     )
     easing: EasingType = Field(
         EasingType.EASE_IN_OUT,
@@ -350,12 +383,10 @@ class AnimSpec(BaseModel):
 
     model_config = {"extra": "allow"}
 
-    @field_validator("at", "duration", "stagger", mode="before")
+    @field_validator("at", "duration", "gap", "stagger", mode="before")
     @classmethod
     def validate_duration_format(cls, v: str | None) -> str | None:
-        if v is not None:
-            parse_duration(v)  # validates format
-        return v
+        return _validate_timing_value(v)
 
     @model_validator(mode="after")
     def validate_replace_shape(self) -> "AnimSpec":
@@ -397,9 +428,7 @@ class FocusStyleSpec(BaseModel):
     @field_validator("at", "duration", mode="before")
     @classmethod
     def validate_focus_durations(cls, v: str | None) -> str | None:
-        if v is not None:
-            parse_duration(v)
-        return v
+        return _validate_timing_value(v)
 
 
 # ---------------------------------------------------------------------------
