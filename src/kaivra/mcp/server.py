@@ -183,7 +183,7 @@ class KaivraMCPServer:
                 "Wrap objects in group containers with flow (horizontal) or stack (vertical) layouts — flat lists cause overlaps. "
                 "Prefer template: one-column on scenes. If you skip template, default scene-level layout.type to 'stack'. "
                 "Keep connected nodes adjacent within groups so connectors don't cross unrelated nodes. "
-                "Available layout types: center, grid, flow, stack, split, absolute, carousel. "
+                "Available layout types: center, grid, flow, stack, split, carousel. "
                 "Use fade-in for reveals, draw for connectors. "
                 "Prefer persistent document-level objects whenever labels, chapter rails, or shared state carry across scenes. "
                 "Reuse the same object id and content across consecutive scenes for smooth continuity morphs. "

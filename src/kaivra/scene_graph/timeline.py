@@ -113,10 +113,8 @@ def apply_animations_at_time(
                     node.scale_y = to_val
 
             case AnimAction.MOVE:
-                dx = kf.offset_x or 0.0
-                dy = kf.offset_y or 0.0
-                from_dx = kf.from_offset_x if kf.from_offset_x is not None else 0.0
-                from_dy = kf.from_offset_y if kf.from_offset_y is not None else 0.0
+                dx, dy = _resolve_relative_translate(kf.translate, node)
+                from_dx, from_dy = _resolve_relative_translate(kf.from_translate, node)
                 if progress is not None:
                     node.visible = True
                     node.opacity = 1.0
@@ -132,12 +130,13 @@ def apply_animations_at_time(
 
             case AnimAction.MOVE_TO:
                 target = nodes.get(kf.to_id) if kf.to_id else None
+                offset_dx, offset_dy = _resolve_relative_translate(kf.translate, node, target)
                 if target:
-                    dx = target.rect.center.x - node.rect.center.x + (kf.offset_x or 0.0)
-                    dy = target.rect.center.y - node.rect.center.y + (kf.offset_y or 0.0)
+                    dx = target.rect.center.x - node.rect.center.x + offset_dx
+                    dy = target.rect.center.y - node.rect.center.y + offset_dy
                 else:
-                    dx = kf.offset_x or 0.0
-                    dy = kf.offset_y or 0.0
+                    dx = offset_dx
+                    dy = offset_dy
                 if progress is not None:
                     node.visible = True
                     node.opacity = 1.0
@@ -224,3 +223,17 @@ def _get_progress(kf: AnimationKeyframe, t: float) -> float | None:
 
     easing_fn = get_easing(kf.easing)
     return easing_fn(max(0.0, min(1.0, raw)))
+
+
+def _resolve_relative_translate(
+    spec,
+    node: SceneNode,
+    target: SceneNode | None = None,
+) -> tuple[float, float]:
+    if spec is None:
+        return 0.0, 0.0
+
+    basis_node = target if spec.basis.value == "target" and target is not None else node
+    width = basis_node.rect.width or 1.0
+    height = basis_node.rect.height or 1.0
+    return (spec.x or 0.0) * width, (spec.y or 0.0) * height

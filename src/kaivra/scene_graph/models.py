@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from kaivra.dsl.schema import AnimAction, ObjectType
+from kaivra.dsl.schema import AnimAction, ObjectType, RelativePositionSpec
 from kaivra.utils.geometry import Rect
 
 
@@ -75,10 +75,8 @@ class AnimationKeyframe:
     color: str | None = None
     stagger: float = 0.0
     phases: list[dict] | None = None
-    offset_x: float | None = None  # for move (pixels)
-    offset_y: float | None = None  # for move (pixels)
-    from_offset_x: float | None = None  # for move (start)
-    from_offset_y: float | None = None  # for move (start)
+    translate: RelativePositionSpec | None = None
+    from_translate: RelativePositionSpec | None = None
     to_id: str | None = None  # for move-to
     with_id: str | None = None  # for replace
 

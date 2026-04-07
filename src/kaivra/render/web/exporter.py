@@ -43,10 +43,10 @@ def build_web_preview_html(
                     "stagger": kf.stagger,
                     "phases": kf.phases,
                     "to_id": kf.to_id,
-                    "offset_x": kf.offset_x,
-                    "offset_y": kf.offset_y,
-                    "from_offset_x": kf.from_offset_x,
-                    "from_offset_y": kf.from_offset_y,
+                    "translate": kf.translate.model_dump(mode="json") if kf.translate else None,
+                    "from_translate": (
+                        kf.from_translate.model_dump(mode="json") if kf.from_translate else None
+                    ),
                     "with_id": kf.with_id,
                 }
             )
@@ -258,6 +258,14 @@ const easings = {{
   'bounce': t => {{ const n1 = 7.5625, d1 = 2.75; if (t < 1/d1) return n1*t*t; if (t < 2/d1) {{ t -= 1.5/d1; return n1*t*t+0.75; }} if (t < 2.5/d1) {{ t -= 2.25/d1; return n1*t*t+0.9375; }} t -= 2.625/d1; return n1*t*t+0.984375; }},
 }};
 
+function resolveRelativeTranslate(spec, node, targetNode) {{
+  if (!spec) return [0, 0];
+  const basisNode = spec.basis === 'target' && targetNode ? targetNode : node;
+  const width = basisNode.rect.w || 1;
+  const height = basisNode.rect.h || 1;
+  return [(spec.x || 0) * width, (spec.y || 0) * height];
+}}
+
 function getEasing(name) {{ return easings[name] || easings['ease-in-out']; }}
 
 function getSceneAtTime(t) {{
@@ -356,17 +364,17 @@ function applyAnimations(nodeMap, keyframes, t) {{
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._scaleX = to; node._scaleY = to; }}
         break;
       case 'move': {{
-        const mdx = kf.offset_x || 0, mdy = kf.offset_y || 0;
-        const fdx = (kf.from_offset_x !== undefined && kf.from_offset_x !== null) ? kf.from_offset_x : 0;
-        const fdy = (kf.from_offset_y !== undefined && kf.from_offset_y !== null) ? kf.from_offset_y : 0;
+        const [mdx, mdy] = resolveRelativeTranslate(kf.translate, node, null);
+        const [fdx, fdy] = resolveRelativeTranslate(kf.from_translate, node, null);
         if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = fdx + (mdx - fdx) * p; node._translateY = fdy + (mdy - fdy) * p; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = mdx; node._translateY = mdy; }}
         break;
       }}
       case 'move-to':
         const tnode = kf.to_id ? nodeMap[kf.to_id] : null;
-        const dx = tnode ? (tnode.rect.x + tnode.rect.w/2 - (node.rect.x + node.rect.w/2)) + (kf.offset_x || 0) : (kf.offset_x || 0);
-        const dy = tnode ? (tnode.rect.y + tnode.rect.h/2 - (node.rect.y + node.rect.h/2)) + (kf.offset_y || 0) : (kf.offset_y || 0);
+        const [offsetDx, offsetDy] = resolveRelativeTranslate(kf.translate, node, tnode);
+        const dx = tnode ? (tnode.rect.x + tnode.rect.w/2 - (node.rect.x + node.rect.w/2)) + offsetDx : offsetDx;
+        const dy = tnode ? (tnode.rect.y + tnode.rect.h/2 - (node.rect.y + node.rect.h/2)) + offsetDy : offsetDy;
         if (p !== null) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = dx * p; node._translateY = dy * p; }}
         else if (done) {{ node._visible = true; node._opacity = 1; node._drawProgress = 1; node._translateX = dx; node._translateY = dy; }}
         break;
