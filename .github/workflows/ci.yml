@@ -69,6 +69,45 @@ jobs:
           path: artifacts/quick-renders/ci-smoke.png
           if-no-files-found: ignore
 
+  changeset:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require changeset for DSL changes
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+
+          CHANGED=$(git diff --name-only "$BASE"..."$HEAD")
+
+          DSL_CHANGED=$(echo "$CHANGED" | grep -E "^(src/kaivra/|tests/)" || true)
+          if [ -z "$DSL_CHANGED" ]; then
+            echo "No DSL files changed — changeset not required."
+            exit 0
+          fi
+
+          echo "DSL files changed:"
+          echo "$DSL_CHANGED"
+
+          CHANGESET=$(echo "$CHANGED" | grep -E "^changes/[^/]+\.md$" || true)
+          if [ -z "$CHANGESET" ]; then
+            echo ""
+            echo "ERROR: This PR modifies DSL files but includes no changeset."
+            echo "Add a file under changes/<feature>.md with:"
+            echo "  bump: minor"
+            echo "  Short description of what changed."
+            exit 1
+          fi
+
+          echo ""
+          echo "Changeset found: $CHANGESET"
+
   voice-enabled:
     runs-on: ubuntu-latest
 
