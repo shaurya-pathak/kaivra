@@ -243,7 +243,7 @@ def _build_scene(
                 node_map[node_id].persistent = True
 
     # Expand motion presets and focus into animations
-    expanded_anims = list(spec.animations)
+    expanded_anims = _expand_high_level_reveals(spec)
     expanded_anims.extend(_expand_motion_presets(spec))
     expanded_anims.extend(_expand_focus_presets(spec, pacing_profile.focus_duration))
 
@@ -735,6 +735,58 @@ def _expand_motion_presets(spec: SceneSpec) -> list[AnimSpec]:
         walk(obj)
 
     return anims
+
+
+def _expand_high_level_reveals(spec: SceneSpec) -> list[AnimSpec]:
+    """Compile LLM-friendly reveal actions into low-level reveal animations."""
+    expanded: list[AnimSpec] = []
+    object_map = _object_specs_by_id(spec.objects)
+
+    for anim in spec.animations:
+        if anim.action not in {AnimAction.REVEAL, AnimAction.REVEAL_CHILDREN}:
+            expanded.append(anim)
+            continue
+
+        reveal_action = AnimAction.APPEAR if anim.style == "appear" else AnimAction.FADE_IN
+        targets: str | list[str] | None = anim.target
+        if anim.action == AnimAction.REVEAL_CHILDREN:
+            group = object_map.get(anim.target) if isinstance(anim.target, str) else None
+            if group is None:
+                raise ValueError(
+                    f"Reveal-children animation target {anim.target!r} does not exist in the scene."
+                )
+            if group.type != ObjectType.GROUP:
+                raise ValueError(
+                    f"Reveal-children animation target {anim.target!r} must be a group object."
+                )
+            targets = [child.id for child in group.children or [] if child.id]
+            if not targets:
+                raise ValueError(
+                    f"Reveal-children animation target {anim.target!r} has no immediate children."
+                )
+
+        stagger = anim.stagger
+        if anim.order == "sequential" or anim.action == AnimAction.REVEAL_CHILDREN:
+            stagger = anim.step or anim.stagger or "short"
+
+        expanded.append(
+            AnimSpec(
+                id=anim.id,
+                action=reveal_action,
+                target=targets,
+                at=anim.at,
+                anchor=anim.anchor,
+                after=anim.after,
+                duration=anim.duration,
+                gap=anim.gap,
+                stagger=stagger,
+                cue=anim.cue,
+                easing=anim.easing,
+                color=anim.color,
+            )
+        )
+
+    return expanded
 
 
 def _expand_focus_presets(spec: SceneSpec, default_duration: str) -> list[AnimSpec]:

@@ -282,3 +282,80 @@ def test_semantic_cue_anchor_uses_external_audio_timing_data() -> None:
     )
 
     assert graph.scenes[0].timeline[0].start_time == 1.3
+
+
+def test_reveal_action_compiles_to_sequential_fade_in_targets() -> None:
+    graph = _build_graph(
+        {
+            "meta": {"theme": "modern", "show_subtitles": False},
+            "scenes": [
+                {
+                    "id": "reveal_scene",
+                    "duration": "auto",
+                    "layout": "center",
+                    "objects": [
+                        {"id": "pain_os", "type": "box", "content": "Pain OS"},
+                        {"id": "pain_drivers", "type": "box", "content": "Pain Drivers"},
+                        {"id": "pain_auth", "type": "box", "content": "Pain Auth"},
+                    ],
+                    "animations": [
+                        {
+                            "action": "reveal",
+                            "targets": ["pain_os", "pain_drivers", "pain_auth"],
+                            "order": "sequential",
+                            "style": "fade-in",
+                            "at": "1s",
+                            "duration": "0.6s",
+                            "step": "0.3s",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    starts = [keyframe.start_time for keyframe in graph.scenes[0].timeline]
+    assert starts == [1.0, 1.3, 1.6]
+    assert all(keyframe.action == AnimAction.FADE_IN for keyframe in graph.scenes[0].timeline)
+
+
+def test_reveal_children_uses_immediate_child_order() -> None:
+    graph = _build_graph(
+        {
+            "meta": {"theme": "modern", "show_subtitles": False},
+            "scenes": [
+                {
+                    "id": "child_reveal",
+                    "duration": "auto",
+                    "layout": "center",
+                    "objects": [
+                        {
+                            "id": "pain_points",
+                            "type": "group",
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [
+                                {"id": "pain_os", "type": "box", "content": "Pain OS"},
+                                {"id": "pain_drivers", "type": "box", "content": "Pain Drivers"},
+                                {"id": "pain_auth", "type": "box", "content": "Pain Auth"},
+                            ],
+                        }
+                    ],
+                    "animations": [
+                        {
+                            "action": "reveal-children",
+                            "target": "pain_points",
+                            "order": "sequential",
+                            "style": "appear",
+                            "at": "0.5s",
+                            "step": "0.2s",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    timeline = graph.scenes[0].timeline
+    assert [keyframe.target_id for keyframe in timeline] == ["pain_os", "pain_drivers", "pain_auth"]
+    assert [keyframe.start_time for keyframe in timeline] == [0.5, 0.7, 0.9]
+    assert all(keyframe.action == AnimAction.APPEAR for keyframe in timeline)

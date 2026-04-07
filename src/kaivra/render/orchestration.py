@@ -240,9 +240,14 @@ def resolve_document_timing_config(
 def _document_uses_semantic_timing(doc: Any) -> bool:
     for scene in getattr(doc, "scenes", []) or []:
         for anim in getattr(scene, "animations", []) or []:
+            action = getattr(getattr(anim, "action", None), "value", getattr(anim, "action", None))
+            if action in {"reveal", "reveal-children"}:
+                return True
             if any(getattr(anim, field, None) for field in ("anchor", "after", "cue", "gap")):
                 return True
-            for field_name in ("at", "duration", "stagger"):
+            if any(getattr(anim, field, None) for field in ("order", "step")):
+                return True
+            for field_name in ("at", "duration", "stagger", "step"):
                 value = getattr(anim, field_name, None)
                 if isinstance(value, str) and value.strip() and not value.strip().endswith(("s", "ms")):
                     return True

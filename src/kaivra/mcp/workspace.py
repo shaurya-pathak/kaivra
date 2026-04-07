@@ -1334,6 +1334,14 @@ def _audit_document_report(
     list[str],
     list[dict[str, str | int | float | bool | None]],
 ]:
+    preflight_findings = _preflight_high_level_animation_findings(doc)
+    if any(finding.severity == "error" for finding in preflight_findings):
+        serialized_findings = _serialize_findings(preflight_findings)
+        recommended_edits = _recommended_edits_from_findings(preflight_findings)
+        if not recommended_edits:
+            recommended_edits = _recommend_edits_from_messages(serialized_findings)
+        return preflight_findings, serialized_findings, recommended_edits
+
     graph, _theme = build_render_graph(
         doc,
         theme_search_roots=theme_search_roots,
@@ -1424,6 +1432,29 @@ def _audit_document_report(
     return findings, serialized_findings, recommended_edits
 
 
+def _preflight_high_level_animation_findings(doc: Any) -> list[CheckFinding]:
+    findings: list[CheckFinding] = []
+    persistent_refs = _collect_object_refs(doc.objects, prefix="objects")
+    for scene_index, scene_spec in enumerate(doc.scenes):
+        scene_id = scene_spec.id or f"scene_{scene_index}"
+        scene_refs = _collect_object_refs(
+            scene_spec.objects,
+            prefix=f"scenes[{scene_index}].objects",
+        )
+        object_map = {ref.object_id: ref.spec for ref in persistent_refs + scene_refs if ref.object_id}
+        for animation_index, anim in enumerate(scene_spec.animations):
+            findings.extend(
+                _high_level_animation_findings(
+                    scene_id=scene_id,
+                    scene_index=scene_index,
+                    animation_index=animation_index,
+                    anim=anim,
+                    object_map=object_map,
+                )
+            )
+    return findings
+
+
 def _layout_audit_findings(graph: Any) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
     scene_map = {scene.id: scene for scene in graph.scenes}
@@ -1511,6 +1542,99 @@ def _scene_duration_findings(*, scene_spec: Any, scene: Any) -> list[CheckFindin
             )
         )
     return findings
+
+
+def _high_level_animation_findings(
+    *,
+    scene_id: str,
+    scene_index: int,
+    animation_index: int,
+    anim: Any,
+    object_map: dict[str, Any],
+) -> list[CheckFinding]:
+    if anim.action.value != "reveal-children":
+        return []
+
+    target_path = f"scenes[{scene_index}].animations[{animation_index}].target"
+    if not isinstance(anim.target, str) or not anim.target.strip():
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=(
+                    f"Animation {animation_index} uses `reveal-children` without a target group ID."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="replace_target",
+                    object_id=None,
+                    field=target_path,
+                    suggested_value=None,
+                    reason="Reveal-children needs the ID of a group in the same scene.",
+                ),
+            )
+        ]
+
+    target_spec = object_map.get(anim.target)
+    if target_spec is None:
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=f"Animation {animation_index} targets missing group `{anim.target}`.",
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="replace_target",
+                    object_id=None,
+                    field=target_path,
+                    suggested_value=_closest_id_suggestion(anim.target, set(object_map)),
+                    reason="Reveal-children must reference a valid group object ID.",
+                ),
+            )
+        ]
+    if target_spec.type != ObjectType.GROUP:
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=(
+                    f"Animation {animation_index} uses `reveal-children` for `{anim.target}`, "
+                    "but that object is not a group."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="review_animation",
+                    object_id=anim.target,
+                    field=target_path,
+                    suggested_value=None,
+                    reason="Reveal-children only works with group objects.",
+                ),
+            )
+        ]
+    if not getattr(target_spec, "children", None):
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=(
+                    f"Animation {animation_index} uses `reveal-children` for `{anim.target}`, "
+                    "but the group has no immediate children."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="review_animation",
+                    object_id=anim.target,
+                    field=target_path,
+                    suggested_value=None,
+                    reason="Reveal-children needs a group with authored child objects.",
+                ),
+            )
+        ]
+    return []
 
 
 def _narration_findings(
@@ -1715,6 +1839,7 @@ def _scene_reference_findings(
     available_ids: set[str],
 ) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
+    object_map = {ref.object_id: ref.spec for ref in object_refs if ref.object_id}
     scene_local_ids = {
         ref.object_id
         for ref in object_refs
@@ -1725,6 +1850,15 @@ def _scene_reference_findings(
             findings.extend(_connector_reference_findings(scene_id, object_ref, available_ids))
 
     for animation_index, anim in enumerate(scene_spec.animations):
+        findings.extend(
+            _high_level_animation_findings(
+                scene_id=scene_id,
+                scene_index=scene_index,
+                animation_index=animation_index,
+                anim=anim,
+                object_map=object_map,
+            )
+        )
         target_path = f"scenes[{scene_index}].animations[{animation_index}].target"
         targets = _normalized_animation_targets(anim.target)
         if anim.target is None or not targets:

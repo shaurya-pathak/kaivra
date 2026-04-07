@@ -797,6 +797,41 @@ def test_check_animation_blocks_invalid_connectors_and_animation_targets(tmp_pat
     )
 
 
+def test_check_animation_blocks_reveal_children_when_target_is_not_a_group(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "broken_reveal_children",
+                    "duration": "6s",
+                    "layout": "center",
+                    "objects": [
+                        {"id": "pain_points", "type": "box", "content": "Pain Points"},
+                    ],
+                    "animations": [
+                        {
+                            "action": "reveal-children",
+                            "target": "pain_points",
+                            "order": "sequential",
+                            "style": "fade-in",
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is False
+    assert any("not a group" in issue for issue in checked["blocking_issues"])
+    assert any(
+        edit["action"] == "review_animation" and edit["object_id"] == "pain_points"
+        for edit in checked["recommended_edits"]
+    )
+
+
 def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_docs(
     tmp_path: Path,
 ) -> None:

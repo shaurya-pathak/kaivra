@@ -51,6 +51,8 @@ class AnimAction(str, Enum):
     # Drawing
     DRAW = "draw"
     TYPE = "type"
+    REVEAL = "reveal"
+    REVEAL_CHILDREN = "reveal-children"
     # Emphasis
     HIGHLIGHT = "highlight"
     PULSE = "pulse"
@@ -321,9 +323,14 @@ class AnimSpec(BaseModel):
         description="Optional animation identifier used by semantic timing anchors.",
     )
     action: AnimAction = Field(
-        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build, replace"
+        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, reveal, reveal-children, highlight, pulse, build, replace"
     )
-    target: str | list[str] | None = Field(None, description="Object ID(s) to animate")
+    target: str | list[str] | None = Field(
+        None,
+        validation_alias=AliasChoices("target", "targets"),
+        serialization_alias="target",
+        description="Object ID(s) to animate",
+    )
     to_id: str | None = Field(None, description="Destination object ID (for move-to)")
     with_id: str | None = Field(
         None,
@@ -344,8 +351,16 @@ class AnimSpec(BaseModel):
         None,
         description="Relative offset token or duration applied after an anchor/cue, e.g. 'short'.",
     )
+    step: str | None = Field(
+        None,
+        description="Per-target reveal delay for high-level reveal actions, e.g. 'short'.",
+    )
     stagger: str | None = Field(
         None, description="Delay between targets when animating multiple objects"
+    )
+    order: Literal["sequential"] | None = Field(
+        None,
+        description="Ordering mode for high-level reveal actions.",
     )
     cue: str | None = Field(
         None,
@@ -363,8 +378,9 @@ class AnimSpec(BaseModel):
     from_scale: float | None = Field(
         None, description="Starting scale for scale action (defaults to 1.0)"
     )
-    style: Literal["glow", "outline"] | None = Field(
-        None, description="Highlight visual style (for highlight/pulse)"
+    style: str | None = Field(
+        None,
+        description="Visual style, such as 'glow'/'outline' for emphasis or 'fade-in'/'appear' for reveal actions.",
     )
     color: str | None = Field(
         None, description="Color name for emphasis animations (e.g. 'accent', 'success', 'error')"
@@ -383,7 +399,7 @@ class AnimSpec(BaseModel):
 
     model_config = {"extra": "allow"}
 
-    @field_validator("at", "duration", "gap", "stagger", mode="before")
+    @field_validator("at", "duration", "gap", "step", "stagger", mode="before")
     @classmethod
     def validate_duration_format(cls, v: str | None) -> str | None:
         return _validate_timing_value(v)
@@ -391,11 +407,33 @@ class AnimSpec(BaseModel):
     @model_validator(mode="after")
     def validate_replace_shape(self) -> "AnimSpec":
         if self.action != AnimAction.REPLACE:
-            return self
+            return self._validate_high_level_shape()
         if not isinstance(self.target, str) or not self.target.strip():
             raise ValueError("Replace animations require a single string target ID.")
         if not self.with_id:
             raise ValueError("Replace animations require a `with` object ID.")
+        return self._validate_high_level_shape()
+
+    def _validate_high_level_shape(self) -> "AnimSpec":
+        if self.action == AnimAction.REVEAL:
+            if self.target is None:
+                raise ValueError("Reveal animations require `target` or `targets`.")
+            if self.style is not None and self.style not in {"fade-in", "appear"}:
+                raise ValueError("Reveal animations only support style `fade-in` or `appear`.")
+        elif self.action == AnimAction.REVEAL_CHILDREN:
+            if not isinstance(self.target, str) or not self.target.strip():
+                raise ValueError("Reveal-children animations require one target group ID.")
+            if self.style is not None and self.style not in {"fade-in", "appear"}:
+                raise ValueError(
+                    "Reveal-children animations only support style `fade-in` or `appear`."
+                )
+        elif self.style is not None and self.action in {AnimAction.HIGHLIGHT, AnimAction.PULSE}:
+            if self.style not in {"glow", "outline"}:
+                raise ValueError("Highlight and pulse animations only support style `glow` or `outline`.")
+        if self.order is not None and self.action not in {AnimAction.REVEAL, AnimAction.REVEAL_CHILDREN}:
+            raise ValueError("`order` is only supported for reveal and reveal-children animations.")
+        if self.step is not None and self.action not in {AnimAction.REVEAL, AnimAction.REVEAL_CHILDREN}:
+            raise ValueError("`step` is only supported for reveal and reveal-children animations.")
         return self
 
 
