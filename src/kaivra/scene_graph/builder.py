@@ -41,6 +41,17 @@ _GROUP_VISIBILITY_ACTIONS = {
     AnimAction.FADE_OUT,
 }
 
+_TOP_ALIGNED_GRID_REGIONS = {
+    "header",
+    "main",
+    "sidebar",
+    "problem_solution",
+    "request_pipeline",
+    "fan_out",
+    "system_architecture",
+    "timeline_steps",
+}
+
 
 def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     """Convert a DocumentSpec into a fully resolved SceneGraph."""
@@ -1263,7 +1274,7 @@ def _compute_grid_positions(
         w = min(size.width, region_w)
         h = min(size.height, region_h)
         x = region_x + (region_w - w) / 2
-        if obj.grid.region in {"main", "sidebar", "header"}:
+        if obj.grid.region in _TOP_ALIGNED_GRID_REGIONS:
             y = region_y
         else:
             y = region_y + (region_h - h) / 2
@@ -1362,16 +1373,7 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
             },
         )
     elif template == "one-column":
-        layout = LayoutSpec(
-            type=LayoutType.GRID,
-            columns=12,
-            rows=12,
-            gap="large",
-            regions={
-                "header": {"row": 1, "row_span": 1, "col": 1, "span": 12},
-                "main": {"row": 2, "row_span": 11, "col": 1, "span": 12},
-            },
-        )
+        layout = _build_one_column_template_layout()
     else:
         return spec
 
@@ -1399,6 +1401,26 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
             new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region="main")}))
 
     return spec.model_copy(update={"layout": layout, "objects": new_objects})
+
+
+def _build_one_column_template_layout() -> LayoutSpec:
+    """Return the semantic region map for the one-column template."""
+    return LayoutSpec(
+        type=LayoutType.GRID,
+        columns=12,
+        rows=12,
+        gap="large",
+        regions={
+            "header": {"row": 1, "row_span": 1, "col": 1, "span": 12},
+            # `main` remains the full body lane for backward compatibility.
+            "main": {"row": 2, "row_span": 11, "col": 1, "span": 12},
+            "problem_solution": {"row": 2, "row_span": 2, "col": 1, "span": 12},
+            "request_pipeline": {"row": 4, "row_span": 2, "col": 1, "span": 12},
+            "fan_out": {"row": 6, "row_span": 2, "col": 1, "span": 12},
+            "system_architecture": {"row": 8, "row_span": 3, "col": 1, "span": 12},
+            "timeline_steps": {"row": 11, "row_span": 2, "col": 1, "span": 12},
+        },
+    )
 
 
 def _apply_dynamic_layout_hints(spec: SceneSpec) -> SceneSpec:

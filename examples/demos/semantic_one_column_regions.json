@@ -1,0 +1,174 @@
+{
+  "version": "1.2",
+  "meta": {
+    "title": "Semantic One Column Regions",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "fps": 30,
+    "theme": "modern",
+    "show_subtitles": false
+  },
+  "scenes": [
+    {
+      "id": "semantic_regions",
+      "duration": "10s",
+      "template": "one-column",
+      "auto_visible": true,
+      "objects": [
+        {
+          "type": "text",
+          "id": "title",
+          "content": "Semantic One Column",
+          "style": "heading"
+        },
+        {
+          "type": "group",
+          "id": "problem_lane",
+          "grid": {
+            "region": "problem_solution"
+          },
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "large",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "problem_box",
+              "content": "Problem"
+            },
+            {
+              "type": "box",
+              "id": "solution_box",
+              "content": "Solution"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "pipeline_lane",
+          "grid": {
+            "region": "request_pipeline"
+          },
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "medium",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "request",
+              "content": "Request"
+            },
+            {
+              "type": "token",
+              "id": "router",
+              "content": "Router"
+            },
+            {
+              "type": "token",
+              "id": "worker",
+              "content": "Worker"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "fanout_lane",
+          "grid": {
+            "region": "fan_out"
+          },
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "medium",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "fanout_origin",
+              "content": "Coordinator"
+            },
+            {
+              "type": "box",
+              "id": "fanout_a",
+              "content": "Shard A"
+            },
+            {
+              "type": "box",
+              "id": "fanout_b",
+              "content": "Shard B"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "architecture_lane",
+          "grid": {
+            "region": "system_architecture"
+          },
+          "layout": {
+            "type": "stack",
+            "gap": "medium",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "box",
+              "id": "arch_top",
+              "content": "API Layer"
+            },
+            {
+              "type": "box",
+              "id": "arch_mid",
+              "content": "Service Layer"
+            },
+            {
+              "type": "box",
+              "id": "arch_bottom",
+              "content": "Storage Layer"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "timeline_lane",
+          "grid": {
+            "region": "timeline_steps"
+          },
+          "layout": {
+            "type": "flow",
+            "direction": "horizontal",
+            "gap": "medium",
+            "align": "center"
+          },
+          "children": [
+            {
+              "type": "token",
+              "id": "step_1",
+              "content": "1"
+            },
+            {
+              "type": "token",
+              "id": "step_2",
+              "content": "2"
+            },
+            {
+              "type": "token",
+              "id": "step_3",
+              "content": "3"
+            }
+          ]
+        }
+      ],
+      "animations": []
+    }
+  ]
+}
