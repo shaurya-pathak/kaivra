@@ -12,6 +12,8 @@ from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
+from kaivra.version import CURRENT_DSL_VERSION
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -687,7 +689,7 @@ class MetaSpec(BaseModel):
 class DocumentSpec(BaseModel):
     """The top-level document — this is what the LLM generates."""
 
-    version: str = Field("1.2", description="Schema version")
+    version: str = Field(CURRENT_DSL_VERSION, description="Schema version")
     meta: MetaSpec = Field(default_factory=MetaSpec, description="Animation metadata")
     objects: list[ObjectSpec] = Field(
         default_factory=list, description="Persistent objects visible in every scene"

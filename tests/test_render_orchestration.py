@@ -443,7 +443,7 @@ def test_local_voice_render_forces_subtitles_off_and_spokenizes_narration(tmp_pa
     local_doc = parse_string(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"title": "Narrated", "theme": "modern", "show_subtitles": True},
                 "scenes": [
                     {
@@ -474,7 +474,7 @@ def test_web_preview_html_includes_transition_and_highlight_preview_logic() -> N
     doc = parse_string(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"title": "Preview", "theme": "modern"},
                 "scenes": [
                     {
@@ -523,7 +523,7 @@ def _narrated_doc(
     return parse_string(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": meta,
                 "scenes": [
                     {

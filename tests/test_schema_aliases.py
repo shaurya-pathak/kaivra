@@ -11,7 +11,7 @@ def test_show_subtitles_is_the_preferred_serialized_field_name() -> None:
     doc = parse_string(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"theme": "modern", "show_subtitles": False},
                 "scenes": [],
             }
@@ -32,7 +32,7 @@ def test_show_narration_remains_a_backward_compatible_input_alias() -> None:
     doc = parse_string(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"theme": "modern", "show_narration": False},
                 "scenes": [],
             }
@@ -50,7 +50,7 @@ def test_animation_style_is_rejected_for_non_emphasis_actions() -> None:
         parse_string(
             json.dumps(
                 {
-                    "version": "1.2",
+                    "version": "1.3",
                     "meta": {"theme": "modern"},
                     "scenes": [
                         {
@@ -101,7 +101,7 @@ def test_legacy_pixel_offsets_are_accepted() -> None:
     doc = parse_string(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"theme": "modern"},
                 "scenes": [
                     {
@@ -132,7 +132,7 @@ def test_animation_rejects_multiple_semantic_timing_anchors() -> None:
         parse_string(
             json.dumps(
                 {
-                    "version": "1.2",
+                    "version": "1.3",
                     "meta": {"theme": "modern"},
                     "scenes": [
                         {
