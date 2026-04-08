@@ -19,6 +19,7 @@ from kaivra.dsl.schema import (
     MotionSpec,
     ObjectSpec,
     ObjectType,
+    RelativePositionSpec,
     SceneSpec,
     parse_duration,
 )
@@ -347,10 +348,8 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
                 start_time=0.0,
                 duration=move_duration * (1.1 if node.layout_role == "carousel-item" else 1.0),
                 easing="ease-in-out",
-                from_offset_x=dx,
-                from_offset_y=dy,
-                offset_x=0.0,
-                offset_y=0.0,
+                from_translate=_relative_translate_from_pixels(node, dx=dx, dy=dy),
+                translate=_relative_translate_from_pixels(node, dx=0.0, dy=0.0),
             )
         )
         if abs(prev_node.base_scale_x - node.base_scale_x) >= 0.01:
@@ -426,6 +425,25 @@ def _continuity_compatible(prev_node: SceneNode, node: SceneNode) -> bool:
             and prev_node.to_id == node.to_id
         )
     return prev_node.content == node.content
+
+
+def _relative_move(
+    *,
+    x: float | None = None,
+    y: float | None = None,
+) -> RelativePositionSpec:
+    return RelativePositionSpec(x=x, y=y)
+
+
+def _relative_translate_from_pixels(
+    node: SceneNode,
+    *,
+    dx: float = 0.0,
+    dy: float = 0.0,
+) -> RelativePositionSpec:
+    width = node.rect.width or 1.0
+    height = node.rect.height or 1.0
+    return RelativePositionSpec(x=dx / width, y=dy / height)
 
 
 def _continuity_delta(prev_node: SceneNode, node: SceneNode) -> tuple[float, float] | None:
@@ -747,7 +765,8 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
         )
 
     def move(
-        from_x: float | None, from_y: float | None, to_x: float | None, to_y: float | None
+        from_translate: RelativePositionSpec | None,
+        translate: RelativePositionSpec | None,
     ) -> AnimSpec:
         return AnimSpec(
             action=AnimAction.MOVE,
@@ -755,10 +774,8 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
             at=at,
             duration=duration,
             easing=easing,
-            from_offset_x=from_x,
-            from_offset_y=from_y,
-            offset_x=to_x,
-            offset_y=to_y,
+            from_translate=from_translate,
+            translate=translate,
         )
 
     def scale(from_s: float | None, to_s: float | None) -> AnimSpec:
@@ -783,55 +800,22 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
         anims.append(scale(motion.from_scale or 0.92, motion.scale or 1.0))
     elif preset in {"slide-up"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x, motion.from_offset_y or 40.0, motion.offset_x, motion.offset_y
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=1.0), motion.translate))
     elif preset in {"slide-down"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x,
-                motion.from_offset_y or -40.0,
-                motion.offset_x,
-                motion.offset_y,
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=-1.0), motion.translate))
     elif preset in {"slide-left"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x or 40.0, motion.from_offset_y, motion.offset_x, motion.offset_y
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(x=1.0), motion.translate))
     elif preset in {"slide-right"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x or -40.0,
-                motion.from_offset_y,
-                motion.offset_x,
-                motion.offset_y,
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(x=-1.0), motion.translate))
     elif preset in {"drop"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x,
-                motion.from_offset_y or -60.0,
-                motion.offset_x,
-                motion.offset_y,
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=-1.5), motion.translate))
     elif preset in {"rise"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x, motion.from_offset_y or 60.0, motion.offset_x, motion.offset_y
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=1.5), motion.translate))
     elif preset in {"scale"}:
         anims.append(scale(motion.from_scale or 0.9, motion.scale or 1.0))
     else:
@@ -946,8 +930,7 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                         duration=duration,
                         easing=anim.easing.value,
                         to_id=b,
-                        offset_x=anim.offset_x,
-                        offset_y=anim.offset_y,
+                        translate=anim.translate,
                     )
                 )
                 keyframes.append(
@@ -958,8 +941,7 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                         duration=duration,
                         easing=anim.easing.value,
                         to_id=a,
-                        offset_x=anim.offset_x,
-                        offset_y=anim.offset_y,
+                        translate=anim.translate,
                     )
                 )
             continue
@@ -978,6 +960,8 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                 color=anim.color,
                 stagger=stagger,
                 phases=[p.model_dump() for p in anim.phases] if anim.phases else None,
+                translate=anim.translate,
+                from_translate=anim.from_translate,
                 offset_x=anim.offset_x,
                 offset_y=anim.offset_y,
                 from_offset_x=anim.from_offset_x,
@@ -1039,10 +1023,8 @@ def _propagate_group_visibility(
                     color=kf.color,
                     stagger=kf.stagger,
                     phases=kf.phases,
-                    offset_x=kf.offset_x,
-                    offset_y=kf.offset_y,
-                    from_offset_x=kf.from_offset_x,
-                    from_offset_y=kf.from_offset_y,
+                    translate=kf.translate,
+                    from_translate=kf.from_translate,
                     to_id=kf.to_id,
                     with_id=kf.with_id,
                 )

@@ -33,7 +33,6 @@ class LayoutType(str, Enum):
     FLOW = "flow"
     STACK = "stack"
     SPLIT = "split"
-    ABSOLUTE = "absolute"
     CAROUSEL = "carousel"
 
 
@@ -90,6 +89,11 @@ class AudienceLevel(str, Enum):
     TECHNICAL = "technical"
 
 
+class RelativeBasis(str, Enum):
+    SELF = "self"
+    TARGET = "target"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -106,6 +110,23 @@ def parse_duration(value: str) -> float:
         raise ValueError(f"Invalid duration: {value!r}. Use e.g. '2s' or '500ms'.")
     num, unit = float(m.group(1)), m.group(2)
     return num if unit == "s" else num / 1000.0
+
+
+class RelativePositionSpec(BaseModel):
+    """Relative translation normalized to an object or target bounds."""
+
+    x: float | None = Field(None, description="Horizontal translation multiplier")
+    y: float | None = Field(None, description="Vertical translation multiplier")
+    basis: RelativeBasis = Field(
+        RelativeBasis.SELF,
+        description="Bounds used to resolve the translation: self or target",
+    )
+
+    @model_validator(mode="after")
+    def validate_axes(self) -> "RelativePositionSpec":
+        if self.x is None and self.y is None:
+            raise ValueError("Relative translations require at least one of `x` or `y`.")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +160,7 @@ class LayoutSpec(BaseModel):
 
     type: LayoutType = Field(
         LayoutType.CENTER,
-        description="Layout algorithm: center, grid, flow, stack, split, absolute",
+        description="Layout algorithm: center, grid, flow, stack, split, carousel",
     )
     columns: int | None = Field(None, description="Number of grid columns (for grid layout)")
     rows: int | None = Field(None, description="Number of grid rows (for grid layout)")
@@ -187,15 +208,38 @@ class MotionSpec(BaseModel):
     easing: EasingType = Field(EasingType.EASE_OUT, description="Easing function")
 
     # Optional overrides
-    offset_x: float | None = Field(None, description="Target horizontal offset (pixels)")
-    offset_y: float | None = Field(None, description="Target vertical offset (pixels)")
-    from_offset_x: float | None = Field(None, description="Starting horizontal offset (pixels)")
-    from_offset_y: float | None = Field(None, description="Starting vertical offset (pixels)")
+    translate: RelativePositionSpec | None = Field(
+        None,
+        description=(
+            "Relative target translation as normalized deltas. "
+            "`basis='self'` scales by the animated object's size, "
+            "`basis='target'` scales by the destination object's size."
+        ),
+    )
+    from_translate: RelativePositionSpec | None = Field(
+        None,
+        description="Starting relative translation for move presets (animates to `translate`).",
+    )
     scale: float | None = Field(None, description="Target scale for pop/scale presets")
     from_scale: float | None = Field(None, description="Starting scale for pop/scale presets")
     intensity: float | None = Field(None, description="Idle intensity (pixels or scale delta)")
     speed: float | None = Field(None, description="Idle speed")
     axis: Literal["x", "y", "both"] | None = Field("both", description="Idle motion axis")
+    # Absolute pixel offsets — kept for backwards compatibility.
+    # Prefer `translate`/`from_translate` for new animations.
+    offset_x: float | None = Field(
+        None, description="Absolute horizontal pixel offset (legacy; prefer translate)"
+    )
+    offset_y: float | None = Field(
+        None, description="Absolute vertical pixel offset (legacy; prefer translate)"
+    )
+    from_offset_x: float | None = Field(
+        None,
+        description="Absolute starting horizontal pixel offset (legacy; prefer from_translate)",
+    )
+    from_offset_y: float | None = Field(
+        None, description="Absolute starting vertical pixel offset (legacy; prefer from_translate)"
+    )
 
     @field_validator("at", "duration", mode="before")
     @classmethod
@@ -337,15 +381,31 @@ class AnimSpec(BaseModel):
         None, description="Color name for emphasis animations (e.g. 'accent', 'success', 'error')"
     )
     phases: list[BuildPhase] | None = Field(None, description="Build phases (for build action)")
-    offset_x: float | None = Field(
-        None, description="Horizontal offset in pixels (for move/move-to)"
+    translate: RelativePositionSpec | None = Field(
+        None,
+        description=(
+            "Relative translation for move or move-to as normalized deltas. "
+            "Use `basis='self'` to scale by the animated object, or `basis='target'` for move-to target bounds."
+        ),
     )
-    offset_y: float | None = Field(None, description="Vertical offset in pixels (for move/move-to)")
+    from_translate: RelativePositionSpec | None = Field(
+        None,
+        description="Starting relative translation for move actions (animates to `translate`).",
+    )
+    # Absolute pixel offsets — kept for backwards compatibility.
+    # Prefer `translate`/`from_translate` for new animations.
+    offset_x: float | None = Field(
+        None, description="Absolute horizontal pixel offset (legacy; prefer translate)"
+    )
+    offset_y: float | None = Field(
+        None, description="Absolute vertical pixel offset (legacy; prefer translate)"
+    )
     from_offset_x: float | None = Field(
-        None, description="Starting horizontal offset for move action (animates to offset_x)"
+        None,
+        description="Absolute starting horizontal pixel offset (legacy; prefer from_translate)",
     )
     from_offset_y: float | None = Field(
-        None, description="Starting vertical offset for move action (animates to offset_y)"
+        None, description="Absolute starting vertical pixel offset (legacy; prefer from_translate)"
     )
 
     model_config = {"extra": "allow"}

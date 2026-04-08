@@ -126,7 +126,7 @@ def _authoring_profile() -> str:
 
 - If you are not using a scene template, set scene-level `layout.type` to `"stack"` so top-level objects flow vertically.
 - Wrap related objects in `group` containers with `layout.type: "flow"` (horizontal rows) or `"stack"` (vertical columns).
-- Available layout types: `center`, `grid`, `flow`, `stack`, `split`, `absolute`, `carousel`.
+- Available layout types: `center`, `grid`, `flow`, `stack`, `split`, `carousel`.
 - Use `gap: "small" | "medium" | "large"` on groups to control spacing.
 - Use `direction: "horizontal" | "vertical"` on flow/stack layouts.
 - Use scene-level `layout` with a template only when you intentionally want to override the template defaults.
@@ -408,7 +408,7 @@ Shows document-level carousel, continuity carry-over, fade-in reveals, and conne
 
 ```json
 {
-  "version": "1.2",
+  "version": "1.3",
   "meta": {
     "title": "Example Explainer",
     "resolution": [1920, 1080], "fps": 30, "theme": "modern",

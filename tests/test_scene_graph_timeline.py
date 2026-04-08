@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from kaivra.dsl.schema import AnimAction, DocumentSpec, ObjectType
+from kaivra.dsl.schema import AnimAction, DocumentSpec, ObjectType, RelativePositionSpec
 from kaivra.scene_graph.builder import build_scene_graph
 from kaivra.scene_graph.models import AnimationKeyframe, SceneNode
 from kaivra.scene_graph.timeline import apply_animations_at_time
@@ -118,6 +118,59 @@ def test_replace_cross_fades_and_leaves_replacement_visible() -> None:
     assert old_node.opacity == 0.0
     assert new_node.visible is True
     assert new_node.opacity == 1.0
+
+
+def test_move_uses_relative_translate_against_node_size() -> None:
+    node = SceneNode(
+        id="card",
+        obj_type=ObjectType.BOX,
+        rect=Rect(0, 0, 120, 60),
+        default_visible=True,
+    )
+    keyframes = [
+        AnimationKeyframe(
+            target_id="card",
+            action=AnimAction.MOVE,
+            start_time=0.0,
+            duration=1.0,
+            translate=RelativePositionSpec(x=1.0),
+        )
+    ]
+
+    apply_animations_at_time({"card": node}, keyframes, 1.1)
+
+    assert node.translate_x == 120.0
+    assert node.translate_y == 0.0
+
+
+def test_move_to_supports_target_relative_translate() -> None:
+    node = SceneNode(
+        id="runner",
+        obj_type=ObjectType.BOX,
+        rect=Rect(0, 0, 100, 40),
+        default_visible=True,
+    )
+    target = SceneNode(
+        id="checkpoint",
+        obj_type=ObjectType.BOX,
+        rect=Rect(200, 0, 80, 40),
+        default_visible=True,
+    )
+    keyframes = [
+        AnimationKeyframe(
+            target_id="runner",
+            action=AnimAction.MOVE_TO,
+            start_time=0.0,
+            duration=1.0,
+            to_id="checkpoint",
+            translate=RelativePositionSpec(x=0.5, basis="target"),
+        )
+    ]
+
+    apply_animations_at_time({"runner": node, "checkpoint": target}, keyframes, 1.1)
+
+    assert node.translate_x == 230.0
+    assert node.translate_y == 0.0
 
 
 def test_callout_auto_placement_chooses_non_overlapping_side_when_available() -> None:
