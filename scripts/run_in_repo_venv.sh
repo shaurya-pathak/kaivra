@@ -12,6 +12,9 @@ GIT_COMMON_DIR="$(git -C "$ROOT_DIR" rev-parse --git-common-dir 2>/dev/null || t
 SHARED_ROOT=""
 
 if [[ -n "$GIT_COMMON_DIR" ]]; then
+    if [[ "$GIT_COMMON_DIR" != /* ]]; then
+        GIT_COMMON_DIR="$ROOT_DIR/$GIT_COMMON_DIR"
+    fi
     SHARED_ROOT="$(cd -- "${GIT_COMMON_DIR}/.." && pwd)"
 fi
 
