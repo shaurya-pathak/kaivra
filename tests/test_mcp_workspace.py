@@ -511,7 +511,9 @@ def test_check_animation_write_back_enables_layout_group_visibility(tmp_path: Pa
     assert not checked["finding_groups"]["blocking"]
 
 
-def test_check_animation_reports_narration_timing_and_can_stretch_scene(tmp_path: Path) -> None:
+def test_check_animation_reports_narration_timing_without_rewriting_scene_duration(
+    tmp_path: Path,
+) -> None:
     workspace = KaivraWorkspace(tmp_path)
     source_path = tmp_path / "animations" / "timing-fix.json"
     source_path.parent.mkdir(parents=True, exist_ok=True)
@@ -545,13 +547,12 @@ def test_check_animation_reports_narration_timing_and_can_stretch_scene(tmp_path
 
     assert checked["narration_timing"]
     assert checked["narration_timing"][0]["scene_id"] == "voice_scene"
-    assert checked["narration_timing"][0]["needs_review"] is False
+    assert checked["narration_timing"][0]["needs_review"] is True
     assert float(checked["narration_timing"][0]["suggested_duration_seconds"]) >= 8.0
-    assert any(
-        fix["action"] == "stretch_scene_to_narration" and fix["scene_id"] == "voice_scene"
-        for fix in checked["applied_fixes"]
+    assert not any(
+        fix["action"] == "stretch_scene_to_narration" for fix in checked["applied_fixes"]
     )
-    assert rewritten["scenes"][0]["duration"] != "4s"
+    assert rewritten["scenes"][0]["duration"] == "4s"
 
 
 def test_check_animation_warns_when_scene_crossfade_and_object_reveal_stack(
@@ -794,6 +795,41 @@ def test_check_animation_blocks_invalid_connectors_and_animation_targets(tmp_pat
         edit["action"] == "replace_target"
         and edit["field"] == "scenes[0].animations[1].to_id"
         and edit["suggested_value"] == "shared_node"
+        for edit in checked["recommended_edits"]
+    )
+
+
+def test_check_animation_blocks_reveal_children_when_target_is_not_a_group(tmp_path: Path) -> None:
+    workspace = KaivraWorkspace(tmp_path)
+    checked = _check_animation(
+        workspace,
+        {
+            "meta": {"theme": "modern", "show_narration": False},
+            "scenes": [
+                {
+                    "id": "broken_reveal_children",
+                    "duration": "6s",
+                    "layout": "center",
+                    "objects": [
+                        {"id": "pain_points", "type": "box", "content": "Pain Points"},
+                    ],
+                    "animations": [
+                        {
+                            "action": "reveal-children",
+                            "target": "pain_points",
+                            "order": "sequential",
+                            "style": "fade-in",
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert checked["valid"] is False
+    assert any("not a group" in issue for issue in checked["blocking_issues"])
+    assert any(
+        edit["action"] == "review_animation" and edit["object_id"] == "pain_points"
         for edit in checked["recommended_edits"]
     )
 

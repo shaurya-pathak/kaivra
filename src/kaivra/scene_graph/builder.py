@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming
 from kaivra.dsl.pacing import (
     PacingProfile,
     document_has_narration,
@@ -19,8 +22,14 @@ from kaivra.dsl.schema import (
     MotionSpec,
     ObjectSpec,
     ObjectType,
+    RelativePositionSpec,
     SceneSpec,
     parse_duration,
+)
+from kaivra.dsl.timing import (
+    TimingConfig,
+    merge_timing_config,
+    resolve_duration_value,
 )
 from kaivra.layout.engine import LayoutEngine
 from kaivra.layout.strategies.carousel import carousel_scale_profile
@@ -49,10 +58,26 @@ _ONE_COLUMN_SEMANTIC_REGIONS = (
     "timeline_steps",
 )
 
+_SCENE_START_ANCHOR = "scene_start"
+_SCENE_END_ANCHOR = "scene_end"
 
-def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
+
+@dataclass(frozen=True)
+class _ScheduledEvent:
+    start: float
+    end: float
+
+
+def build_scene_graph(
+    doc: DocumentSpec,
+    theme: ThemeSpec,
+    *,
+    timing_config: TimingConfig | None = None,
+    audio_timing_data: AudioTimingData | None = None,
+) -> SceneGraph:
     """Convert a DocumentSpec into a fully resolved SceneGraph."""
     width, height = doc.meta.resolution
+    resolved_timing_config = merge_timing_config(timing_config)
     layout_engine = LayoutEngine(theme)
     canvas = Rect(theme.margin, theme.margin, width - theme.margin * 2, height - theme.margin * 2)
     include_narration = document_has_narration(doc)
@@ -73,6 +98,9 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
     scenes = []
     prev_scene: ResolvedScene | None = None
     for scene_spec in doc.scenes:
+        scene_audio_timing = (
+            audio_timing_data.scenes.get(scene_spec.id) if audio_timing_data else None
+        )
         # Prepend persistent objects so they appear in every scene
         if doc.objects and scene_spec.include_persistent_objects:
             merged_objects = list(doc.objects) + list(scene_spec.objects)
@@ -87,6 +115,8 @@ def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
             pacing_profile,
             persistent_ids,
             glow_release_padding,
+            timing_config=resolved_timing_config,
+            scene_audio_timing=scene_audio_timing,
         )
         # Continuity: inherit positions from previous scene for shared IDs
         continuity = (
@@ -136,6 +166,9 @@ def _build_scene(
     pacing_profile: PacingProfile,
     persistent_ids: set[str] | None = None,
     glow_release_padding: float = 0.0,
+    *,
+    timing_config: TimingConfig,
+    scene_audio_timing: SceneAudioTiming | None = None,
 ) -> ResolvedScene:
     # Apply scene template (if any)
     spec = _apply_scene_template(spec, persistent_ids)
@@ -221,17 +254,23 @@ def _build_scene(
                 node_map[node_id].persistent = True
 
     # Expand motion presets and focus into animations
-    expanded_anims = list(spec.animations)
+    expanded_anims = _expand_high_level_reveals(spec)
     expanded_anims.extend(_expand_motion_presets(spec))
     expanded_anims.extend(_expand_focus_presets(spec, pacing_profile.focus_duration))
 
     # Resolve timeline
-    duration = (
-        parse_duration(spec.duration)
-        if spec.duration != "auto"
-        else _auto_duration(spec.model_copy(update={"animations": expanded_anims}))
+    duration = _resolve_scene_duration(
+        spec.model_copy(update={"animations": expanded_anims}),
+        expanded_anims,
+        timing_config=timing_config,
+        scene_audio_timing=scene_audio_timing,
     )
-    timeline = _resolve_animations(expanded_anims, duration)
+    timeline = _resolve_animations(
+        expanded_anims,
+        duration,
+        timing_config=timing_config,
+        scene_audio_timing=scene_audio_timing,
+    )
     timeline = _propagate_group_visibility(timeline, nodes)
     timeline = _normalize_timeline(timeline, duration, glow_release_padding)
 
@@ -355,10 +394,8 @@ def _apply_continuity(prev: ResolvedScene, curr: ResolvedScene, duration: float)
                 start_time=0.0,
                 duration=move_duration * (1.1 if node.layout_role == "carousel-item" else 1.0),
                 easing="ease-in-out",
-                from_offset_x=dx,
-                from_offset_y=dy,
-                offset_x=0.0,
-                offset_y=0.0,
+                from_translate=_relative_translate_from_pixels(node, dx=dx, dy=dy),
+                translate=_relative_translate_from_pixels(node, dx=0.0, dy=0.0),
             )
         )
         if abs(prev_node.base_scale_x - node.base_scale_x) >= 0.01:
@@ -434,6 +471,25 @@ def _continuity_compatible(prev_node: SceneNode, node: SceneNode) -> bool:
             and prev_node.to_id == node.to_id
         )
     return prev_node.content == node.content
+
+
+def _relative_move(
+    *,
+    x: float | None = None,
+    y: float | None = None,
+) -> RelativePositionSpec:
+    return RelativePositionSpec(x=x, y=y)
+
+
+def _relative_translate_from_pixels(
+    node: SceneNode,
+    *,
+    dx: float = 0.0,
+    dy: float = 0.0,
+) -> RelativePositionSpec:
+    width = node.rect.width or 1.0
+    height = node.rect.height or 1.0
+    return RelativePositionSpec(x=dx / width, y=dy / height)
 
 
 def _continuity_delta(prev_node: SceneNode, node: SceneNode) -> tuple[float, float] | None:
@@ -709,6 +765,58 @@ def _expand_motion_presets(spec: SceneSpec) -> list[AnimSpec]:
     return anims
 
 
+def _expand_high_level_reveals(spec: SceneSpec) -> list[AnimSpec]:
+    """Compile LLM-friendly reveal actions into low-level reveal animations."""
+    expanded: list[AnimSpec] = []
+    object_map = _object_specs_by_id(spec.objects)
+
+    for anim in spec.animations:
+        if anim.action not in {AnimAction.REVEAL, AnimAction.REVEAL_CHILDREN}:
+            expanded.append(anim)
+            continue
+
+        reveal_action = AnimAction.APPEAR if anim.style == "appear" else AnimAction.FADE_IN
+        targets: str | list[str] | None = anim.target
+        if anim.action == AnimAction.REVEAL_CHILDREN:
+            group = object_map.get(anim.target) if isinstance(anim.target, str) else None
+            if group is None:
+                raise ValueError(
+                    f"Reveal-children animation target {anim.target!r} does not exist in the scene."
+                )
+            if group.type != ObjectType.GROUP:
+                raise ValueError(
+                    f"Reveal-children animation target {anim.target!r} must be a group object."
+                )
+            targets = [child.id for child in group.children or [] if child.id]
+            if not targets:
+                raise ValueError(
+                    f"Reveal-children animation target {anim.target!r} has no immediate children."
+                )
+
+        stagger = anim.stagger
+        if anim.order == "sequential" or anim.action == AnimAction.REVEAL_CHILDREN:
+            stagger = anim.step or anim.stagger or "short"
+
+        expanded.append(
+            AnimSpec(
+                id=anim.id,
+                action=reveal_action,
+                target=targets,
+                at=anim.at,
+                anchor=anim.anchor,
+                after=anim.after,
+                duration=anim.duration,
+                gap=anim.gap,
+                stagger=stagger,
+                cue=anim.cue,
+                easing=anim.easing,
+                color=anim.color,
+            )
+        )
+
+    return expanded
+
+
 def _expand_focus_presets(spec: SceneSpec, default_duration: str) -> list[AnimSpec]:
     """Auto-generate highlight + scale for scene focus targets."""
     if not spec.focus:
@@ -755,7 +863,8 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
         )
 
     def move(
-        from_x: float | None, from_y: float | None, to_x: float | None, to_y: float | None
+        from_translate: RelativePositionSpec | None,
+        translate: RelativePositionSpec | None,
     ) -> AnimSpec:
         return AnimSpec(
             action=AnimAction.MOVE,
@@ -763,10 +872,8 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
             at=at,
             duration=duration,
             easing=easing,
-            from_offset_x=from_x,
-            from_offset_y=from_y,
-            offset_x=to_x,
-            offset_y=to_y,
+            from_translate=from_translate,
+            translate=translate,
         )
 
     def scale(from_s: float | None, to_s: float | None) -> AnimSpec:
@@ -791,55 +898,22 @@ def _motion_to_anims(target_id: str, motion: MotionSpec, *, kind: str) -> list[A
         anims.append(scale(motion.from_scale or 0.92, motion.scale or 1.0))
     elif preset in {"slide-up"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x, motion.from_offset_y or 40.0, motion.offset_x, motion.offset_y
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=1.0), motion.translate))
     elif preset in {"slide-down"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x,
-                motion.from_offset_y or -40.0,
-                motion.offset_x,
-                motion.offset_y,
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=-1.0), motion.translate))
     elif preset in {"slide-left"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x or 40.0, motion.from_offset_y, motion.offset_x, motion.offset_y
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(x=1.0), motion.translate))
     elif preset in {"slide-right"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x or -40.0,
-                motion.from_offset_y,
-                motion.offset_x,
-                motion.offset_y,
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(x=-1.0), motion.translate))
     elif preset in {"drop"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x,
-                motion.from_offset_y or -60.0,
-                motion.offset_x,
-                motion.offset_y,
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=-1.5), motion.translate))
     elif preset in {"rise"}:
         anims.append(fade("in"))
-        anims.append(
-            move(
-                motion.from_offset_x, motion.from_offset_y or 60.0, motion.offset_x, motion.offset_y
-            )
-        )
+        anims.append(move(motion.from_translate or _relative_move(y=1.5), motion.translate))
     elif preset in {"scale"}:
         anims.append(scale(motion.from_scale or 0.9, motion.scale or 1.0))
     else:
@@ -932,12 +1006,59 @@ def _register_children(node: SceneNode, node_map: dict[str, SceneNode]) -> None:
         _register_children(child, node_map)
 
 
-def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[AnimationKeyframe]:
-    keyframes = []
+def _resolve_scene_duration(
+    spec: SceneSpec,
+    anims: list[AnimSpec],
+    *,
+    timing_config: TimingConfig,
+    scene_audio_timing: SceneAudioTiming | None,
+) -> float:
+    if spec.duration != "auto":
+        explicit_duration = resolve_duration_value(
+            spec.duration,
+            config=timing_config,
+            field=f"scene {spec.id or 'scene'} duration",
+        )
+        if scene_audio_timing is not None:
+            return max(explicit_duration, float(scene_audio_timing.duration_seconds))
+        return explicit_duration
+
+    auto_duration = _auto_duration(
+        anims,
+        timing_config=timing_config,
+        scene_audio_timing=scene_audio_timing,
+    )
+    if scene_audio_timing is not None:
+        return max(auto_duration, float(scene_audio_timing.duration_seconds))
+    return auto_duration
+
+
+def _resolve_animations(
+    anims: list[AnimSpec],
+    scene_duration: float,
+    *,
+    timing_config: TimingConfig,
+    scene_audio_timing: SceneAudioTiming | None,
+) -> list[AnimationKeyframe]:
+    keyframes: list[AnimationKeyframe] = []
+    event_by_id: dict[str, _ScheduledEvent] = {}
+    latest_event_by_target: dict[str, _ScheduledEvent] = {}
+
     for anim in anims:
-        start = parse_duration(anim.at) if anim.at else 0.0
-        duration = _resolve_animation_duration(anim)
-        stagger = parse_duration(anim.stagger) if anim.stagger else 0.0
+        duration = _resolve_animation_duration(anim, timing_config=timing_config)
+        stagger = _resolve_optional_timing(
+            anim.stagger,
+            timing_config=timing_config,
+            field=f"animation {anim.id or anim.action.value} stagger",
+        )
+        start = _resolve_animation_start(
+            anim,
+            scene_duration=scene_duration,
+            timing_config=timing_config,
+            scene_audio_timing=scene_audio_timing,
+            event_by_id=event_by_id,
+            latest_event_by_target=latest_event_by_target,
+        )
 
         targets = (
             anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
@@ -954,8 +1075,7 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                         duration=duration,
                         easing=anim.easing.value,
                         to_id=b,
-                        offset_x=anim.offset_x,
-                        offset_y=anim.offset_y,
+                        translate=anim.translate,
                     )
                 )
                 keyframes.append(
@@ -966,10 +1086,14 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                         duration=duration,
                         easing=anim.easing.value,
                         to_id=a,
-                        offset_x=anim.offset_x,
-                        offset_y=anim.offset_y,
+                        translate=anim.translate,
                     )
                 )
+                swap_event = _ScheduledEvent(start=start, end=start + duration)
+                latest_event_by_target[a] = swap_event
+                latest_event_by_target[b] = swap_event
+                if anim.id:
+                    event_by_id[anim.id] = swap_event
             continue
 
         for i, target_id in enumerate(targets):
@@ -986,6 +1110,8 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                 color=anim.color,
                 stagger=stagger,
                 phases=[p.model_dump() for p in anim.phases] if anim.phases else None,
+                translate=anim.translate,
+                from_translate=anim.from_translate,
                 offset_x=anim.offset_x,
                 offset_y=anim.offset_y,
                 from_offset_x=anim.from_offset_x,
@@ -995,14 +1121,139 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
             )
             keyframes.append(kf)
 
+        last_target_end = start + duration + stagger * max(len(targets) - 1, 0)
+        scheduled_event = _ScheduledEvent(start=start, end=last_target_end)
+        if anim.id:
+            event_by_id[anim.id] = scheduled_event
+        for target_id in targets:
+            latest_event_by_target[target_id] = scheduled_event
+
     keyframes.sort(key=lambda k: k.start_time)
     return keyframes
 
 
-def _resolve_animation_duration(anim: AnimSpec) -> float:
+def _resolve_animation_duration(anim: AnimSpec, *, timing_config: TimingConfig) -> float:
     if anim.action == AnimAction.APPEAR and "duration" not in anim.model_fields_set:
         return 0.0
-    return parse_duration(anim.duration)
+    return resolve_duration_value(
+        anim.duration,
+        config=timing_config,
+        field=f"animation {anim.id or anim.action.value} duration",
+        tokens=timing_config.action_durations,
+        fallback=timing_config.action_durations.get(anim.action.value, anim.duration),
+    )
+
+
+def _resolve_optional_timing(
+    value: str | None,
+    *,
+    timing_config: TimingConfig,
+    field: str,
+) -> float:
+    if value is None:
+        return 0.0
+    return resolve_duration_value(value, config=timing_config, field=field)
+
+
+def _resolve_animation_start(
+    anim: AnimSpec,
+    *,
+    scene_duration: float,
+    timing_config: TimingConfig,
+    scene_audio_timing: SceneAudioTiming | None,
+    event_by_id: dict[str, _ScheduledEvent],
+    latest_event_by_target: dict[str, _ScheduledEvent],
+) -> float:
+    selectors = [
+        ("at", anim.at),
+        ("anchor", anim.anchor),
+        ("after", anim.after),
+        ("cue", anim.cue),
+    ]
+    chosen = [name for name, value in selectors if value]
+    if len(chosen) > 1:
+        raise ValueError(
+            f"Animation {anim.id or anim.action.value!r} uses multiple timing anchors {chosen}; choose one."
+        )
+
+    gap = _resolve_optional_timing(
+        anim.gap,
+        timing_config=timing_config,
+        field=f"animation {anim.id or anim.action.value} gap",
+    )
+    if anim.at:
+        return resolve_duration_value(
+            anim.at,
+            config=timing_config,
+            field=f"animation {anim.id or anim.action.value} at",
+        )
+    if anim.anchor:
+        event = _lookup_scheduled_event(
+            anim.anchor,
+            scene_duration=scene_duration,
+            event_by_id=event_by_id,
+            latest_event_by_target=latest_event_by_target,
+            field=f"animation {anim.id or anim.action.value} anchor",
+        )
+        return event.start + gap
+    if anim.after:
+        event = _lookup_scheduled_event(
+            anim.after,
+            scene_duration=scene_duration,
+            event_by_id=event_by_id,
+            latest_event_by_target=latest_event_by_target,
+            field=f"animation {anim.id or anim.action.value} after",
+        )
+        return event.end + gap
+    if anim.cue:
+        cue = _find_matching_cue(
+            scene_audio_timing,
+            anim.cue,
+            field=f"animation {anim.id or anim.action.value} cue",
+        )
+        return cue.start_seconds + gap
+    return 0.0
+
+
+def _lookup_scheduled_event(
+    reference: str,
+    *,
+    scene_duration: float,
+    event_by_id: dict[str, _ScheduledEvent],
+    latest_event_by_target: dict[str, _ScheduledEvent],
+    field: str,
+) -> _ScheduledEvent:
+    if reference == _SCENE_START_ANCHOR:
+        return _ScheduledEvent(start=0.0, end=0.0)
+    if reference == _SCENE_END_ANCHOR:
+        return _ScheduledEvent(start=scene_duration, end=scene_duration)
+    event = event_by_id.get(reference) or latest_event_by_target.get(reference)
+    if event is None:
+        raise ValueError(f"{field} references unknown timing anchor {reference!r}.")
+    return event
+
+
+def _find_matching_cue(
+    scene_audio_timing: SceneAudioTiming | None,
+    cue_phrase: str,
+    *,
+    field: str,
+) -> AudioCue:
+    if scene_audio_timing is None:
+        raise ValueError(f"{field} requires external audio timings with scene cue data.")
+    if not scene_audio_timing.cues:
+        raise ValueError(f"{field} requires cue entries in the external audio timings sidecar.")
+
+    needle = _normalize_cue_text(cue_phrase)
+    for cue in scene_audio_timing.cues:
+        haystack = _normalize_cue_text(cue.text or "")
+        if needle and haystack and (needle in haystack or haystack in needle):
+            return cue
+    raise ValueError(f"{field} could not find a matching cue for {cue_phrase!r}.")
+
+
+def _normalize_cue_text(value: str) -> str:
+    return " ".join(value.lower().split())
 
 
 def _propagate_group_visibility(
@@ -1047,10 +1298,8 @@ def _propagate_group_visibility(
                     color=kf.color,
                     stagger=kf.stagger,
                     phases=kf.phases,
-                    offset_x=kf.offset_x,
-                    offset_y=kf.offset_y,
-                    from_offset_x=kf.from_offset_x,
-                    from_offset_y=kf.from_offset_y,
+                    translate=kf.translate,
+                    from_translate=kf.from_translate,
                     to_id=kf.to_id,
                     with_id=kf.with_id,
                 )
@@ -1561,14 +1810,46 @@ def _collect_node_hints_from_object(
         _collect_node_hints_from_object(child, hints)
 
 
-def _auto_duration(spec: SceneSpec) -> float:
-    """Estimate duration from animations."""
-    max_end = 5.0  # default
-    for anim in spec.animations:
-        start = parse_duration(anim.at) if anim.at else 0.0
-        dur = _resolve_animation_duration(anim)
-        stagger = parse_duration(anim.stagger) if anim.stagger else 0.0
-        n_targets = len(anim.target) if isinstance(anim.target, list) else 1
-        end = start + dur + stagger * (n_targets - 1)
-        max_end = max(max_end, end + 1.0)  # 1s buffer
+def _auto_duration(
+    anims: list[AnimSpec],
+    *,
+    timing_config: TimingConfig,
+    scene_audio_timing: SceneAudioTiming | None,
+) -> float:
+    """Estimate duration from resolved semantic or absolute animation timing."""
+    event_by_id: dict[str, _ScheduledEvent] = {}
+    latest_event_by_target: dict[str, _ScheduledEvent] = {}
+    max_end = 0.0 if anims else 5.0
+    tail_padding = resolve_duration_value(
+        timing_config.tail_padding,
+        config=timing_config,
+        field="timing.tail_padding",
+    )
+
+    for anim in anims:
+        duration = _resolve_animation_duration(anim, timing_config=timing_config)
+        stagger = _resolve_optional_timing(
+            anim.stagger,
+            timing_config=timing_config,
+            field=f"animation {anim.id or anim.action.value} stagger",
+        )
+        start = _resolve_animation_start(
+            anim,
+            scene_duration=max_end,
+            timing_config=timing_config,
+            scene_audio_timing=scene_audio_timing,
+            event_by_id=event_by_id,
+            latest_event_by_target=latest_event_by_target,
+        )
+        targets = (
+            anim.target if isinstance(anim.target, list) else [anim.target] if anim.target else []
+        )
+        event_end = start + duration + stagger * max(len(targets) - 1, 0)
+        max_end = max(max_end, event_end + tail_padding)
+        scheduled_event = _ScheduledEvent(start=start, end=event_end)
+        if anim.id:
+            event_by_id[anim.id] = scheduled_event
+        for target_id in targets:
+            latest_event_by_target[target_id] = scheduled_event
+
     return max_end

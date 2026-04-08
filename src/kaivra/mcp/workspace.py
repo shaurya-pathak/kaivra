@@ -28,6 +28,7 @@ from kaivra.dsl.retime import (
     REVEAL_ACTIONS,
     _build_content_index,
     _semantic_score,
+    estimate_scene_duration,
 )
 from kaivra.dsl.schema import ObjectType, parse_duration
 from kaivra.mcp.blueprints import (
@@ -39,6 +40,7 @@ from kaivra.render.cairo_renderer import CairoRenderer
 from kaivra.render.orchestration import (
     build_render_graph,
     render_document_artifact,
+    resolve_document_timing_config,
     resolve_theme_search_roots,
 )
 from kaivra.render.web.exporter import write_web_preview
@@ -585,9 +587,11 @@ class KaivraWorkspace:
 
         try:
             theme_roots = self._theme_roots_for_document(resolved_path)
+            timing_config = self._timing_config_for_document(resolved_path)
             raw_findings, findings, recommended_edits = _audit_document_report(
                 doc,
                 theme_search_roots=theme_roots,
+                timing_config=timing_config,
                 voice=voice,
                 voice_provider=voice_provider,
             )
@@ -620,11 +624,11 @@ class KaivraWorkspace:
             doc, applied_fixes = _apply_safe_write_back_fixes(
                 doc,
                 raw_findings,
-                narration_timing=narration_timing,
             )
             raw_findings, findings, recommended_edits = _audit_document_report(
                 doc,
                 theme_search_roots=theme_roots,
+                timing_config=timing_config,
                 voice=voice,
                 voice_provider=voice_provider,
             )
@@ -671,9 +675,19 @@ class KaivraWorkspace:
         html_path = output_paths.previews_dir / f"{base_name}.html"
         png_path = output_paths.previews_dir / f"{base_name}.png"
         theme_roots = self._theme_roots_for_document(resolved_path)
+        timing_config = self._timing_config_for_document(resolved_path)
 
-        write_web_preview(doc, html_path, theme_search_roots=theme_roots)
-        graph, theme = build_render_graph(doc, theme_search_roots=theme_roots)
+        write_web_preview(
+            doc,
+            html_path,
+            theme_search_roots=theme_roots,
+            timing_config=timing_config,
+        )
+        graph, theme = build_render_graph(
+            doc,
+            theme_search_roots=theme_roots,
+            timing_config=timing_config,
+        )
         renderer = CairoRenderer(theme)
         renderer.render_frame_to_file(graph, 0.0, str(png_path))
 
@@ -727,6 +741,7 @@ class KaivraWorkspace:
             voice_provider=voice_provider,
             voice_id=voice_id,
             theme_search_roots=theme_roots,
+            timing_config=self._timing_config_for_document(resolved_path),
             progress=progress,
             log_video_progress=False,
         )
@@ -1079,6 +1094,11 @@ class KaivraWorkspace:
             return [self.paths.themes_dir]
         return resolve_theme_search_roots(resolved_path, cwd=self.root)
 
+    def _timing_config_for_document(self, resolved_path: Path | None) -> Any:
+        if resolved_path is None:
+            return resolve_document_timing_config(self.root, cwd=self.root)
+        return resolve_document_timing_config(resolved_path, cwd=self.root)
+
     def _workspace_paths_for_document(self, resolved_path: Path | None) -> WorkspacePaths:
         root = self._workspace_root_for_document(resolved_path)
         return WorkspacePaths(
@@ -1288,10 +1308,16 @@ def _voice_sync_findings(
     return findings
 
 
-def _audit_document(doc: Any, *, theme_search_roots: list[Path] | None = None) -> list[str]:
+def _audit_document(
+    doc: Any,
+    *,
+    theme_search_roots: list[Path] | None = None,
+    timing_config: Any = None,
+) -> list[str]:
     _raw_findings, findings, _recommended_edits = _audit_document_report(
         doc,
         theme_search_roots=theme_search_roots,
+        timing_config=timing_config,
     )
     return findings
 
@@ -1300,6 +1326,7 @@ def _audit_document_report(
     doc: Any,
     *,
     theme_search_roots: list[Path] | None = None,
+    timing_config: Any = None,
     voice: bool = False,
     voice_provider: str | None = None,
 ) -> tuple[
@@ -1307,7 +1334,19 @@ def _audit_document_report(
     list[str],
     list[dict[str, str | int | float | bool | None]],
 ]:
-    graph, _theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
+    preflight_findings = _preflight_high_level_animation_findings(doc)
+    if any(finding.severity == "error" for finding in preflight_findings):
+        serialized_findings = _serialize_findings(preflight_findings)
+        recommended_edits = _recommended_edits_from_findings(preflight_findings)
+        if not recommended_edits:
+            recommended_edits = _recommend_edits_from_messages(serialized_findings)
+        return preflight_findings, serialized_findings, recommended_edits
+
+    graph, _theme = build_render_graph(
+        doc,
+        theme_search_roots=theme_search_roots,
+        timing_config=timing_config,
+    )
     findings: list[CheckFinding] = []
     findings.extend(_layout_audit_findings(graph))
 
@@ -1328,7 +1367,7 @@ def _audit_document_report(
         in_scope_refs = persistent_refs + scene_refs
         in_scope_ids = _available_ids(in_scope_refs)
 
-        findings.extend(_scene_duration_findings(resolved_scene))
+        findings.extend(_scene_duration_findings(scene_spec=scene_spec, scene=resolved_scene))
         findings.extend(
             _narration_findings(
                 scene_spec=scene_spec,
@@ -1393,6 +1432,31 @@ def _audit_document_report(
     return findings, serialized_findings, recommended_edits
 
 
+def _preflight_high_level_animation_findings(doc: Any) -> list[CheckFinding]:
+    findings: list[CheckFinding] = []
+    persistent_refs = _collect_object_refs(doc.objects, prefix="objects")
+    for scene_index, scene_spec in enumerate(doc.scenes):
+        scene_id = scene_spec.id or f"scene_{scene_index}"
+        scene_refs = _collect_object_refs(
+            scene_spec.objects,
+            prefix=f"scenes[{scene_index}].objects",
+        )
+        object_map = {
+            ref.object_id: ref.spec for ref in persistent_refs + scene_refs if ref.object_id
+        }
+        for animation_index, anim in enumerate(scene_spec.animations):
+            findings.extend(
+                _high_level_animation_findings(
+                    scene_id=scene_id,
+                    scene_index=scene_index,
+                    animation_index=animation_index,
+                    anim=anim,
+                    object_map=object_map,
+                )
+            )
+    return findings
+
+
 def _layout_audit_findings(graph: Any) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
     scene_map = {scene.id: scene for scene in graph.scenes}
@@ -1413,7 +1477,7 @@ def _layout_audit_findings(graph: Any) -> list[CheckFinding]:
     return findings
 
 
-def _scene_duration_findings(scene: Any) -> list[CheckFinding]:
+def _scene_duration_findings(*, scene_spec: Any, scene: Any) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
     if scene.duration < _MIN_SCENE_DURATION_SECONDS:
         findings.append(
@@ -1455,7 +1519,127 @@ def _scene_duration_findings(scene: Any) -> list[CheckFinding]:
                 ),
             )
         )
+    max_timeline_end = max(
+        (keyframe.start_time + keyframe.duration for keyframe in getattr(scene, "timeline", [])),
+        default=0.0,
+    )
+    if (
+        getattr(scene_spec, "duration", "auto") != "auto"
+        and max_timeline_end > scene.duration + 0.01
+    ):
+        findings.append(
+            CheckFinding(
+                severity="warning",
+                scene_id=scene.id,
+                kind="timing",
+                message=(
+                    f"Resolved animations run until {max_timeline_end:.1f}s, but the scene duration "
+                    f"is pinned to {scene.duration:.1f}s."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene.id,
+                    action="review_timing",
+                    object_id=None,
+                    field="duration",
+                    suggested_value=None,
+                    reason="Increase the explicit scene duration or move the final anchored event earlier.",
+                ),
+            )
+        )
     return findings
+
+
+def _high_level_animation_findings(
+    *,
+    scene_id: str,
+    scene_index: int,
+    animation_index: int,
+    anim: Any,
+    object_map: dict[str, Any],
+) -> list[CheckFinding]:
+    if anim.action.value != "reveal-children":
+        return []
+
+    target_path = f"scenes[{scene_index}].animations[{animation_index}].target"
+    if not isinstance(anim.target, str) or not anim.target.strip():
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=(
+                    f"Animation {animation_index} uses `reveal-children` without a target group ID."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="replace_target",
+                    object_id=None,
+                    field=target_path,
+                    suggested_value=None,
+                    reason="Reveal-children needs the ID of a group in the same scene.",
+                ),
+            )
+        ]
+
+    target_spec = object_map.get(anim.target)
+    if target_spec is None:
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=f"Animation {animation_index} targets missing group `{anim.target}`.",
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="replace_target",
+                    object_id=None,
+                    field=target_path,
+                    suggested_value=_closest_id_suggestion(anim.target, set(object_map)),
+                    reason="Reveal-children must reference a valid group object ID.",
+                ),
+            )
+        ]
+    if target_spec.type != ObjectType.GROUP:
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=(
+                    f"Animation {animation_index} uses `reveal-children` for `{anim.target}`, "
+                    "but that object is not a group."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="review_animation",
+                    object_id=anim.target,
+                    field=target_path,
+                    suggested_value=None,
+                    reason="Reveal-children only works with group objects.",
+                ),
+            )
+        ]
+    if not getattr(target_spec, "children", None):
+        return [
+            CheckFinding(
+                severity="error",
+                scene_id=scene_id,
+                kind="reference",
+                message=(
+                    f"Animation {animation_index} uses `reveal-children` for `{anim.target}`, "
+                    "but the group has no immediate children."
+                ),
+                recommended_edit=RecommendedEdit(
+                    scene_id=scene_id,
+                    action="review_animation",
+                    object_id=anim.target,
+                    field=target_path,
+                    suggested_value=None,
+                    reason="Reveal-children needs a group with authored child objects.",
+                ),
+            )
+        ]
+    return []
 
 
 def _narration_findings(
@@ -1660,6 +1844,7 @@ def _scene_reference_findings(
     available_ids: set[str],
 ) -> list[CheckFinding]:
     findings: list[CheckFinding] = []
+    object_map = {ref.object_id: ref.spec for ref in object_refs if ref.object_id}
     scene_local_ids = {
         ref.object_id
         for ref in object_refs
@@ -1670,6 +1855,15 @@ def _scene_reference_findings(
             findings.extend(_connector_reference_findings(scene_id, object_ref, available_ids))
 
     for animation_index, anim in enumerate(scene_spec.animations):
+        findings.extend(
+            _high_level_animation_findings(
+                scene_id=scene_id,
+                scene_index=scene_index,
+                animation_index=animation_index,
+                anim=anim,
+                object_map=object_map,
+            )
+        )
         target_path = f"scenes[{scene_index}].animations[{animation_index}].target"
         targets = _normalized_animation_targets(anim.target)
         if anim.target is None or not targets:
@@ -2559,8 +2753,6 @@ def _dedupe_recommended_edits(edits: list[RecommendedEdit]) -> list[RecommendedE
 def _apply_safe_write_back_fixes(
     doc: Any,
     findings: list[CheckFinding],
-    *,
-    narration_timing: list[dict[str, Any]] | None = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     raw_doc = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
     applied_fixes: list[dict[str, Any]] = []
@@ -2579,13 +2771,6 @@ def _apply_safe_write_back_fixes(
             applied_fixes.extend(
                 _enable_safe_group_visibility(obj, scene_id=scene_id, target_ids=target_ids)
             )
-        applied_fixes.extend(
-            _stretch_scene_to_narration(
-                scene,
-                scene_id=scene_id,
-                narration_timing=narration_timing or [],
-            )
-        )
 
     if not applied_fixes:
         return doc, applied_fixes
@@ -2627,44 +2812,6 @@ def _enable_safe_group_visibility(
                 _enable_safe_group_visibility(child, scene_id=scene_id, target_ids=target_ids)
             )
     return applied
-
-
-def _stretch_scene_to_narration(
-    scene: dict[str, Any],
-    *,
-    scene_id: str,
-    narration_timing: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    for advice in narration_timing:
-        if advice.get("scene_id") != scene_id or not advice.get("needs_review"):
-            continue
-        suggested_seconds = advice.get("suggested_duration_seconds")
-        if not isinstance(suggested_seconds, (int, float)):
-            continue
-        current_duration = scene.get("duration")
-        if not isinstance(current_duration, str):
-            continue
-        current_seconds = parse_duration(current_duration)
-        if current_seconds >= float(suggested_seconds):
-            continue
-        suggested_duration = advice.get("suggested_duration") or _format_duration_value(
-            float(suggested_seconds)
-        )
-        scene["duration"] = suggested_duration
-        return [
-            {
-                "scene_id": scene_id,
-                "object_id": None,
-                "action": "stretch_scene_to_narration",
-                "field": "duration",
-                "value": suggested_duration,
-                "reason": (
-                    "Extended the scene to the estimated spoken read time so the first voiced draft "
-                    "does not feel rushed."
-                ),
-            }
-        ]
-    return []
 
 
 def _collect_object_refs(objects: list[Any], *, prefix: str) -> list[ObjectRef]:
@@ -2753,7 +2900,13 @@ def _narration_timing_advice(doc: Any) -> list[dict[str, Any]]:
         narration = (getattr(scene, "narration", None) or "").strip()
         if not narration:
             continue
-        current_seconds = parse_duration(getattr(scene, "duration", "0s"))
+        current_duration = getattr(scene, "duration", "0s")
+        if current_duration == "auto":
+            current_seconds = estimate_scene_duration(
+                scene.model_dump(mode="json", by_alias=True, exclude_none=True)
+            )
+        else:
+            current_seconds = parse_duration(current_duration)
         estimated_seconds = _estimate_read_time_seconds(narration)
         suggested_seconds = _round_up_duration_seconds(max(current_seconds, estimated_seconds))
         advice.append(
