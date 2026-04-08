@@ -378,7 +378,7 @@ class AnimSpec(BaseModel):
     from_scale: float | None = Field(
         None, description="Starting scale for scale action (defaults to 1.0)"
     )
-    style: str | None = Field(
+    style: Literal["glow", "outline", "fade-in", "appear"] | None = Field(
         None,
         description="Visual style, such as 'glow'/'outline' for emphasis or 'fade-in'/'appear' for reveal actions.",
     )
@@ -415,6 +415,20 @@ class AnimSpec(BaseModel):
         return self._validate_high_level_shape()
 
     def _validate_high_level_shape(self) -> "AnimSpec":
+        selectors = [
+            name
+            for name, value in (
+                ("at", self.at),
+                ("anchor", self.anchor),
+                ("after", self.after),
+                ("cue", self.cue),
+            )
+            if value
+        ]
+        if len(selectors) > 1:
+            raise ValueError(
+                f"Animation {self.id or self.action.value!r} uses multiple timing anchors {selectors}; choose one."
+            )
         if self.action == AnimAction.REVEAL:
             if self.target is None:
                 raise ValueError("Reveal animations require `target` or `targets`.")
@@ -432,6 +446,10 @@ class AnimSpec(BaseModel):
                 raise ValueError(
                     "Highlight and pulse animations only support style `glow` or `outline`."
                 )
+        elif self.style is not None:
+            raise ValueError(
+                "`style` is only supported for reveal, reveal-children, highlight, and pulse animations."
+            )
         if self.order is not None and self.action not in {
             AnimAction.REVEAL,
             AnimAction.REVEAL_CHILDREN,

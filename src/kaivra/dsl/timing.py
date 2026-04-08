@@ -10,6 +10,7 @@ from typing import Any
 from kaivra.dsl.schema import parse_duration
 
 DEFAULT_TIMING_CONFIG_FILE = "kaivra.config.json"
+_PROJECT_ROOT_MARKERS = (".git", "pyproject.toml")
 _DURATION_LITERAL_UNITS = ("s", "ms")
 
 
@@ -64,16 +65,26 @@ def find_timing_config_path(
     """Locate the nearest repo-level timing config for a document."""
     path = Path(document_path).expanduser().resolve()
     search_start = path if path.is_dir() else path.parent
+    project_root = _find_project_root(search_start)
 
     for parent in (search_start, *search_start.parents):
         candidate = parent / DEFAULT_TIMING_CONFIG_FILE
         if candidate.is_file():
             return candidate
+        if project_root is not None and parent == project_root:
+            break
 
     if cwd is not None:
         fallback = Path(cwd).expanduser().resolve() / DEFAULT_TIMING_CONFIG_FILE
         if fallback.is_file():
             return fallback
+    return None
+
+
+def _find_project_root(path: Path) -> Path | None:
+    for parent in (path, *path.parents):
+        if any((parent / marker).exists() for marker in _PROJECT_ROOT_MARKERS):
+            return parent
     return None
 
 
