@@ -27,6 +27,7 @@ from kaivra.audio.mux import (
 from kaivra.audio.timings import AudioCue, AudioTimingData, SceneAudioTiming, load_audio_timing_data
 from kaivra.dsl.parser import parse_string
 from kaivra.dsl.retime import retime_document_to_audio_timings
+from kaivra.dsl.timing import TimingConfig, resolve_timing_config
 from kaivra.render.cairo_renderer import CairoRenderer
 from kaivra.render.video.exporter import export_video
 from kaivra.scene_graph.builder import build_scene_graph
@@ -62,6 +63,7 @@ def render_document_artifact(
     voice_provider: str | None = None,
     voice_id: str | None = None,
     theme_search_roots: Iterable[str | Path] | None = None,
+    timing_config: TimingConfig | None = None,
     progress: ProgressReporter | None = None,
     log_video_progress: bool = False,
 ) -> RenderArtifact:
@@ -82,7 +84,11 @@ def render_document_artifact(
         if audio_abs or audio_timings_abs or voice:
             raise ValueError("PNG renders do not accept audio_path, audio_timings_path, or voice.")
         _emit_progress(progress, 0.2, "Building the first frame.")
-        graph, theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
+        graph, theme = build_render_graph(
+            doc,
+            theme_search_roots=theme_search_roots,
+            timing_config=timing_config,
+        )
         CairoRenderer(theme).render_frame_to_file(graph, 0.0, str(artifact_path))
         _emit_progress(progress, 1.0, "PNG render complete.")
         return RenderArtifact(
@@ -101,6 +107,7 @@ def render_document_artifact(
             voice_provider=voice_provider,
             voice_id=voice_id,
             theme_search_roots=theme_search_roots,
+            timing_config=timing_config,
             progress=progress,
         )
 
@@ -109,6 +116,7 @@ def render_document_artifact(
         doc,
         audio_timings_path=audio_timings_abs,
         theme_search_roots=theme_search_roots,
+        timing_config=timing_config,
     )
 
     def video_progress(done: int, total: int) -> None:
@@ -176,6 +184,7 @@ def build_render_graph(
     *,
     audio_timing_data: AudioTimingData | None = None,
     theme_search_roots: Iterable[str | Path] | None = None,
+    timing_config: TimingConfig | None = None,
 ) -> tuple[Any, Any]:
     """Resolve the theme and build the scene graph, optionally retimed to audio."""
     if audio_timings_path is not None and audio_timing_data is not None:
@@ -184,11 +193,16 @@ def build_render_graph(
     if audio_timings_path is not None:
         audio_timing_data = load_audio_timing_data(audio_timings_path)
 
-    if audio_timing_data is not None:
+    if audio_timing_data is not None and not _document_uses_semantic_timing(doc):
         doc = _retime_document(doc, audio_timing_data)
 
     theme = get_theme(doc.meta.theme, search_roots=theme_search_roots)
-    graph = build_scene_graph(doc, theme)
+    graph = build_scene_graph(
+        doc,
+        theme,
+        timing_config=timing_config,
+        audio_timing_data=audio_timing_data,
+    )
     return graph, theme
 
 
@@ -212,6 +226,36 @@ def resolve_theme_search_roots(
     if fallback_root not in roots:
         roots.append(fallback_root)
     return roots
+
+
+def resolve_document_timing_config(
+    document_path: str | Path,
+    *,
+    cwd: str | Path | None = None,
+) -> TimingConfig:
+    """Load repo-level timing config for a document path."""
+    return resolve_timing_config(document_path, cwd=cwd)
+
+
+def _document_uses_semantic_timing(doc: Any) -> bool:
+    for scene in getattr(doc, "scenes", []) or []:
+        for anim in getattr(scene, "animations", []) or []:
+            action = getattr(getattr(anim, "action", None), "value", getattr(anim, "action", None))
+            if action in {"reveal", "reveal-children"}:
+                return True
+            if any(getattr(anim, field, None) for field in ("anchor", "after", "cue", "gap")):
+                return True
+            if any(getattr(anim, field, None) for field in ("order", "step")):
+                return True
+            for field_name in ("at", "duration", "stagger", "step"):
+                value = getattr(anim, field_name, None)
+                if (
+                    isinstance(value, str)
+                    and value.strip()
+                    and not value.strip().endswith(("s", "ms"))
+                ):
+                    return True
+    return False
 
 
 def _apply_voice_render_defaults(doc: Any, *, voice_provider: str | None) -> Any:
@@ -482,6 +526,7 @@ def _render_with_voice(
     voice_provider: str | None,
     voice_id: str | None,
     theme_search_roots: Iterable[str | Path] | None,
+    timing_config: TimingConfig | None,
     progress: ProgressReporter | None,
 ) -> RenderArtifact:
     registry = ProviderRegistry()
@@ -559,6 +604,7 @@ def _render_with_voice(
             doc,
             audio_timing_data=timing_data,
             theme_search_roots=theme_search_roots,
+            timing_config=timing_config,
         )
 
         def video_progress(done: int, total: int) -> None:

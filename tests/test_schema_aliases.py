@@ -45,6 +45,31 @@ def test_show_narration_remains_a_backward_compatible_input_alias() -> None:
     assert doc.meta.subtitles_were_explicitly_set() is True
 
 
+def test_animation_style_is_rejected_for_non_emphasis_actions() -> None:
+    with pytest.raises(ValueError, match="`style` is only supported"):
+        parse_string(
+            json.dumps(
+                {
+                    "version": "1.2",
+                    "meta": {"theme": "modern"},
+                    "scenes": [
+                        {
+                            "objects": [{"id": "box", "type": "box", "content": "A"}],
+                            "animations": [
+                                {
+                                    "action": "move",
+                                    "target": "box",
+                                    "style": "glow",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ),
+            format="json",
+        )
+
+
 def test_translate_is_the_supported_motion_field() -> None:
     doc = parse_string(
         json.dumps(
@@ -73,7 +98,6 @@ def test_translate_is_the_supported_motion_field() -> None:
 
 
 def test_legacy_pixel_offsets_are_accepted() -> None:
-    # offset_x/y are kept for backwards compatibility — they must parse without error.
     doc = parse_string(
         json.dumps(
             {
@@ -101,6 +125,32 @@ def test_legacy_pixel_offsets_are_accepted() -> None:
     anim = doc.scenes[0].animations[0]
     assert anim.offset_x == 12
     assert anim.offset_y == -8
+
+
+def test_animation_rejects_multiple_semantic_timing_anchors() -> None:
+    with pytest.raises(ValueError, match="multiple timing anchors"):
+        parse_string(
+            json.dumps(
+                {
+                    "version": "1.2",
+                    "meta": {"theme": "modern"},
+                    "scenes": [
+                        {
+                            "objects": [{"id": "box", "type": "box", "content": "A"}],
+                            "animations": [
+                                {
+                                    "action": "reveal",
+                                    "target": "box",
+                                    "at": "0s",
+                                    "after": "intro",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ),
+            format="json",
+        )
 
 
 def test_absolute_layout_is_rejected() -> None:

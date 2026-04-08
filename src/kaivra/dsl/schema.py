@@ -50,6 +50,8 @@ class AnimAction(str, Enum):
     # Drawing
     DRAW = "draw"
     TYPE = "type"
+    REVEAL = "reveal"
+    REVEAL_CHILDREN = "reveal-children"
     # Emphasis
     HIGHLIGHT = "highlight"
     PULSE = "pulse"
@@ -110,6 +112,20 @@ def parse_duration(value: str) -> float:
         raise ValueError(f"Invalid duration: {value!r}. Use e.g. '2s' or '500ms'.")
     num, unit = float(m.group(1)), m.group(2)
     return num if unit == "s" else num / 1000.0
+
+
+def _validate_timing_value(value: str | None) -> str | None:
+    """Accept duration literals and semantic timing expressions."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("Timing values must be strings.")
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("Timing values must not be empty.")
+    if stripped == "auto" or _DURATION_RE.match(stripped):
+        parse_duration(stripped)
+    return stripped
 
 
 class RelativePositionSpec(BaseModel):
@@ -244,9 +260,7 @@ class MotionSpec(BaseModel):
     @field_validator("at", "duration", mode="before")
     @classmethod
     def validate_motion_durations(cls, v: str | None) -> str | None:
-        if v is not None:
-            parse_duration(v)
-        return v
+        return _validate_timing_value(v)
 
 
 # ---------------------------------------------------------------------------
@@ -339,14 +353,28 @@ class BuildPhase(BaseModel):
     duration: str = Field("1s", description="Duration of this phase")
     stagger: str | None = Field(None, description="Delay between targets in this phase")
 
+    @field_validator("at", "duration", "stagger", mode="before")
+    @classmethod
+    def validate_phase_durations(cls, v: str | None) -> str | None:
+        return _validate_timing_value(v)
+
 
 class AnimSpec(BaseModel):
     """Specification for an animation action."""
 
-    action: AnimAction = Field(
-        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, highlight, pulse, build, replace"
+    id: str | None = Field(
+        None,
+        description="Optional animation identifier used by semantic timing anchors.",
     )
-    target: str | list[str] | None = Field(None, description="Object ID(s) to animate")
+    action: AnimAction = Field(
+        description="Animation type: appear, disappear, fade-in, fade-out, move, move-to, swap, scale, draw, type, reveal, reveal-children, highlight, pulse, build, replace"
+    )
+    target: str | list[str] | None = Field(
+        None,
+        validation_alias=AliasChoices("target", "targets"),
+        serialization_alias="target",
+        description="Object ID(s) to animate",
+    )
     to_id: str | None = Field(None, description="Destination object ID (for move-to)")
     with_id: str | None = Field(
         None,
@@ -357,10 +385,30 @@ class AnimSpec(BaseModel):
 
     # Timing
     at: str | None = Field(None, description="Start time, e.g. '0.5s' or '200ms'")
+    anchor: str | None = Field(
+        None,
+        description="Anchor to another animation ID, object ID, or scene boundary like 'scene_start'/'scene_end'.",
+    )
     after: str | None = Field(None, description="Start after another animation completes")
     duration: str = Field("0.5s", description="Animation duration, e.g. '1s' or '500ms'")
+    gap: str | None = Field(
+        None,
+        description="Relative offset token or duration applied after an anchor/cue, e.g. 'short'.",
+    )
+    step: str | None = Field(
+        None,
+        description="Per-target reveal delay for high-level reveal actions, e.g. 'short'.",
+    )
     stagger: str | None = Field(
         None, description="Delay between targets when animating multiple objects"
+    )
+    order: Literal["sequential"] | None = Field(
+        None,
+        description="Ordering mode for high-level reveal actions.",
+    )
+    cue: str | None = Field(
+        None,
+        description="Narration cue phrase to anchor against when external cue timings are supplied.",
     )
     easing: EasingType = Field(
         EasingType.EASE_IN_OUT,
@@ -374,8 +422,9 @@ class AnimSpec(BaseModel):
     from_scale: float | None = Field(
         None, description="Starting scale for scale action (defaults to 1.0)"
     )
-    style: Literal["glow", "outline"] | None = Field(
-        None, description="Highlight visual style (for highlight/pulse)"
+    style: Literal["glow", "outline", "fade-in", "appear"] | None = Field(
+        None,
+        description="Visual style, such as 'glow'/'outline' for emphasis or 'fade-in'/'appear' for reveal actions.",
     )
     color: str | None = Field(
         None, description="Color name for emphasis animations (e.g. 'accent', 'success', 'error')"
@@ -410,21 +459,67 @@ class AnimSpec(BaseModel):
 
     model_config = {"extra": "allow"}
 
-    @field_validator("at", "duration", "stagger", mode="before")
+    @field_validator("at", "duration", "gap", "step", "stagger", mode="before")
     @classmethod
     def validate_duration_format(cls, v: str | None) -> str | None:
-        if v is not None:
-            parse_duration(v)  # validates format
-        return v
+        return _validate_timing_value(v)
 
     @model_validator(mode="after")
     def validate_replace_shape(self) -> "AnimSpec":
         if self.action != AnimAction.REPLACE:
-            return self
+            return self._validate_high_level_shape()
         if not isinstance(self.target, str) or not self.target.strip():
             raise ValueError("Replace animations require a single string target ID.")
         if not self.with_id:
             raise ValueError("Replace animations require a `with` object ID.")
+        return self._validate_high_level_shape()
+
+    def _validate_high_level_shape(self) -> "AnimSpec":
+        selectors = [
+            name
+            for name, value in (
+                ("at", self.at),
+                ("anchor", self.anchor),
+                ("after", self.after),
+                ("cue", self.cue),
+            )
+            if value
+        ]
+        if len(selectors) > 1:
+            raise ValueError(
+                f"Animation {self.id or self.action.value!r} uses multiple timing anchors {selectors}; choose one."
+            )
+        if self.action == AnimAction.REVEAL:
+            if self.target is None:
+                raise ValueError("Reveal animations require `target` or `targets`.")
+            if self.style is not None and self.style not in {"fade-in", "appear"}:
+                raise ValueError("Reveal animations only support style `fade-in` or `appear`.")
+        elif self.action == AnimAction.REVEAL_CHILDREN:
+            if not isinstance(self.target, str) or not self.target.strip():
+                raise ValueError("Reveal-children animations require one target group ID.")
+            if self.style is not None and self.style not in {"fade-in", "appear"}:
+                raise ValueError(
+                    "Reveal-children animations only support style `fade-in` or `appear`."
+                )
+        elif self.style is not None and self.action in {AnimAction.HIGHLIGHT, AnimAction.PULSE}:
+            if self.style not in {"glow", "outline"}:
+                raise ValueError(
+                    "Highlight and pulse animations only support style `glow` or `outline`."
+                )
+        elif self.style is not None:
+            raise ValueError(
+                "`style` is only supported for reveal, reveal-children, highlight, and pulse animations."
+            )
+        if self.order is not None and self.action not in {
+            AnimAction.REVEAL,
+            AnimAction.REVEAL_CHILDREN,
+        }:
+            raise ValueError("`order` is only supported for reveal and reveal-children animations.")
+        if self.step is not None and self.action not in {
+            AnimAction.REVEAL,
+            AnimAction.REVEAL_CHILDREN,
+        }:
+            raise ValueError("`step` is only supported for reveal and reveal-children animations.")
         return self
 
 
@@ -457,9 +552,7 @@ class FocusStyleSpec(BaseModel):
     @field_validator("at", "duration", mode="before")
     @classmethod
     def validate_focus_durations(cls, v: str | None) -> str | None:
-        if v is not None:
-            parse_duration(v)
-        return v
+        return _validate_timing_value(v)
 
 
 # ---------------------------------------------------------------------------

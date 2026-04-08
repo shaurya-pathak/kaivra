@@ -191,7 +191,10 @@ def preview(input_file: str, serve: bool, port: int):
     """Open web preview of an animation."""
     from kaivra.dsl.parser import parse_file
     from kaivra.mcp.workspace import KaivraWorkspace
-    from kaivra.render.orchestration import resolve_theme_search_roots
+    from kaivra.render.orchestration import (
+        resolve_document_timing_config,
+        resolve_theme_search_roots,
+    )
     from kaivra.render.web.exporter import export_web_preview
 
     _run_preflight(
@@ -203,7 +206,13 @@ def preview(input_file: str, serve: bool, port: int):
     )
     doc = parse_file(input_file)
     theme_roots = resolve_theme_search_roots(input_file)
-    export_web_preview(doc, serve=serve, port=port, theme_search_roots=theme_roots)
+    export_web_preview(
+        doc,
+        serve=serve,
+        port=port,
+        theme_search_roots=theme_roots,
+        timing_config=resolve_document_timing_config(input_file),
+    )
 
 
 @main.command()
@@ -325,11 +334,19 @@ def sample(input_file: str, outdir: str, count: int, seed: int | None):
 
     from kaivra.dsl.parser import parse_file
     from kaivra.render.cairo_renderer import CairoRenderer
-    from kaivra.render.orchestration import build_render_graph, resolve_theme_search_roots
+    from kaivra.render.orchestration import (
+        build_render_graph,
+        resolve_document_timing_config,
+        resolve_theme_search_roots,
+    )
 
     doc = parse_file(input_file)
     theme_roots = resolve_theme_search_roots(input_file)
-    graph, theme = build_render_graph(doc, theme_search_roots=theme_roots)
+    graph, theme = build_render_graph(
+        doc,
+        theme_search_roots=theme_roots,
+        timing_config=resolve_document_timing_config(input_file),
+    )
 
     if seed is not None:
         random.seed(seed)
@@ -364,7 +381,11 @@ def audit(ctx: click.Context, input_file: str, layout_only: bool, samples: int |
     from kaivra.dsl.parser import parse_file
     from kaivra.mcp.workspace import KaivraWorkspace
     from kaivra.qa.audit import audit_scene_graph
-    from kaivra.render.orchestration import build_render_graph, resolve_theme_search_roots
+    from kaivra.render.orchestration import (
+        build_render_graph,
+        resolve_document_timing_config,
+        resolve_theme_search_roots,
+    )
 
     if not layout_only and ctx.get_parameter_source("samples") != ParameterSource.DEFAULT:
         raise click.ClickException("`--samples` is only supported together with `--layout-only`.")
@@ -386,7 +407,11 @@ def audit(ctx: click.Context, input_file: str, layout_only: bool, samples: int |
 
     doc = parse_file(input_file)
     theme_roots = resolve_theme_search_roots(input_file)
-    graph, _theme = build_render_graph(doc, theme_search_roots=theme_roots)
+    graph, _theme = build_render_graph(
+        doc,
+        theme_search_roots=theme_roots,
+        timing_config=resolve_document_timing_config(input_file),
+    )
     findings = audit_scene_graph(graph, samples_per_scene=samples or 5)
 
     if not findings:
@@ -497,7 +522,11 @@ def _render_to_output(
     voice_id: str | None,
 ) -> None:
     from kaivra.dsl.parser import parse_file
-    from kaivra.render.orchestration import render_document_artifact, resolve_theme_search_roots
+    from kaivra.render.orchestration import (
+        render_document_artifact,
+        resolve_document_timing_config,
+        resolve_theme_search_roots,
+    )
 
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -511,6 +540,7 @@ def _render_to_output(
 
     doc = parse_file(input_file)
     theme_roots = resolve_theme_search_roots(input_file)
+    timing_config = resolve_document_timing_config(input_file)
     progress = _CliProgressPrinter() if voice else None
     try:
         result = render_document_artifact(
@@ -523,6 +553,7 @@ def _render_to_output(
             voice_provider=voice_provider,
             voice_id=voice_id,
             theme_search_roots=theme_roots,
+            timing_config=timing_config,
             progress=progress,
             log_video_progress=not voice,
         )

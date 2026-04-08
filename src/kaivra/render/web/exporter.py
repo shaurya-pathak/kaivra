@@ -9,6 +9,7 @@ import webbrowser
 from pathlib import Path
 
 from kaivra.dsl.schema import DocumentSpec
+from kaivra.dsl.timing import TimingConfig
 from kaivra.render.orchestration import build_render_graph
 
 
@@ -16,9 +17,14 @@ def build_web_preview_html(
     doc: DocumentSpec,
     *,
     theme_search_roots: list[str | Path] | None = None,
+    timing_config: TimingConfig | None = None,
 ) -> str:
     """Build the self-contained HTML preview for a document."""
-    graph, theme = build_render_graph(doc, theme_search_roots=theme_search_roots)
+    graph, theme = build_render_graph(
+        doc,
+        theme_search_roots=theme_search_roots,
+        timing_config=timing_config,
+    )
 
     # Serialize scene graph to JSON for the JS player
     scenes_data = []
@@ -121,12 +127,17 @@ def write_web_preview(
     path: str | Path,
     *,
     theme_search_roots: list[str | Path] | None = None,
+    timing_config: TimingConfig | None = None,
 ) -> Path:
     """Write the self-contained HTML preview to disk."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        build_web_preview_html(doc, theme_search_roots=theme_search_roots),
+        build_web_preview_html(
+            doc,
+            theme_search_roots=theme_search_roots,
+            timing_config=timing_config,
+        ),
         encoding="utf-8",
     )
     return path
@@ -138,9 +149,14 @@ def export_web_preview(
     serve: bool = False,
     port: int = 8080,
     theme_search_roots: list[str | Path] | None = None,
+    timing_config: TimingConfig | None = None,
 ) -> None:
     """Export an HTML preview and optionally serve it."""
-    html = build_web_preview_html(doc, theme_search_roots=theme_search_roots)
+    html = build_web_preview_html(
+        doc,
+        theme_search_roots=theme_search_roots,
+        timing_config=timing_config,
+    )
 
     if serve:
         _serve_with_reload(html, port)
