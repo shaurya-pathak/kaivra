@@ -116,6 +116,8 @@ def _authoring_profile() -> str:
 ## Scene Construction
 
 - Prefer `template: "one-column"` (or `"two-column"`) on every scene for top-level framing.
+- `template: "one-column"` now supports semantic regions through `grid.region`: `problem_solution`, `request_pipeline`, `fan_out`, `system_architecture`, and `timeline_steps`.
+- Keep `main` for backward compatibility, but use the semantic region names when the scene is actually explaining one of those structures.
 - Build scenes from `box`, `group`, `connector`, `token`, and short `text` headings.
 - Use `draw` on connectors to animate flow and causality.
 - Each scene should have enough objects to fully illustrate the concept.
@@ -130,6 +132,7 @@ def _authoring_profile() -> str:
 - Use `gap: "small" | "medium" | "large"` on groups to control spacing.
 - Use `direction: "horizontal" | "vertical"` on flow/stack layouts.
 - Use scene-level `layout` with a template only when you intentionally want to override the template defaults.
+- When mixing semantic regions and generic `main` objects in one `one-column` scene, remember that `main` still covers the full body lane for backward compatibility. Prefer semantic regions for all major blocks in that scene.
 
 **Connector overlap:** The engine does not auto-route connectors. If `check_animation` flags crossover warnings, reorder objects within their group so connected nodes are adjacent, or split objects into smaller groups to keep connector paths clear.
 
@@ -265,6 +268,7 @@ Read these complete, polished animations before authoring your own JSON. They de
 - **`examples/reference/perspectiv_medcase_process_explainer.json`** — 6-scene narrated process explainer (How Perspectiv MedCase Works). Shows a persistent carousel chapter tracker, one-column framing, state-flow visuals, persistent objects, continuity, staged connector draws, and user-facing narration. Use this as the primary quality bar for narrated system/process explainers.
 - **`examples/reference/api_how_it_works.json`** — 4-scene narrated explainer (How an API Works). Shows carousel chapter tracker, horizontal flow layouts, connector draws, continuity morphs across scenes, and conversational narration. Material theme, educational pacing.
 - **`examples/reference/forward_propagation.json`** — 6-scene narrated explainer (Forward Propagation in a Neural Network). Shows worked-example arithmetic, stacked layouts, highlight colors (accent/success/warning), and deep continuity where computed values carry across scenes. Material theme, educational pacing.
+- **`examples/demos/semantic_one_column_regions.json`** — Compact one-scene demo of the semantic `one-column` regions: `problem_solution`, `request_pipeline`, `fan_out`, `system_architecture`, and `timeline_steps`.
 
 Read one of these files before authoring a new animation — they are the quality bar.
 

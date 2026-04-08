@@ -157,6 +157,10 @@ class GridRegionSpec(BaseModel):
     row_span: int = Field(1, description="Number of rows to span")
     col: int = Field(1, description="1-based column index")
     span: int = Field(1, description="Number of columns to span")
+    align: Literal["center", "top", "bottom", "left", "right"] = Field(
+        "center",
+        description="How objects placed in this region are aligned within its bounds.",
+    )
 
 
 class GridPositionSpec(BaseModel):
@@ -167,7 +171,13 @@ class GridPositionSpec(BaseModel):
     span: int | None = Field(None, description="Number of columns to span")
     row_span: int | None = Field(None, description="Number of rows to span")
     region: str | None = Field(
-        None, description="Named region defined in layout.regions (e.g. 'main', 'sidebar')"
+        None,
+        description=(
+            "Named region defined in layout.regions (e.g. 'main', 'sidebar'). "
+            "The 'one-column' template also supports semantic regions like "
+            "'problem_solution', 'request_pipeline', 'fan_out', "
+            "'system_architecture', and 'timeline_steps'."
+        ),
     )
 
 
@@ -568,7 +578,15 @@ class SceneSpec(BaseModel):
         "auto", description="Scene duration, e.g. '5s'. Use 'auto' to infer from animations"
     )
     layout: Layout = "center"
-    template: str | None = Field(None, description="Layout template: 'two-column' or 'one-column'")
+    template: str | None = Field(
+        None,
+        description=(
+            "Layout template: 'two-column' or 'one-column'. "
+            "'one-column' provides a header, backward-compatible 'main', and semantic "
+            "regions such as 'problem_solution', 'request_pipeline', 'fan_out', "
+            "'system_architecture', and 'timeline_steps'."
+        ),
+    )
     narration: str | None = Field(
         None, description="Narration text displayed at the bottom of the scene"
     )

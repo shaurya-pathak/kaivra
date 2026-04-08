@@ -412,3 +412,142 @@ def test_reveal_children_uses_immediate_child_order() -> None:
     assert [keyframe.target_id for keyframe in timeline] == ["pain_os", "pain_drivers", "pain_auth"]
     assert [keyframe.start_time for keyframe in timeline] == [0.5, 0.7, 0.9]
     assert all(keyframe.action == AnimAction.APPEAR for keyframe in timeline)
+
+
+def test_one_column_semantic_regions_place_blocks_in_vertical_order() -> None:
+    graph = _build_graph(
+        {
+            "meta": {"theme": "modern", "show_subtitles": False},
+            "scenes": [
+                {
+                    "id": "semantic_layout",
+                    "duration": "6s",
+                    "template": "one-column",
+                    "auto_visible": True,
+                    "objects": [
+                        {"id": "title", "type": "text", "content": "Semantic", "style": "heading"},
+                        {
+                            "id": "problem_lane",
+                            "type": "group",
+                            "grid": {"region": "problem_solution"},
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [{"id": "problem", "type": "box", "content": "Problem"}],
+                        },
+                        {
+                            "id": "pipeline_lane",
+                            "type": "group",
+                            "grid": {"region": "request_pipeline"},
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [{"id": "pipeline", "type": "box", "content": "Pipeline"}],
+                        },
+                        {
+                            "id": "fanout_lane",
+                            "type": "group",
+                            "grid": {"region": "fan_out"},
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [{"id": "fanout", "type": "box", "content": "Fan Out"}],
+                        },
+                        {
+                            "id": "architecture_lane",
+                            "type": "group",
+                            "grid": {"region": "system_architecture"},
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [
+                                {"id": "architecture", "type": "box", "content": "Architecture"}
+                            ],
+                        },
+                        {
+                            "id": "timeline_lane",
+                            "type": "group",
+                            "grid": {"region": "timeline_steps"},
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [{"id": "timeline", "type": "box", "content": "Timeline"}],
+                        },
+                    ],
+                    "animations": [],
+                }
+            ],
+        }
+    )
+    scene = graph.scenes[0]
+
+    assert scene.node_map["title"].rect.y < scene.node_map["problem_lane"].rect.y
+    assert scene.node_map["problem_lane"].rect.y < scene.node_map["pipeline_lane"].rect.y
+    assert scene.node_map["pipeline_lane"].rect.y < scene.node_map["fanout_lane"].rect.y
+    assert scene.node_map["fanout_lane"].rect.y < scene.node_map["architecture_lane"].rect.y
+    assert scene.node_map["architecture_lane"].rect.y < scene.node_map["timeline_lane"].rect.y
+
+
+def test_one_column_unassigned_objects_still_fall_back_to_main_region() -> None:
+    graph = _build_graph(
+        {
+            "meta": {"theme": "modern", "show_subtitles": False},
+            "scenes": [
+                {
+                    "id": "main_fallback",
+                    "duration": "6s",
+                    "template": "one-column",
+                    "auto_visible": True,
+                    "objects": [
+                        {"id": "title", "type": "text", "content": "Legacy", "style": "heading"},
+                        {"id": "summary", "type": "box", "content": "Still uses main"},
+                        {
+                            "id": "pipeline_lane",
+                            "type": "group",
+                            "grid": {"region": "request_pipeline"},
+                            "layout": {"type": "flow", "gap": "medium"},
+                            "children": [{"id": "request", "type": "box", "content": "Request"}],
+                        },
+                    ],
+                    "animations": [],
+                }
+            ],
+        }
+    )
+    scene = graph.scenes[0]
+
+    assert scene.node_map["title"].rect.y < scene.node_map["summary"].rect.y
+    assert scene.node_map["summary"].rect.y < scene.node_map["pipeline_lane"].rect.y
+
+
+def test_one_column_semantic_regions_reject_explicit_main_overlap() -> None:
+    with pytest.raises(
+        ValueError, match="cannot place objects in `main` alongside semantic regions"
+    ):
+        _build_graph(
+            {
+                "meta": {"theme": "modern", "show_subtitles": False},
+                "scenes": [
+                    {
+                        "id": "invalid_mix",
+                        "duration": "6s",
+                        "template": "one-column",
+                        "auto_visible": True,
+                        "objects": [
+                            {
+                                "id": "title",
+                                "type": "text",
+                                "content": "Semantic",
+                                "style": "heading",
+                            },
+                            {
+                                "id": "summary",
+                                "type": "box",
+                                "content": "Summary",
+                                "grid": {"region": "main"},
+                            },
+                            {
+                                "id": "pipeline_lane",
+                                "type": "group",
+                                "grid": {"region": "request_pipeline"},
+                                "layout": {"type": "flow", "gap": "medium"},
+                                "children": [
+                                    {"id": "request", "type": "box", "content": "Request"}
+                                ],
+                            },
+                        ],
+                        "animations": [],
+                    }
+                ],
+            }
+        )
