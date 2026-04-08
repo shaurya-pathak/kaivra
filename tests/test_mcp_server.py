@@ -107,7 +107,7 @@ def test_resource_guidance_promotes_process_explainers_and_examples_as_shape_ref
     assert "GOOD: Rewritten scene" in examples
     assert "Continuity Carry-Over" in examples
     assert "perspectiv_medcase_process_explainer.json" in examples
-    assert '"version": "1.2"' in examples
+    assert '"version": "1.3"' in examples
     assert "resources/read" in examples
     assert '"title": "How an API Works"' in api_example
     assert '"title": "How Perspectiv MedCase Works"' in medcase_example

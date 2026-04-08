@@ -152,7 +152,7 @@
           "to_id": "a0",
           "at": "1.4s",
           "duration": "0.8s",
-          "offset_x": -120
+          "translate": { "x": -1.0 }
         },
         {
           "action": "move-to",
@@ -160,7 +160,7 @@
           "to_id": "a1",
           "at": "2.4s",
           "duration": "0.8s",
-          "offset_x": -120
+          "translate": { "x": -1.0 }
         },
         {
           "action": "pulse",
@@ -280,7 +280,7 @@
           "to_id": "a0",
           "at": "1.0s",
           "duration": "0.8s",
-          "offset_x": -120
+          "translate": { "x": -1.0 }
         },
         {
           "action": "move-to",
@@ -288,7 +288,7 @@
           "to_id": "a1",
           "at": "2.0s",
           "duration": "0.8s",
-          "offset_x": -120
+          "translate": { "x": -1.0 }
         },
         {
           "action": "highlight",
@@ -432,7 +432,7 @@
           "to_id": "a1",
           "at": "1.0s",
           "duration": "0.8s",
-          "offset_x": -120
+          "translate": { "x": -1.0 }
         },
         {
           "action": "move-to",
@@ -440,7 +440,7 @@
           "to_id": "a2",
           "at": "2.0s",
           "duration": "0.8s",
-          "offset_x": -120
+          "translate": { "x": -1.0 }
         },
         {
           "action": "highlight",

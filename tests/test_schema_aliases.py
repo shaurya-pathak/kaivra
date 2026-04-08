@@ -70,6 +70,63 @@ def test_animation_style_is_rejected_for_non_emphasis_actions() -> None:
         )
 
 
+def test_translate_is_the_supported_motion_field() -> None:
+    doc = parse_string(
+        json.dumps(
+            {
+                "version": "1.3",
+                "meta": {"theme": "modern"},
+                "scenes": [
+                    {
+                        "objects": [{"id": "box", "type": "box", "content": "A"}],
+                        "animations": [
+                            {
+                                "action": "move",
+                                "target": "box",
+                                "translate": {"x": 1.0},
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        format="json",
+    )
+
+    assert doc.scenes[0].animations[0].translate is not None
+    assert doc.scenes[0].animations[0].translate.x == 1.0
+
+
+def test_legacy_pixel_offsets_are_accepted() -> None:
+    doc = parse_string(
+        json.dumps(
+            {
+                "version": "1.2",
+                "meta": {"theme": "modern"},
+                "scenes": [
+                    {
+                        "objects": [{"id": "box", "type": "box", "content": "A"}],
+                        "animations": [
+                            {
+                                "action": "move",
+                                "target": "box",
+                                "offset_x": 12,
+                                "offset_y": -8,
+                                "from_offset_x": 0,
+                                "from_offset_y": 0,
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        format="json",
+    )
+    anim = doc.scenes[0].animations[0]
+    assert anim.offset_x == 12
+    assert anim.offset_y == -8
+
+
 def test_animation_rejects_multiple_semantic_timing_anchors() -> None:
     with pytest.raises(ValueError, match="multiple timing anchors"):
         parse_string(
@@ -90,6 +147,20 @@ def test_animation_rejects_multiple_semantic_timing_anchors() -> None:
                             ],
                         }
                     ],
+                }
+            ),
+            format="json",
+        )
+
+
+def test_absolute_layout_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        parse_string(
+            json.dumps(
+                {
+                    "version": "1.3",
+                    "meta": {"theme": "modern"},
+                    "scenes": [{"layout": "absolute", "objects": []}],
                 }
             ),
             format="json",
