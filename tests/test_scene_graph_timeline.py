@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from kaivra.dsl.schema import AnimAction, DocumentSpec, ObjectType
 from kaivra.scene_graph.builder import build_scene_graph
 from kaivra.scene_graph.models import AnimationKeyframe, SceneNode
@@ -255,5 +257,47 @@ def test_one_column_unassigned_objects_still_fall_back_to_main_region() -> None:
     scene = graph.scenes[0]
 
     assert scene.node_map["title"].rect.y < scene.node_map["summary"].rect.y
-    assert scene.node_map["summary"].rect.y > scene.node_map["title"].rect.y
-    assert scene.node_map["pipeline_lane"].rect.y > scene.node_map["title"].rect.y
+    assert scene.node_map["summary"].rect.y < scene.node_map["pipeline_lane"].rect.y
+
+
+def test_one_column_semantic_regions_reject_explicit_main_overlap() -> None:
+    with pytest.raises(
+        ValueError, match="cannot place objects in `main` alongside semantic regions"
+    ):
+        _build_graph(
+            {
+                "meta": {"theme": "modern", "show_subtitles": False},
+                "scenes": [
+                    {
+                        "id": "invalid_mix",
+                        "duration": "6s",
+                        "template": "one-column",
+                        "auto_visible": True,
+                        "objects": [
+                            {
+                                "id": "title",
+                                "type": "text",
+                                "content": "Semantic",
+                                "style": "heading",
+                            },
+                            {
+                                "id": "summary",
+                                "type": "box",
+                                "content": "Summary",
+                                "grid": {"region": "main"},
+                            },
+                            {
+                                "id": "pipeline_lane",
+                                "type": "group",
+                                "grid": {"region": "request_pipeline"},
+                                "layout": {"type": "flow", "gap": "medium"},
+                                "children": [
+                                    {"id": "request", "type": "box", "content": "Request"}
+                                ],
+                            },
+                        ],
+                        "animations": [],
+                    }
+                ],
+            }
+        )

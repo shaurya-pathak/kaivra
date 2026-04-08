@@ -41,16 +41,13 @@ _GROUP_VISIBILITY_ACTIONS = {
     AnimAction.FADE_OUT,
 }
 
-_TOP_ALIGNED_GRID_REGIONS = {
-    "header",
-    "main",
-    "sidebar",
+_ONE_COLUMN_SEMANTIC_REGIONS = (
     "problem_solution",
     "request_pipeline",
     "fan_out",
     "system_architecture",
     "timeline_steps",
-}
+)
 
 
 def build_scene_graph(doc: DocumentSpec, theme: ThemeSpec) -> SceneGraph:
@@ -1274,7 +1271,7 @@ def _compute_grid_positions(
         w = min(size.width, region_w)
         h = min(size.height, region_h)
         x = region_x + (region_w - w) / 2
-        if obj.grid.region in _TOP_ALIGNED_GRID_REGIONS:
+        if region is not None and region.align == "top":
             y = region_y
         else:
             y = region_y + (region_h - h) / 2
@@ -1382,6 +1379,25 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
     def is_title(obj: ObjectSpec) -> bool:
         return obj.style in {"heading", "section-heading"}
 
+    one_column_uses_semantic_regions = template == "one-column" and any(
+        obj.grid and obj.grid.region in _ONE_COLUMN_SEMANTIC_REGIONS for obj in spec.objects
+    )
+    used_semantic_regions = {
+        obj.grid.region
+        for obj in spec.objects
+        if obj.grid and obj.grid.region in _ONE_COLUMN_SEMANTIC_REGIONS
+    }
+    available_semantic_regions = [
+        region for region in _ONE_COLUMN_SEMANTIC_REGIONS if region not in used_semantic_regions
+    ]
+
+    def next_semantic_region() -> str:
+        if not available_semantic_regions:
+            raise ValueError(
+                "One-column semantic scenes cannot mix `main` content with semantic regions once all semantic lanes are occupied. Assign each body object to an explicit semantic region."
+            )
+        return available_semantic_regions.pop(0)
+
     new_objects: list[ObjectSpec] = []
     for obj in spec.objects:
         if obj.grid and obj.layout and isinstance(obj.layout, LayoutSpec):
@@ -1393,12 +1409,19 @@ def _apply_scene_template(spec: SceneSpec, persistent_ids: set[str] | None) -> S
                     obj = obj.model_copy(update={"layout": new_layout})
 
         if obj.id in persistent_ids or obj.position or obj.grid:
+            if one_column_uses_semantic_regions and obj.grid and obj.grid.region == "main":
+                raise ValueError(
+                    "One-column semantic scenes cannot place objects in `main` alongside semantic regions. Assign the object to a semantic region instead."
+                )
             new_objects.append(obj)
             continue
         if is_title(obj):
             new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region="header")}))
         else:
-            new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region="main")}))
+            region = "main"
+            if one_column_uses_semantic_regions:
+                region = next_semantic_region()
+            new_objects.append(obj.model_copy(update={"grid": GridPositionSpec(region=region)}))
 
     return spec.model_copy(update={"layout": layout, "objects": new_objects})
 
@@ -1411,14 +1434,14 @@ def _build_one_column_template_layout() -> LayoutSpec:
         rows=12,
         gap="large",
         regions={
-            "header": {"row": 1, "row_span": 1, "col": 1, "span": 12},
+            "header": {"row": 1, "row_span": 1, "col": 1, "span": 12, "align": "top"},
             # `main` remains the full body lane for backward compatibility.
-            "main": {"row": 2, "row_span": 11, "col": 1, "span": 12},
-            "problem_solution": {"row": 2, "row_span": 2, "col": 1, "span": 12},
-            "request_pipeline": {"row": 4, "row_span": 2, "col": 1, "span": 12},
-            "fan_out": {"row": 6, "row_span": 2, "col": 1, "span": 12},
-            "system_architecture": {"row": 8, "row_span": 3, "col": 1, "span": 12},
-            "timeline_steps": {"row": 11, "row_span": 2, "col": 1, "span": 12},
+            "main": {"row": 2, "row_span": 11, "col": 1, "span": 12, "align": "top"},
+            "problem_solution": {"row": 2, "row_span": 2, "col": 1, "span": 12, "align": "top"},
+            "request_pipeline": {"row": 4, "row_span": 2, "col": 1, "span": 12, "align": "top"},
+            "fan_out": {"row": 6, "row_span": 2, "col": 1, "span": 12, "align": "top"},
+            "system_architecture": {"row": 8, "row_span": 3, "col": 1, "span": 12, "align": "top"},
+            "timeline_steps": {"row": 11, "row_span": 2, "col": 1, "span": 12, "align": "top"},
         },
     )
 

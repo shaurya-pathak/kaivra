@@ -120,6 +120,10 @@ class GridRegionSpec(BaseModel):
     row_span: int = Field(1, description="Number of rows to span")
     col: int = Field(1, description="1-based column index")
     span: int = Field(1, description="Number of columns to span")
+    align: Literal["center", "top", "bottom", "left", "right"] = Field(
+        "center",
+        description="How objects placed in this region are aligned within its bounds.",
+    )
 
 
 class GridPositionSpec(BaseModel):
