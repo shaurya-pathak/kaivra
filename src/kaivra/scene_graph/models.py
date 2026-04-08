@@ -77,6 +77,11 @@ class AnimationKeyframe:
     phases: list[dict] | None = None
     translate: RelativePositionSpec | None = None
     from_translate: RelativePositionSpec | None = None
+    # Absolute pixel offsets for backwards-compatible move animations.
+    offset_x: float | None = None
+    offset_y: float | None = None
+    from_offset_x: float | None = None
+    from_offset_y: float | None = None
     to_id: str | None = None  # for move-to
     with_id: str | None = None  # for replace
 

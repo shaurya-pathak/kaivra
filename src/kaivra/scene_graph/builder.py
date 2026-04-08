@@ -962,6 +962,10 @@ def _resolve_animations(anims: list[AnimSpec], scene_duration: float) -> list[An
                 phases=[p.model_dump() for p in anim.phases] if anim.phases else None,
                 translate=anim.translate,
                 from_translate=anim.from_translate,
+                offset_x=anim.offset_x,
+                offset_y=anim.offset_y,
+                from_offset_x=anim.from_offset_x,
+                from_offset_y=anim.from_offset_y,
                 to_id=anim.to_id,
                 with_id=anim.with_id,
             )

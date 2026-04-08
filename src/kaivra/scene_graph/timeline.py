@@ -113,8 +113,12 @@ def apply_animations_at_time(
                     node.scale_y = to_val
 
             case AnimAction.MOVE:
-                dx, dy = _resolve_relative_translate(kf.translate, node)
-                from_dx, from_dy = _resolve_relative_translate(kf.from_translate, node)
+                if kf.translate is not None or kf.from_translate is not None:
+                    dx, dy = _resolve_relative_translate(kf.translate, node)
+                    from_dx, from_dy = _resolve_relative_translate(kf.from_translate, node)
+                else:
+                    dx, dy = kf.offset_x or 0.0, kf.offset_y or 0.0
+                    from_dx, from_dy = kf.from_offset_x or 0.0, kf.from_offset_y or 0.0
                 if progress is not None:
                     node.visible = True
                     node.opacity = 1.0
@@ -130,7 +134,10 @@ def apply_animations_at_time(
 
             case AnimAction.MOVE_TO:
                 target = nodes.get(kf.to_id) if kf.to_id else None
-                offset_dx, offset_dy = _resolve_relative_translate(kf.translate, node, target)
+                if kf.translate is not None:
+                    offset_dx, offset_dy = _resolve_relative_translate(kf.translate, node, target)
+                else:
+                    offset_dx, offset_dy = kf.offset_x or 0.0, kf.offset_y or 0.0
                 if target:
                     dx = target.rect.center.x - node.rect.center.x + offset_dx
                     dy = target.rect.center.y - node.rect.center.y + offset_dy

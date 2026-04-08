@@ -225,6 +225,21 @@ class MotionSpec(BaseModel):
     intensity: float | None = Field(None, description="Idle intensity (pixels or scale delta)")
     speed: float | None = Field(None, description="Idle speed")
     axis: Literal["x", "y", "both"] | None = Field("both", description="Idle motion axis")
+    # Absolute pixel offsets — kept for backwards compatibility.
+    # Prefer `translate`/`from_translate` for new animations.
+    offset_x: float | None = Field(
+        None, description="Absolute horizontal pixel offset (legacy; prefer translate)"
+    )
+    offset_y: float | None = Field(
+        None, description="Absolute vertical pixel offset (legacy; prefer translate)"
+    )
+    from_offset_x: float | None = Field(
+        None,
+        description="Absolute starting horizontal pixel offset (legacy; prefer from_translate)",
+    )
+    from_offset_y: float | None = Field(
+        None, description="Absolute starting vertical pixel offset (legacy; prefer from_translate)"
+    )
 
     @field_validator("at", "duration", mode="before")
     @classmethod
@@ -232,23 +247,6 @@ class MotionSpec(BaseModel):
         if v is not None:
             parse_duration(v)
         return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def reject_legacy_offsets(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            legacy = [
-                key
-                for key in ("offset_x", "offset_y", "from_offset_x", "from_offset_y")
-                if key in data
-            ]
-            if legacy:
-                names = ", ".join(f"`{name}`" for name in legacy)
-                raise ValueError(
-                    f"Legacy pixel offset fields are no longer supported: {names}. "
-                    "Use `translate` and `from_translate` with normalized relative values instead."
-                )
-        return data
 
 
 # ---------------------------------------------------------------------------
@@ -394,6 +392,21 @@ class AnimSpec(BaseModel):
         None,
         description="Starting relative translation for move actions (animates to `translate`).",
     )
+    # Absolute pixel offsets — kept for backwards compatibility.
+    # Prefer `translate`/`from_translate` for new animations.
+    offset_x: float | None = Field(
+        None, description="Absolute horizontal pixel offset (legacy; prefer translate)"
+    )
+    offset_y: float | None = Field(
+        None, description="Absolute vertical pixel offset (legacy; prefer translate)"
+    )
+    from_offset_x: float | None = Field(
+        None,
+        description="Absolute starting horizontal pixel offset (legacy; prefer from_translate)",
+    )
+    from_offset_y: float | None = Field(
+        None, description="Absolute starting vertical pixel offset (legacy; prefer from_translate)"
+    )
 
     model_config = {"extra": "allow"}
 
@@ -403,23 +416,6 @@ class AnimSpec(BaseModel):
         if v is not None:
             parse_duration(v)  # validates format
         return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def reject_legacy_offsets(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            legacy = [
-                key
-                for key in ("offset_x", "offset_y", "from_offset_x", "from_offset_y")
-                if key in data
-            ]
-            if legacy:
-                names = ", ".join(f"`{name}`" for name in legacy)
-                raise ValueError(
-                    f"Legacy pixel offset fields are no longer supported: {names}. "
-                    "Use `translate` and `from_translate` with normalized relative values instead."
-                )
-        return data
 
     @model_validator(mode="after")
     def validate_replace_shape(self) -> "AnimSpec":
