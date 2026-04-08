@@ -5,19 +5,19 @@ repos:
     hooks:
       - id: kaivra-repo-hygiene
         name: kaivra repo hygiene
-        entry: .venv/bin/python scripts/repo_hygiene.py --check .
+        entry: bash scripts/run_in_repo_venv.sh python scripts/repo_hygiene.py --check .
         language: system
         pass_filenames: false
         always_run: true
       - id: kaivra-ruff-format
         name: kaivra ruff format
-        entry: .venv/bin/ruff format --check .
+        entry: bash scripts/run_in_repo_venv.sh ruff format --check .
         language: system
         pass_filenames: false
         always_run: true
       - id: kaivra-ruff-check
         name: kaivra ruff check
-        entry: .venv/bin/ruff check .
+        entry: bash scripts/run_in_repo_venv.sh ruff check .
         language: system
         pass_filenames: false
         always_run: true
