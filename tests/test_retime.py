@@ -8,7 +8,7 @@ from kaivra.dsl.retime import (
 
 def test_retime_scales_scene_animations_and_duration():
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {
             "title": "Test",
             "theme": "modern",
@@ -62,7 +62,7 @@ def test_estimate_scene_duration_uses_auto_timeline():
 
 def test_audio_cues_align_scene_local_emphasis_but_leave_global_step_glow_broad():
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Test", "theme": "modern"},
         "objects": [
             {"type": "token", "id": "step_compare", "content": "Compare"},
@@ -116,7 +116,7 @@ def test_audio_cues_align_scene_local_emphasis_but_leave_global_step_glow_broad(
 
 def test_duration_only_retime_scales_scene_local_emphasis_without_inferred_beats():
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Test", "theme": "modern"},
         "objects": [{"type": "token", "id": "step_compare", "content": "Compare"}],
         "scenes": [
@@ -153,7 +153,7 @@ def test_duration_only_retime_scales_scene_local_emphasis_without_inferred_beats
 
 def test_audio_cues_align_reveals_to_narration_windows() -> None:
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Test", "theme": "modern"},
         "scenes": [
             {
@@ -202,7 +202,7 @@ def test_audio_cues_align_reveals_to_narration_windows() -> None:
 
 def test_retime_preserves_selected_pacing_baseline_when_meta_fields_are_missing():
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {
             "title": "Test",
             "theme": "modern",
@@ -230,7 +230,7 @@ def test_retime_preserves_selected_pacing_baseline_when_meta_fields_are_missing(
 def test_semantic_matching_pairs_cues_to_target_content():
     """Word cues should match animation targets by content, not position."""
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Test", "theme": "modern"},
         "scenes": [
             {
@@ -278,7 +278,7 @@ def test_semantic_matching_pairs_cues_to_target_content():
 def test_scene_duration_never_shrinks_below_authored():
     """When TTS audio is shorter than authored duration, keep the authored duration."""
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Test", "theme": "modern"},
         "scenes": [
             {
@@ -313,7 +313,7 @@ def test_scene_duration_never_shrinks_below_authored():
 def test_semantic_matching_uses_spoken_forms_aliases():
     """spoken_forms let cue matching handle alternate pronunciations/transcripts."""
     document = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Test", "theme": "modern"},
         "scenes": [
             {

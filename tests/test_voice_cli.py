@@ -65,7 +65,7 @@ def test_render_help_mentions_openai_default_provider() -> None:
 def test_quick_render_voice_surfaces_provider_setup_errors(tmp_path, monkeypatch):
     input_file = tmp_path / "demo.json"
     input_file.write_text(
-        '{"version":"1.2","meta":{"title":"Demo","theme":"modern"},"scenes":[]}',
+        '{"version":"1.3","meta":{"title":"Demo","theme":"modern"},"scenes":[]}',
         encoding="utf-8",
     )
 

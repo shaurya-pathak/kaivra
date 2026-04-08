@@ -41,7 +41,7 @@ def test_workspace_guided_flow_writes_files(tmp_path: Path) -> None:
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"title": "Queue Basics", "theme": added_theme["theme_name"]},
                 "scenes": [
                     {
@@ -169,7 +169,7 @@ def test_check_animation_flags_internal_terms_for_layperson_audience(tmp_path: P
     checked = _check_animation(
         workspace,
         {
-            "version": "1.2",
+            "version": "1.3",
             "meta": {"theme": "modern", "audience": "layperson"},
             "scenes": [
                 {
@@ -200,7 +200,7 @@ def test_check_animation_warns_when_mixed_audience_narration_is_too_codey(tmp_pa
     checked = _check_animation(
         workspace,
         {
-            "version": "1.2",
+            "version": "1.3",
             "meta": {"theme": "modern", "audience": "mixed"},
             "scenes": [
                 {
@@ -348,7 +348,7 @@ def test_check_animation_skips_explanatory_warning_for_outcome_language_with_tra
     checked = _check_animation(
         workspace,
         {
-            "version": "1.2",
+            "version": "1.3",
             "meta": {"theme": "modern", "continuity": True},
             "objects": [
                 {
@@ -465,7 +465,7 @@ def test_check_animation_write_back_enables_layout_group_visibility(tmp_path: Pa
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"theme": "modern", "show_narration": False},
                 "scenes": [
                     {
@@ -520,7 +520,7 @@ def test_check_animation_reports_narration_timing_without_rewriting_scene_durati
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"theme": "modern", "show_narration": True},
                 "scenes": [
                     {
@@ -848,7 +848,7 @@ def test_workspace_render_and_preview_find_nearest_workspace_theme_for_nested_do
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"title": "Nested Theme", "theme": theme["theme_name"]},
                 "scenes": [
                     {
@@ -880,7 +880,7 @@ def test_preview_and_render_use_document_workspace_when_server_root_is_elsewhere
     source_path.write_text(
         json.dumps(
             {
-                "version": "1.2",
+                "version": "1.3",
                 "meta": {"title": "Doc Workspace", "theme": "modern"},
                 "scenes": [
                     {
@@ -1068,7 +1068,7 @@ def test_voice_sync_findings_flag_unmatched_targets(tmp_path: Path) -> None:
     """ElevenLabs sync audit warns when narration misses animation targets."""
     workspace = KaivraWorkspace(tmp_path)
     doc = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Sync Test", "theme": "modern"},
         "scenes": [
             {
@@ -1107,7 +1107,7 @@ def test_voice_sync_findings_warn_for_local_voice(tmp_path: Path) -> None:
     """Local voice still benefits from keyword-match warnings during authoring."""
     workspace = KaivraWorkspace(tmp_path)
     doc = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Sync Test", "theme": "modern"},
         "scenes": [
             {
@@ -1139,7 +1139,7 @@ def test_voice_sync_findings_warn_for_local_voice(tmp_path: Path) -> None:
 def test_voice_sync_findings_warn_for_openai_voice(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     doc = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Sync Test", "theme": "modern"},
         "scenes": [
             {
@@ -1171,7 +1171,7 @@ def test_voice_sync_findings_warn_for_openai_voice(tmp_path: Path) -> None:
 def test_voice_sync_findings_skip_connectors_and_tracker_tokens(tmp_path: Path) -> None:
     workspace = KaivraWorkspace(tmp_path)
     doc = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Sync Test", "theme": "modern"},
         "objects": [
             {
@@ -1219,7 +1219,7 @@ def test_voice_sync_findings_absent_without_voice_flag(tmp_path: Path) -> None:
     """check_animation without voice=True should not emit voice_sync findings."""
     workspace = KaivraWorkspace(tmp_path)
     doc = {
-        "version": "1.2",
+        "version": "1.3",
         "meta": {"title": "Sync Test", "theme": "modern"},
         "scenes": [
             {
@@ -1247,7 +1247,7 @@ def test_check_animation_warns_when_continuity_id_changes_content_too_much(tmp_p
     result = _check_animation(
         workspace,
         {
-            "version": "1.2",
+            "version": "1.3",
             "meta": {"theme": "modern", "continuity": True},
             "scenes": [
                 {
@@ -1286,7 +1286,7 @@ def test_check_animation_skips_continuity_warning_for_scene_titles(tmp_path: Pat
     result = _check_animation(
         workspace,
         {
-            "version": "1.2",
+            "version": "1.3",
             "meta": {"theme": "modern", "continuity": True},
             "scenes": [
                 {
